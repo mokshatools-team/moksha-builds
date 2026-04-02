@@ -1,0 +1,1859 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Text Overlay Assistant</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Outfit:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    /* ── Reset ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ── Variables ── */
+    :root {
+      --bg:          #0F0D0B;
+      --surface-0:   #141210;
+      --surface-1:   #1C1815;
+      --surface-2:   #241F1B;
+      --surface-3:   #2C2520;
+      --border:      #302820;
+      --border-soft: #221D19;
+
+      --accent:      #C8622A;
+      --accent-dim:  #8F4520;
+      --accent-glow: rgba(200, 98, 42, 0.18);
+      --accent-glow2:rgba(200, 98, 42, 0.07);
+
+      --text:        #F0E6DC;
+      --text-2:      #B8A898;
+      --text-3:      #6E5E52;
+      --text-4:      #3C3028;
+
+      --font-serif:  'Cormorant Garamond', Georgia, serif;
+      --font-sans:   'Outfit', system-ui, sans-serif;
+      --font-mono:   'JetBrains Mono', monospace;
+
+      --radius-sm:   4px;
+      --radius:      8px;
+      --radius-lg:   12px;
+
+      /* Overlay type tokens */
+      --ch-bg:        #1A1510;
+      --ch-border:    #3C2C1C;
+      --ch-text:      #F0E6DC;
+      --ch-badge-bg:  #2C2010;
+      --ch-badge-ink: #C8A87A;
+
+      --ls-bg:        #0E1620;
+      --ls-border:    #1C3050;
+      --ls-text:      #D0E4F0;
+      --ls-badge-bg:  #162540;
+      --ls-badge-ink: #6AAAC8;
+
+      --kw-bg:        #1A1008;
+      --kw-border:    #3C1C08;
+      --kw-text:      #F0D8C0;
+      --kw-badge-bg:  #2C1808;
+      --kw-badge-ink: #C8622A;
+
+      --red:         #C0392B;
+      --red-bg:      rgba(192, 57, 43, 0.12);
+      --red-border:  rgba(192, 57, 43, 0.3);
+
+      --green:       #7A9E6A;
+      --green-bg:    rgba(122, 158, 106, 0.12);
+      --green-border:rgba(122, 158, 106, 0.3);
+    }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--surface-3); border-radius: 4px; }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      font-size: 13px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Top bar ── */
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 28px;
+      height: 54px;
+      background: var(--surface-0);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .app-name {
+      font-family: var(--font-serif);
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+      color: var(--text);
+    }
+
+    .legend { display: flex; align-items: center; gap: 16px; }
+    .legend-item {
+      display: flex; align-items: center; gap: 7px;
+      font-size: 11px; color: var(--text-3);
+      font-weight: 400;
+    }
+    .pill {
+      display: inline-flex; align-items: center;
+      padding: 2px 7px; border-radius: 3px;
+      font-size: 9px; font-weight: 700;
+      letter-spacing: 0.08em;
+      font-family: var(--font-sans);
+    }
+    .pill.ch { background: var(--ch-badge-bg); color: var(--ch-badge-ink); border: 1px solid var(--ch-border); }
+    .pill.ls { background: var(--ls-badge-bg); color: var(--ls-badge-ink); border: 1px solid var(--ls-border); }
+    .pill.kw { background: var(--kw-badge-bg); color: var(--kw-badge-ink); border: 1px solid var(--kw-border); }
+
+    /* ── Screens ── */
+    .screen { display: none; }
+    #screen-pick.active    { display: block; }
+    #screen-loading.active { display: flex; align-items: center; justify-content: center; min-height: calc(100vh - 54px); }
+    #screen-review.active  { display: block; }
+
+    /* ── Pick screen ── */
+    .pick-wrap {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 40px 24px 80px;
+    }
+
+    .pick-heading {
+      font-family: var(--font-serif);
+      font-size: 28px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 6px;
+      letter-spacing: -0.01em;
+    }
+    .pick-sub {
+      font-size: 13px;
+      color: var(--text-3);
+      margin-bottom: 28px;
+      font-weight: 400;
+    }
+
+    .input-card {
+      background: var(--surface-1);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      box-shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
+    }
+
+    .ingestion-tabs {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+
+    .ingestion-tab {
+      background: var(--surface-1);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 14px 14px 12px;
+      color: var(--text-2);
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s, box-shadow 0.15s, transform 0.15s;
+      text-align: left;
+    }
+    .ingestion-tab:hover {
+      border-color: var(--accent-dim);
+      background: var(--surface-2);
+      transform: translateY(-1px);
+    }
+    .ingestion-tab.active {
+      border-color: var(--accent);
+      background: rgba(200, 98, 42, 0.08);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+      color: var(--text);
+    }
+    .ingestion-tab-title {
+      display: block;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+    .ingestion-tab-sub {
+      display: block;
+      font-size: 12px;
+      line-height: 1.4;
+      color: var(--text-3);
+    }
+
+    .ingestion-panel { display: none; }
+    .ingestion-panel.active { display: block; }
+
+    .account-state {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 16px;
+      border-radius: var(--radius);
+      background: var(--surface-2);
+      border: 1px solid var(--border-soft);
+      margin-bottom: 14px;
+    }
+    .account-state-text {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--text-2);
+      min-height: 24px;
+    }
+    .account-state-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--green);
+      font-weight: 600;
+    }
+    .account-check {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--green-bg);
+      border: 1px solid var(--green-border);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+    }
+    .account-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .account-help {
+      font-size: 11px;
+      color: var(--text-3);
+      line-height: 1.55;
+    }
+
+    .input-section {
+      padding: 18px 20px;
+      border-bottom: 1px solid var(--border-soft);
+    }
+    .input-section:last-child { border-bottom: none; }
+
+    .field-label {
+      display: block;
+      font-size: 9.5px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-3);
+      margin-bottom: 8px;
+      font-family: var(--font-sans);
+    }
+
+    .field-input {
+      width: 100%;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 12px;
+      font-size: 13px;
+      color: var(--text);
+      font-family: var(--font-sans);
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+    .field-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px var(--accent-glow);
+    }
+    .field-input::placeholder { color: var(--text-4); }
+
+    /* Custom select arrow */
+    .select-wrap { position: relative; }
+    .select-wrap::after {
+      content: '';
+      position: absolute;
+      right: 12px; top: 50%;
+      transform: translateY(-50%);
+      width: 0; height: 0;
+      border-left: 4px solid transparent;
+      border-right: 4px solid transparent;
+      border-top: 5px solid var(--text-3);
+      pointer-events: none;
+    }
+    .select-wrap select { padding-right: 32px; cursor: pointer; }
+    select option { background: var(--surface-2); color: var(--text); }
+
+    /* File upload zone */
+    .upload-zone {
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 28px 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+      background: var(--surface-2);
+      position: relative;
+    }
+    .upload-zone:hover { border-color: var(--accent-dim); }
+    .upload-zone.has-file { border-color: var(--accent); border-style: solid; }
+    .upload-zone input[type="file"] {
+      position: absolute; inset: 0; width: 100%; height: 100%;
+      opacity: 0; cursor: pointer;
+    }
+    .upload-icon { font-size: 24px; margin-bottom: 8px; }
+    .upload-label { font-size: 13px; color: var(--text-2); margin-bottom: 4px; }
+    .upload-hint  { font-size: 11px; color: var(--text-3); }
+    .upload-name  { font-size: 13px; color: var(--accent); font-weight: 500; }
+
+    .input-separator {
+      padding: 12px 20px;
+      border-bottom: 1px solid var(--border-soft);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: var(--text-4);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+    .input-separator::before,
+    .input-separator::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border-soft);
+    }
+
+    /* Offset hint */
+    .offset-hint {
+      font-size: 11px; color: var(--accent);
+      margin-top: 7px; font-weight: 500;
+      display: none;
+    }
+    .offset-hint.visible { display: block; }
+    .offset-sub { font-size: 11px; color: var(--text-3); margin-top: 5px; }
+
+    /* Density slider */
+    .density-header {
+      display: flex; align-items: baseline;
+      justify-content: space-between; margin-bottom: 12px;
+    }
+    .density-active-label { font-size: 13px; font-weight: 600; color: var(--text); }
+
+    .density-slider {
+      width: 100%; -webkit-appearance: none; appearance: none;
+      height: 2px; border-radius: 2px; outline: none; cursor: pointer;
+      background: var(--border);
+    }
+    .density-slider::-webkit-slider-thumb {
+      -webkit-appearance: none; appearance: none;
+      width: 16px; height: 16px; border-radius: 50%;
+      background: var(--accent); cursor: pointer;
+      border: 2px solid var(--surface-1);
+      box-shadow: 0 0 0 2px var(--accent-glow);
+    }
+    .density-desc {
+      font-size: 12px; color: var(--text-3);
+      margin-top: 10px; line-height: 1.5;
+    }
+
+    /* Action row */
+    .action-row {
+      padding: 18px 20px;
+      display: flex; align-items: center; justify-content: flex-end;
+    }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      gap: 6px; padding: 9px 18px;
+      border-radius: var(--radius); font-size: 13px;
+      font-weight: 600; cursor: pointer; border: none;
+      font-family: var(--font-sans);
+      transition: background 0.12s, opacity 0.12s, box-shadow 0.12s;
+      white-space: nowrap; letter-spacing: 0.01em;
+    }
+    .btn-accent { background: var(--accent); color: #fff; }
+    .btn-accent:hover { background: #D97035; box-shadow: 0 0 0 3px var(--accent-glow); }
+    .btn-accent:disabled { opacity: 0.3; cursor: not-allowed; box-shadow: none; }
+
+    .btn-ghost {
+      background: transparent; color: var(--text-2);
+      border: 1px solid var(--border);
+    }
+    .btn-ghost:hover { background: var(--surface-2); border-color: var(--text-3); color: var(--text); }
+
+    /* ── Error box ── */
+    .msg-box {
+      margin-top: 14px;
+      padding: 11px 14px;
+      border-radius: var(--radius);
+      font-size: 13px; line-height: 1.5;
+      display: none;
+    }
+    .msg-box.error { background: var(--red-bg); border: 1px solid var(--red-border); color: var(--red); display: block; }
+
+    /* ── Loading screen ── */
+    .loading-wrap { text-align: center; padding: 48px 32px; }
+    .loading-phase-badge {
+      display: inline-block;
+      font-size: 9.5px; font-weight: 600;
+      letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--accent); background: var(--accent-glow2);
+      border: 1px solid var(--border);
+      border-radius: 20px; padding: 3px 14px;
+      margin-bottom: 24px;
+    }
+    .spinner {
+      width: 30px; height: 30px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 18px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-status { font-size: 15px; font-weight: 500; margin-bottom: 6px; color: var(--text); }
+    .loading-sub    { font-size: 12px; color: var(--text-3); }
+
+    /* ── Accordions ── */
+    .setup-section { margin-top: 20px; }
+
+    .accordion {
+      border: 1px solid var(--border-soft);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      background: var(--surface-0);
+    }
+    .accordion + .accordion { margin-top: 8px; }
+
+    .accordion-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 13px 18px; cursor: pointer;
+      font-size: 13px; font-weight: 500; color: var(--text-2);
+      user-select: none; transition: background 0.12s;
+    }
+    .accordion-header:hover { background: var(--surface-1); color: var(--text); }
+    .accordion-chevron { font-size: 10px; color: var(--text-3); transition: transform 0.2s; }
+    .accordion.open .accordion-chevron { transform: rotate(180deg); }
+    .accordion-body {
+      display: none;
+      padding: 0 18px 18px;
+      font-size: 12.5px; color: var(--text-2); line-height: 1.75;
+      border-top: 1px solid var(--border-soft);
+    }
+    .accordion.open .accordion-body { display: block; }
+    .accordion-body h4 {
+      font-size: 9.5px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.1em; color: var(--text-3);
+      margin: 16px 0 6px;
+    }
+    .accordion-body h4:first-child { margin-top: 14px; }
+    .accordion-body ol, .accordion-body ul { padding-left: 18px; }
+    .accordion-body li { margin-bottom: 6px; }
+    .accordion-body code {
+      font-family: var(--font-mono); font-size: 11.5px;
+      background: var(--surface-2); border: 1px solid var(--border);
+      padding: 1px 6px; border-radius: 3px; color: var(--accent);
+    }
+    .accordion-body a { color: var(--accent); font-weight: 600; text-decoration: none; }
+    .accordion-body a:hover { text-decoration: underline; }
+
+    /* ── Review screen ── */
+    #screen-review {
+      max-width: 760px; margin: 0 auto;
+      padding: 40px 24px 100px;
+    }
+
+    .review-project {
+      font-family: var(--font-serif);
+      font-size: 30px; font-weight: 600;
+      letter-spacing: -0.015em; margin-bottom: 4px;
+      color: var(--text);
+    }
+    .review-filename {
+      font-size: 11px; color: var(--text-3);
+      font-family: var(--font-mono);
+      margin-bottom: 24px;
+    }
+
+    .context-cards { display: grid; gap: 10px; margin-bottom: 24px; }
+    .context-card {
+      background: var(--surface-1); border: 1px solid var(--border-soft);
+      border-radius: var(--radius-lg); padding: 16px 18px;
+    }
+    .context-card-label {
+      font-size: 9.5px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.1em; color: var(--text-3); margin-bottom: 6px;
+    }
+    .context-card p { font-size: 13px; color: var(--text-2); line-height: 1.65; }
+
+    .density-card {
+      background: var(--surface-1); border: 1px solid var(--border-soft);
+      border-radius: var(--radius-lg); padding: 18px 20px; margin-bottom: 20px;
+    }
+
+    .review-meta {
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 10px; margin-bottom: 16px;
+    }
+    .count-row { font-size: 12px; color: var(--text-3); display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
+    .count-sep { opacity: 0.3; margin: 0 2px; }
+    .count-total { font-weight: 600; color: var(--text-2); }
+
+    /* ── Outline ── */
+    .outline {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      background: var(--surface-1);
+      margin-bottom: 24px;
+    }
+
+    .chapter-block { border-bottom: 1px solid var(--border-soft); }
+    .chapter-block:last-child { border-bottom: none; }
+
+    /* Insert zone */
+    .insert-zone {
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      height: 0; overflow: hidden; opacity: 0;
+      cursor: pointer; background: var(--accent-glow2);
+      transition: height 0.15s ease, opacity 0.15s ease;
+    }
+    .chapter-block:hover .insert-zone,
+    .insert-zone:hover {
+      height: 26px; opacity: 1;
+    }
+    .insert-zone-label {
+      font-size: 10.5px; font-weight: 600; color: var(--accent);
+      user-select: none; white-space: nowrap;
+    }
+    .insert-zone-line { flex: 1; height: 1px; background: var(--border); max-width: 100px; }
+
+    /* Insert form */
+    .insert-form {
+      display: none;
+      padding: 10px 14px;
+      background: var(--surface-0);
+      border-top: 1px solid var(--border-soft);
+      border-bottom: 1px solid var(--border-soft);
+      gap: 8px; align-items: center; flex-wrap: wrap;
+    }
+    .insert-form.open { display: flex; }
+
+    .insert-type-btns { display: flex; gap: 4px; }
+    .insert-type-btn {
+      padding: 4px 9px; border-radius: 3px;
+      font-size: 9px; font-weight: 700; letter-spacing: 0.07em;
+      cursor: pointer; border: 1px solid var(--border);
+      background: var(--surface-2); color: var(--text-3);
+      transition: background 0.1s, color 0.1s, border-color 0.1s;
+      font-family: var(--font-sans);
+    }
+    .insert-type-btn.active-kw { background: var(--kw-badge-bg); color: var(--kw-badge-ink); border-color: var(--kw-border); }
+    .insert-type-btn.active-ch { background: var(--ch-badge-bg); color: var(--ch-badge-ink); border-color: var(--ch-border); }
+    .insert-type-btn.active-ls { background: var(--ls-badge-bg); color: var(--ls-badge-ink); border-color: var(--ls-border); }
+
+    .insert-time-input {
+      width: 72px;
+      background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 5px 8px;
+      font-size: 12px; color: var(--text); font-family: var(--font-mono);
+      outline: none;
+    }
+    .insert-time-input:focus { border-color: var(--accent); }
+
+    .insert-text-input {
+      flex: 1; min-width: 140px;
+      background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 5px 8px;
+      font-size: 12.5px; color: var(--text); font-family: var(--font-sans);
+      outline: none;
+    }
+    .insert-text-input:focus { border-color: var(--accent); }
+
+    .insert-save-btn {
+      width: 26px; height: 26px; border-radius: var(--radius-sm);
+      background: var(--accent); color: #fff;
+      border: none; cursor: pointer; font-size: 13px;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.1s;
+    }
+    .insert-save-btn:hover { background: #D97035; }
+
+    .insert-cancel-btn {
+      width: 26px; height: 26px; border-radius: var(--radius-sm);
+      background: transparent; color: var(--text-3);
+      border: 1px solid var(--border); cursor: pointer; font-size: 14px;
+      display: flex; align-items: center; justify-content: center;
+      transition: color 0.1s, background 0.1s;
+    }
+    .insert-cancel-btn:hover { color: var(--red); background: var(--red-bg); border-color: var(--red-border); }
+
+    /* Overlay rows */
+    .chapter-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 13px 16px;
+      background: var(--ch-bg); border-left: 3px solid var(--ch-border);
+    }
+    .chapter-row .overlay-text { font-size: 13px; font-weight: 600; color: var(--ch-text); flex: 1; }
+
+    .item-row {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 10px 16px 10px 28px;
+      border-bottom: 1px solid var(--border-soft);
+    }
+    .item-row:last-child { border-bottom: none; }
+    .item-row.list-row { background: var(--ls-bg); border-left: 3px solid var(--ls-border); }
+    .item-row.kw-row   { background: var(--kw-bg); border-left: 3px solid var(--kw-border); }
+    .item-row .overlay-text { font-size: 13px; flex: 1; }
+    .item-row.list-row .overlay-text { color: var(--ls-text); }
+    .item-row.kw-row   .overlay-text { font-style: italic; color: var(--kw-text); }
+
+    .type-pill {
+      flex-shrink: 0; display: inline-flex; align-items: center;
+      padding: 2px 6px; border-radius: 3px;
+      font-size: 9px; font-weight: 700; letter-spacing: 0.06em;
+    }
+    .type-pill.ch { background: var(--ch-badge-bg); color: var(--ch-badge-ink); border: 1px solid var(--ch-border); }
+    .type-pill.ls { background: var(--ls-badge-bg); color: var(--ls-badge-ink); border: 1px solid var(--ls-border); }
+    .type-pill.kw { background: var(--kw-badge-bg); color: var(--kw-badge-ink); border: 1px solid var(--kw-border); }
+
+    .ts {
+      font-size: 10.5px; color: var(--text-4);
+      font-family: var(--font-mono); flex-shrink: 0; min-width: 34px;
+    }
+    .ts.hidden { display: none; }
+
+    .delete-btn {
+      flex-shrink: 0; margin-left: auto;
+      width: 22px; height: 22px;
+      display: flex; align-items: center; justify-content: center;
+      background: none; border: none; color: var(--text-4); cursor: pointer;
+      border-radius: var(--radius-sm); font-size: 15px; line-height: 1;
+      transition: color 0.12s, background 0.12s;
+    }
+    .delete-btn:hover { color: var(--red); background: var(--red-bg); }
+    .delete-btn.strikethrough-active { color: var(--red); background: var(--red-bg); }
+
+    .expand-btn {
+      flex-shrink: 0; width: 16px; height: 16px;
+      background: none; border: none; color: var(--text-4); cursor: pointer;
+      font-size: 8px; line-height: 1;
+      display: flex; align-items: center; justify-content: center;
+      transition: color 0.12s; padding: 0;
+    }
+    .expand-btn:hover { color: var(--text-3); }
+    .expand-chevron { display: inline-block; transition: transform 0.15s; }
+    .expand-btn.open .expand-chevron { transform: rotate(90deg); }
+
+    .overlay-detail {
+      display: none;
+      padding: 8px 16px 12px 44px;
+      border-bottom: 1px solid var(--border-soft);
+    }
+    .overlay-detail.open { display: block; }
+    .detail-reason { font-size: 11.5px; color: var(--text-3); line-height: 1.6; margin-bottom: 5px; }
+    .detail-quote  { font-size: 11.5px; color: var(--text-3); font-style: italic; line-height: 1.6; }
+
+    /* Strikethrough */
+    .row-struck .overlay-text,
+    .row-struck .type-pill,
+    .row-struck .ts { text-decoration: line-through; opacity: 0.35; }
+
+    /* Inline editing */
+    .overlay-text[contenteditable="true"] {
+      background: var(--surface-2); border-radius: 3px;
+      outline: 2px solid var(--accent); padding: 1px 5px;
+      cursor: text; min-width: 40px;
+    }
+
+    .review-actions {
+      display: flex; align-items: center;
+      justify-content: flex-end; gap: 10px; margin-top: 8px;
+    }
+
+    .sop-section { margin-top: 32px; }
+
+    /* ── Responsive ── */
+    @media (max-width: 540px) {
+      .topbar { padding: 0 16px; }
+      .legend-item span:not(.pill) { display: none; }
+      .pick-wrap { padding: 24px 16px 60px; }
+      .ingestion-tabs { grid-template-columns: 1fr; }
+      .account-state { flex-direction: column; align-items: stretch; }
+      .review-actions { flex-direction: column; align-items: stretch; }
+      .review-actions .btn { justify-content: center; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── Top bar ── -->
+  <header class="topbar">
+    <div class="app-name">Text Overlay Assistant</div>
+    <div class="legend">
+      <div class="legend-item"><span class="pill ch">CH</span><span>Chapter</span></div>
+      <div class="legend-item"><span class="pill ls">LS</span><span>List</span></div>
+      <div class="legend-item"><span class="pill kw">KW</span><span>Keyword</span></div>
+    </div>
+  </header>
+
+  <!-- ── Pick screen ── -->
+  <section id="screen-pick" class="screen">
+    <div class="pick-wrap">
+
+      <h1 class="pick-heading">Analyze a video</h1>
+      <p class="pick-sub">Choose one ingestion path, set your project name, and let Claude build the highlight plan.</p>
+
+      <div class="ingestion-tabs">
+        <button type="button" class="ingestion-tab active" id="tab-file" onclick="setIngestionMode('file')">
+          <span class="ingestion-tab-title">File</span>
+          <span class="ingestion-tab-sub">Upload on Railway or pick from your local watch folder.</span>
+        </button>
+        <button type="button" class="ingestion-tab" id="tab-youtube-url" onclick="setIngestionMode('youtube-url')">
+          <span class="ingestion-tab-title">YouTube URL</span>
+          <span class="ingestion-tab-sub">Paste a public video URL and transcribe it with the existing flow.</span>
+        </button>
+        <button type="button" class="ingestion-tab" id="tab-youtube-account" onclick="setIngestionMode('youtube-account')">
+          <span class="ingestion-tab-title">YouTube Account</span>
+          <span class="ingestion-tab-sub">Connect your Google account and pull captions by video ID or URL.</span>
+        </button>
+      </div>
+
+      <div class="input-card">
+
+        <div class="input-section">
+          <div class="ingestion-panel active" id="panel-file">
+            <label class="field-label" id="file-label">Video file</label>
+
+            <div class="select-wrap" id="file-dropdown-wrap" style="display:none;">
+              <select class="field-input" id="file-select" onchange="onFileSelect()">
+                <option value="">— select a file —</option>
+              </select>
+            </div>
+
+            <div class="upload-zone" id="upload-zone" style="display:none;">
+              <input type="file" id="file-upload" accept=".mp4,.mov,.mxf,.avi" onchange="onFileUpload(this)" />
+              <div class="upload-icon">📁</div>
+              <div class="upload-label" id="upload-label">Click or drag a video file here</div>
+              <div class="upload-hint">mp4 · mov · mxf · avi</div>
+            </div>
+          </div>
+
+          <div class="ingestion-panel" id="panel-youtube-url">
+            <label class="field-label" for="youtube-url-input">Paste a YouTube URL</label>
+            <input class="field-input" id="youtube-url-input" type="text"
+                   placeholder="https://www.youtube.com/watch?v=..."
+                   autocomplete="off" spellcheck="false" />
+          </div>
+
+          <div class="ingestion-panel" id="panel-youtube-account">
+            <label class="field-label">YouTube account</label>
+            <div class="account-state">
+              <div class="account-state-text" id="youtube-account-state"></div>
+              <div class="account-actions">
+                <a class="btn btn-accent" id="youtube-connect-btn" href="/auth/youtube">Connect YouTube →</a>
+                <button type="button" class="btn btn-ghost" id="youtube-disconnect-btn" style="display:none;">Disconnect</button>
+              </div>
+            </div>
+            <div class="select-wrap" id="youtube-account-select-wrap" style="display:none; margin-bottom:12px;">
+              <select class="field-input" id="youtube-account-select">
+                <option value="">— select a video from your channel —</option>
+              </select>
+            </div>
+            <p class="account-help" id="youtube-account-list-help" style="display:none; margin-bottom:12px;">Published and unlisted videos longer than 3 minutes.</p>
+            <input class="field-input" id="youtube-account-input" type="text"
+                   placeholder="Or paste a YouTube URL or video ID"
+                   autocomplete="off" spellcheck="false" />
+            <p class="account-help" id="youtube-account-help">Connect your account first. After that, the app will try the YouTube captions API, then transcript fallbacks, and continue through the same Claude analysis flow.</p>
+          </div>
+        </div>
+
+        <!-- Project name -->
+        <div class="input-section">
+          <label class="field-label" for="project-input">Project name</label>
+          <input class="field-input" id="project-input" type="text"
+                 placeholder="e.g. YTF1.3 Arthrose"
+                 autocomplete="off" spellcheck="false" />
+        </div>
+
+        <!-- Timeline offset -->
+        <div class="input-section">
+          <label class="field-label" for="offset-input">Timeline offset <span style="font-weight:400;letter-spacing:0;text-transform:none;color:var(--text-4)">— optional</span></label>
+          <input class="field-input" id="offset-input" type="text"
+                 placeholder="00:00:00"
+                 autocomplete="off" spellcheck="false"
+                 style="font-family:var(--font-mono);letter-spacing:0.05em;" />
+          <div class="offset-hint" id="offset-hint"></div>
+          <div class="offset-sub">Add to every Whisper timestamp — use for clips exported from longer sessions.</div>
+        </div>
+
+        <!-- Density -->
+        <div class="input-section">
+          <div class="density-header">
+            <label class="field-label" style="margin-bottom:0;">Highlight density</label>
+            <span class="density-active-label" id="density-active-label">Balanced</span>
+          </div>
+          <input type="range" class="density-slider" id="density-slider" min="0" max="3" step="1" value="1" />
+          <p class="density-desc" id="density-desc">Natural mix of chapters, lists, and keywords.</p>
+        </div>
+
+        <!-- Analyze -->
+        <div class="action-row">
+          <button class="btn btn-accent" id="analyze-btn" disabled>Analyze →</button>
+        </div>
+
+      </div>
+
+      <div id="error-msg" class="msg-box"></div>
+
+      <!-- Setup instructions -->
+      <div class="setup-section">
+        <div class="accordion" id="acc-setup">
+          <div class="accordion-header" onclick="toggleAccordion('acc-setup')">
+            First time? Initial setup
+            <span class="accordion-chevron">▼</span>
+          </div>
+          <div class="accordion-body">
+
+            <h4>1 — Install ffmpeg</h4>
+            <p>Required for audio extraction. On Mac (requires Homebrew):</p>
+            <p style="margin-top:6px;"><code>brew install ffmpeg</code></p>
+
+            <h4>2 — Set your watch folder</h4>
+            <p>In your <code>.env</code> file, add:</p>
+            <p style="margin-top:6px;"><code>WATCH_FOLDER_PATH=/path/to/your/folder</code></p>
+            <p style="margin-top:6px;">Drop your video files there — they'll appear in the dropdown above. Without this variable, you'll see a file upload button instead.</p>
+
+            <h4>3 — Add your API keys to .env</h4>
+            <p style="margin-top:4px;">
+              <code>OPENAI_API_KEY=sk-...</code>&nbsp; ← from <a href="https://platform.openai.com/api-keys" target="_blank">platform.openai.com</a><br>
+              <code>ANTHROPIC_API_KEY=sk-ant-...</code>&nbsp; ← from <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a>
+            </p>
+
+            <h4>4 — Install the DaVinci Resolve script</h4>
+            <p><a href="/download/script">⬇ Download place_overlays.py</a></p>
+            <p style="margin-top:6px;">Copy to:</p>
+            <ul style="margin-top:4px;">
+              <li><strong>Mac:</strong> <code>~/Library/Application Support/Blackmagic Design/DaVinci Resolve/Fusion/Scripts/Utility/</code></li>
+              <li><strong>Windows:</strong> <code>C:\ProgramData\Blackmagic Design\DaVinci Resolve\Fusion\Scripts\Utility\</code></li>
+            </ul>
+            <p style="margin-top:6px;">Restart Resolve. Script appears under <strong>Workspace → Scripts → place_overlays</strong>.</p>
+
+            <h4>5 — Create Fusion Title templates</h4>
+            <p>Create three templates with <strong>exactly</strong> these names (case-sensitive):</p>
+            <ul style="margin-top:4px;">
+              <li><code>TOA_Chapter</code></li>
+              <li><code>TOA_List</code></li>
+              <li><code>TOA_Keyword</code></li>
+            </ul>
+            <p style="margin-top:6px;">In each template, rename the <strong>Text+</strong> node to <code>OverlayText</code>.</p>
+
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ── Loading screen ── -->
+  <section id="screen-loading" class="screen">
+    <div class="loading-wrap">
+      <div class="loading-phase-badge" id="loading-phase-badge">1 / 2 — Transcription</div>
+      <div class="spinner"></div>
+      <p class="loading-status" id="loading-status">Transcribing audio…</p>
+      <p class="loading-sub" id="loading-sub">This may take 20–60 seconds depending on file size.</p>
+    </div>
+  </section>
+
+  <!-- ── Review screen ── -->
+  <section id="screen-review" class="screen">
+
+    <h1 class="review-project" id="review-project"></h1>
+    <div class="review-filename" id="review-filename"></div>
+
+    <div class="context-cards">
+      <div class="context-card">
+        <div class="context-card-label">About this video</div>
+        <p id="review-summary"></p>
+      </div>
+      <div class="context-card">
+        <div class="context-card-label">Highlight strategy</div>
+        <p id="review-strategy"></p>
+      </div>
+    </div>
+
+    <!-- Density re-run -->
+    <div class="density-card">
+      <div class="density-header">
+        <label class="field-label" style="margin-bottom:0;">Highlight density</label>
+        <span class="density-active-label" id="review-density-active-label">Balanced</span>
+      </div>
+      <input type="range" class="density-slider" id="review-density-slider" min="0" max="3" step="1" value="1" />
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;gap:12px;">
+        <p class="density-desc" id="review-density-desc" style="margin-top:0;flex:1;">Natural mix of chapters, lists, and keywords.</p>
+        <button class="btn btn-ghost" id="revise-btn" style="font-size:12px;padding:6px 14px;flex-shrink:0;">Revise</button>
+      </div>
+    </div>
+
+    <div class="review-meta">
+      <div class="count-row" id="count-row"></div>
+      <button class="btn btn-ghost" id="toggle-ts-btn" style="font-size:12px;padding:6px 14px;">Show timestamps</button>
+    </div>
+
+    <div class="outline" id="outline"></div>
+
+    <div class="review-actions">
+      <button class="btn btn-ghost"  id="new-project-btn">New project</button>
+      <button class="btn btn-accent" id="approve-btn">Download JSON</button>
+    </div>
+
+    <!-- DaVinci SOP -->
+    <div class="sop-section">
+      <div class="accordion" id="acc-next">
+        <div class="accordion-header" onclick="toggleAccordion('acc-next')">
+          What do I do next?
+          <span class="accordion-chevron">▼</span>
+        </div>
+        <div class="accordion-body">
+          <h4>In DaVinci Resolve</h4>
+          <ol>
+            <li>Open your project and make sure the correct <strong>timeline is active</strong>.</li>
+            <li>Click <strong>Workspace → Scripts → place_overlays</strong> in the top menu bar.</li>
+            <li>A file picker opens — navigate to <strong>Downloads</strong> and select the JSON file.</li>
+            <li>The script places highlights on dedicated tracks:<br>
+              <div style="margin-top:6px;display:flex;flex-direction:column;gap:4px;">
+                <span><span class="pill ch" style="font-size:8px;vertical-align:middle;margin-right:4px;">CH</span> V4 — Chapter overlays</span>
+                <span><span class="pill ls" style="font-size:8px;vertical-align:middle;margin-right:4px;">LS</span> V3 — List overlays</span>
+                <span><span class="pill kw" style="font-size:8px;vertical-align:middle;margin-right:4px;">KW</span> V2 — Keyword overlays</span>
+                <span style="color:var(--text-3)">V1 — Your main edit, untouched</span>
+              </div>
+            </li>
+            <li>Review the timeline, adjust timing or text, and render.</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ── JavaScript ── -->
+  <script>
+    // ── State ──
+    let currentData          = null;
+    let selectedFile         = null;
+    let uploadedOriginalName = '';
+    let selectedYoutubeUrl   = '';
+    let selectedYoutubeOauthVideo = '';
+    let youtubeAccountVideos = [];
+    let showTimestamps       = false;
+    let appMode              = 'local';
+    let uploadInProgress     = false;
+    let activeIngestionMode  = 'file';
+    let youtubeAuthConnected = false;
+
+    // ── Density config ──
+    const DENSITY_LABELS = ['Minimal', 'Balanced', 'Detailed', 'Maximum'];
+    const DENSITY_DESCS  = [
+      'Chapters only — clean structural markers, no keyword clutter.',
+      'Natural mix of chapters, lists, and keywords.',
+      'More coverage across all three types — richer annotation.',
+      'Maximum highlights — every notable moment captured.',
+    ];
+
+    const densitySlider       = document.getElementById('density-slider');
+    const reviewDensitySlider = document.getElementById('review-density-slider');
+
+    function updateDensityUI(val) {
+      densitySlider.value      = val;
+      reviewDensitySlider.value = val;
+      document.getElementById('density-active-label').textContent        = DENSITY_LABELS[val];
+      document.getElementById('review-density-active-label').textContent = DENSITY_LABELS[val];
+      document.getElementById('density-desc').textContent                = DENSITY_DESCS[val];
+      document.getElementById('review-density-desc').textContent         = DENSITY_DESCS[val];
+    }
+
+    densitySlider.addEventListener('input', () => updateDensityUI(parseInt(densitySlider.value)));
+    reviewDensitySlider.addEventListener('input', () => updateDensityUI(parseInt(reviewDensitySlider.value)));
+
+    document.getElementById('revise-btn').addEventListener('click', () => {
+      if (!currentData) return;
+      densitySlider.value = reviewDensitySlider.value;
+      runAnalysis();
+    });
+
+    // ── Screen switching ──
+    function showScreen(id) {
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+    }
+
+    // ── Error helpers ──
+    function showError(msg) {
+      const el = document.getElementById('error-msg');
+      el.textContent = msg;
+      el.className   = 'msg-box error';
+    }
+    function clearError() {
+      const el = document.getElementById('error-msg');
+      el.textContent = '';
+      el.className   = 'msg-box';
+    }
+
+    // ── Offset detection from filename ──
+    function detectOffsetFromFilename(name) {
+      const m = name.match(/(\d{1,2})h(\d{2})m(\d{2})s/i);
+      if (!m) return null;
+      const h = parseInt(m[1]), mn = parseInt(m[2]), s = parseInt(m[3]);
+      return `${String(h).padStart(2,'0')}:${String(mn).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+    }
+
+    function filenameToProjectName(filename) {
+      return filename.replace(/\.\w+$/, '').replace(/[_\-]+/g, ' ').replace(/\s+/g, ' ').trim();
+    }
+
+    function refreshAnalyzeButton() {
+      const analyzeBtn = document.getElementById('analyze-btn');
+      const hasFile = !!selectedFile;
+      const hasYoutubeUrl = !!selectedYoutubeUrl.trim();
+      const hasYoutubeOauthVideo = !!selectedYoutubeOauthVideo.trim();
+      const hasActiveInput = activeIngestionMode === 'file'
+        ? hasFile
+        : activeIngestionMode === 'youtube-url'
+          ? hasYoutubeUrl
+          : youtubeAuthConnected && hasYoutubeOauthVideo;
+      analyzeBtn.disabled = uploadInProgress || !hasActiveInput;
+    }
+
+    function setIngestionMode(mode) {
+      activeIngestionMode = mode;
+
+      ['file', 'youtube-url', 'youtube-account'].forEach(name => {
+        const tab = document.getElementById(`tab-${name}`);
+        const panel = document.getElementById(`panel-${name}`);
+        if (tab) tab.classList.toggle('active', name === mode);
+        if (panel) panel.classList.toggle('active', name === mode);
+      });
+
+      refreshAnalyzeButton();
+    }
+
+    function renderYoutubeAuthState() {
+      const stateEl = document.getElementById('youtube-account-state');
+      const connectBtn = document.getElementById('youtube-connect-btn');
+      const disconnectBtn = document.getElementById('youtube-disconnect-btn');
+      const input = document.getElementById('youtube-account-input');
+      const help = document.getElementById('youtube-account-help');
+      const selectWrap = document.getElementById('youtube-account-select-wrap');
+      const listHelp = document.getElementById('youtube-account-list-help');
+
+      if (youtubeAuthConnected) {
+        stateEl.innerHTML = `
+          <span class="account-state-badge">
+            <span class="account-check">✓</span>
+            Connected
+          </span>
+          <span style="color:var(--text-3);">Ready to fetch transcript entries from your YouTube account.</span>
+        `;
+        connectBtn.style.display = 'none';
+        disconnectBtn.style.display = '';
+        input.disabled = false;
+        selectWrap.style.display = '';
+        listHelp.style.display = '';
+        help.textContent = 'Choose a video from your channel or paste a YouTube URL / raw video ID. The app will try the captions API first, then transcript fallbacks if needed.';
+      } else {
+        stateEl.innerHTML = '<span style="color:var(--text-3);">No YouTube account connected for this browser session.</span>';
+        connectBtn.style.display = '';
+        disconnectBtn.style.display = 'none';
+        input.disabled = true;
+        selectWrap.style.display = 'none';
+        listHelp.style.display = 'none';
+        help.textContent = 'Connect your YouTube account to unlock this ingestion path.';
+      }
+
+      refreshAnalyzeButton();
+    }
+
+    function formatYoutubeAccountOption(video) {
+      const title = (video.title || '').trim() || video.videoId;
+      const privacy = video.privacyStatus === 'unlisted' ? 'Unlisted' : 'Published';
+      return `${title} · ${privacy}`;
+    }
+
+    function renderYoutubeAccountVideoOptions() {
+      const select = document.getElementById('youtube-account-select');
+      select.innerHTML = '<option value="">— select a video from your channel —</option>';
+
+      youtubeAccountVideos.forEach(video => {
+        const option = document.createElement('option');
+        option.value = video.videoId;
+        option.textContent = formatYoutubeAccountOption(video);
+        select.appendChild(option);
+      });
+    }
+
+    async function loadYoutubeAccountVideos() {
+      if (!youtubeAuthConnected) return;
+
+      try {
+        const resp = await fetch('/api/videos');
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || 'Could not load account videos.');
+
+        youtubeAccountVideos = Array.isArray(data.videos) ? data.videos : [];
+        renderYoutubeAccountVideoOptions();
+
+        const listHelp = document.getElementById('youtube-account-list-help');
+        listHelp.textContent = youtubeAccountVideos.length
+          ? 'Published and unlisted videos longer than 3 minutes.'
+          : 'No published or unlisted videos longer than 3 minutes were found.';
+      } catch (err) {
+        youtubeAccountVideos = [];
+        renderYoutubeAccountVideoOptions();
+        document.getElementById('youtube-account-list-help').textContent = 'Could not load your YouTube uploads list right now.';
+      }
+    }
+
+    async function syncYoutubeAuthStatus() {
+      try {
+        const resp = await fetch('/auth/status');
+        const data = await resp.json();
+        youtubeAuthConnected = !!data.connected;
+      } catch (err) {
+        youtubeAuthConnected = false;
+      }
+      renderYoutubeAuthState();
+      if (youtubeAuthConnected) {
+        await loadYoutubeAccountVideos();
+      }
+    }
+
+    function clearSelectedFile() {
+      selectedFile = null;
+      uploadedOriginalName = '';
+
+      if (appMode === 'local') {
+        document.getElementById('file-select').value = '';
+      } else {
+        document.getElementById('upload-zone').classList.remove('has-file');
+        document.getElementById('upload-label').textContent = 'Click or drag a video file here';
+        document.getElementById('file-upload').value = '';
+      }
+    }
+
+    function onYoutubeUrlInput() {
+      const input = document.getElementById('youtube-url-input');
+      selectedYoutubeUrl = input.value.trim();
+
+      if (selectedYoutubeUrl) {
+        setIngestionMode('youtube-url');
+        clearError();
+        if (!document.getElementById('project-input').value.trim()) {
+          document.getElementById('project-input').value = 'YouTube transcript';
+        }
+      }
+
+      refreshAnalyzeButton();
+    }
+
+    function onYoutubeAccountInput() {
+      const input = document.getElementById('youtube-account-input');
+      selectedYoutubeOauthVideo = input.value.trim();
+
+      if (selectedYoutubeOauthVideo) {
+        document.getElementById('youtube-account-select').value = '';
+        setIngestionMode('youtube-account');
+        clearError();
+        if (!document.getElementById('project-input').value.trim()) {
+          document.getElementById('project-input').value = 'YouTube transcript';
+        }
+      }
+
+      refreshAnalyzeButton();
+    }
+
+    function onYoutubeAccountSelect() {
+      const select = document.getElementById('youtube-account-select');
+      selectedYoutubeOauthVideo = select.value.trim();
+
+      if (selectedYoutubeOauthVideo) {
+        document.getElementById('youtube-account-input').value = '';
+        setIngestionMode('youtube-account');
+        clearError();
+        const selectedVideo = youtubeAccountVideos.find(video => video.videoId === selectedYoutubeOauthVideo);
+        if (selectedVideo && !document.getElementById('project-input').value.trim()) {
+          document.getElementById('project-input').value = selectedVideo.title || 'YouTube transcript';
+        }
+      }
+
+      refreshAnalyzeButton();
+    }
+
+    // ── File selected (local mode) ──
+    function onFileSelect() {
+      const sel          = document.getElementById('file-select');
+      const projectInput = document.getElementById('project-input');
+      const offsetHint   = document.getElementById('offset-hint');
+      const offsetInput  = document.getElementById('offset-input');
+
+      selectedFile = sel.value || null;
+
+      if (selectedFile) {
+        setIngestionMode('file');
+        if (!projectInput.value.trim()) projectInput.value = filenameToProjectName(selectedFile);
+        const detected = detectOffsetFromFilename(selectedFile);
+        if (detected) {
+          offsetHint.textContent = `Auto-detected: ${detected} — confirm or override`;
+          offsetHint.classList.add('visible');
+          if (!offsetInput.value.trim()) offsetInput.value = detected;
+        } else {
+          offsetHint.classList.remove('visible');
+        }
+        refreshAnalyzeButton();
+        clearError();
+      } else {
+        refreshAnalyzeButton();
+        offsetHint.classList.remove('visible');
+      }
+    }
+
+    // ── File uploaded (Railway mode) ──
+    async function onFileUpload(inputEl) {
+      const file = inputEl.files[0];
+      if (!file) return;
+
+      const zone         = document.getElementById('upload-zone');
+      const labelEl      = document.getElementById('upload-label');
+      const analyzeBtn   = document.getElementById('analyze-btn');
+      const projectInput = document.getElementById('project-input');
+      const offsetInput  = document.getElementById('offset-input');
+      const offsetHint   = document.getElementById('offset-hint');
+
+      labelEl.textContent  = 'Uploading…';
+      zone.classList.add('has-file');
+      uploadInProgress     = true;
+      analyzeBtn.disabled  = true;
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        const resp = await fetch('/upload', { method: 'POST', body: formData });
+        const data = await resp.json();
+
+        if (!resp.ok) {
+          showError(data.error || 'Upload failed.');
+          labelEl.textContent = 'Click or drag a video file here';
+          zone.classList.remove('has-file');
+          uploadInProgress = false;
+          return;
+        }
+
+        selectedFile         = data.temp_filename;
+        uploadedOriginalName = data.original_name || file.name;
+        setIngestionMode('file');
+        labelEl.innerHTML    = `<span class="upload-name">✓ ${esc(uploadedOriginalName)}</span>`;
+
+        if (!projectInput.value.trim()) projectInput.value = filenameToProjectName(uploadedOriginalName);
+        const detected = detectOffsetFromFilename(uploadedOriginalName);
+        if (detected) {
+          offsetHint.textContent = `Auto-detected: ${detected} — confirm or override`;
+          offsetHint.classList.add('visible');
+          if (!offsetInput.value.trim()) offsetInput.value = detected;
+        }
+
+        uploadInProgress    = false;
+        refreshAnalyzeButton();
+        clearError();
+      } catch (err) {
+        showError('Upload failed — network error.');
+        labelEl.textContent = 'Click or drag a video file here';
+        zone.classList.remove('has-file');
+        uploadInProgress = false;
+        refreshAnalyzeButton();
+      }
+    }
+
+    // ── Init ──
+    async function init() {
+      showScreen('screen-loading');
+      document.getElementById('loading-phase-badge').textContent = '';
+      document.getElementById('loading-status').textContent = 'Loading…';
+      document.getElementById('loading-sub').textContent    = '';
+
+      try {
+        const modeResp = await fetch('/api/mode');
+        const modeData = await modeResp.json();
+        appMode = modeData.mode || 'upload';
+
+        if (appMode === 'local') {
+          document.getElementById('file-label').textContent = 'Video file — watch folder';
+          document.getElementById('file-dropdown-wrap').style.display = '';
+          document.getElementById('upload-zone').style.display        = 'none';
+
+          const filesResp = await fetch('/api/files');
+          const filesData = await filesResp.json();
+          const sel       = document.getElementById('file-select');
+
+          (filesData.files || []).forEach(name => {
+            const opt = document.createElement('option');
+            opt.value = name; opt.textContent = name;
+            sel.appendChild(opt);
+          });
+
+          if (!filesData.files || !filesData.files.length) {
+            const opt = document.createElement('option');
+            opt.value       = '';
+            opt.textContent = filesData.error
+              ? '⚠ ' + filesData.error
+              : 'No video files found in watch folder';
+            sel.appendChild(opt);
+          }
+        } else {
+          document.getElementById('file-label').textContent     = 'Video file — upload';
+          document.getElementById('file-dropdown-wrap').style.display = 'none';
+          document.getElementById('upload-zone').style.display        = '';
+        }
+      } catch (e) {
+        appMode = 'upload';
+        document.getElementById('file-dropdown-wrap').style.display = 'none';
+        document.getElementById('upload-zone').style.display        = '';
+      }
+
+      await syncYoutubeAuthStatus();
+      setIngestionMode('file');
+      showScreen('screen-pick');
+    }
+
+    // ── Loading phases ──
+    let loadingInterval = null;
+
+    function setLoadingPhase(phase, messages) {
+      if (loadingInterval) clearInterval(loadingInterval);
+      document.getElementById('loading-phase-badge').textContent =
+        phase === 1 ? '1 / 2 — Transcription' : '2 / 2 — Analysis';
+      document.getElementById('loading-status').textContent = messages[0];
+      document.getElementById('loading-sub').textContent    = phase === 1
+        ? 'Extracting and transcribing audio — may take 20–60 seconds.'
+        : 'Claude is identifying chapters and highlights…';
+
+      let i = 0;
+      loadingInterval = setInterval(() => {
+        i = (i + 1) % messages.length;
+        document.getElementById('loading-status').textContent = messages[i];
+      }, 6000);
+    }
+
+    // ── Analyze ──
+    document.getElementById('analyze-btn').addEventListener('click', runAnalysis);
+    document.getElementById('youtube-url-input').addEventListener('input', onYoutubeUrlInput);
+    document.getElementById('youtube-account-input').addEventListener('input', onYoutubeAccountInput);
+    document.getElementById('youtube-account-select').addEventListener('change', onYoutubeAccountSelect);
+    document.getElementById('youtube-disconnect-btn').addEventListener('click', async () => {
+      try {
+        await fetch('/auth/disconnect', { method: 'POST' });
+      } catch (err) {}
+      youtubeAuthConnected = false;
+      youtubeAccountVideos = [];
+      selectedYoutubeOauthVideo = '';
+      document.getElementById('youtube-account-select').innerHTML = '<option value="">— select a video from your channel —</option>';
+      document.getElementById('youtube-account-input').value = '';
+      document.getElementById('youtube-account-list-help').textContent = 'Published and unlisted videos longer than 3 minutes.';
+      renderYoutubeAuthState();
+    });
+    document.getElementById('project-input').addEventListener('keydown', e => {
+      if (e.key === 'Enter') runAnalysis();
+    });
+
+    async function fetchTranscriptForActiveSource(project) {
+      const offset = document.getElementById('offset-input').value.trim();
+
+      if (activeIngestionMode === 'file') {
+        if (!selectedFile) throw new Error('Choose a file before analyzing.');
+        const resp = await fetch('/transcribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            filename: selectedFile,
+            youtube_url: '',
+            offset_str: offset,
+          }),
+        });
+        return { resp, sourceLabel: uploadedOriginalName || selectedFile };
+      }
+
+      if (activeIngestionMode === 'youtube-url') {
+        const youtubeUrl = document.getElementById('youtube-url-input').value.trim();
+        selectedYoutubeUrl = youtubeUrl;
+        if (!youtubeUrl) throw new Error('Paste a YouTube URL before analyzing.');
+        const resp = await fetch('/transcribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            filename: '',
+            youtube_url: youtubeUrl,
+            offset_str: offset,
+          }),
+        });
+        return { resp, sourceLabel: youtubeUrl };
+      }
+
+      const oauthVideo = document.getElementById('youtube-account-input').value.trim();
+      selectedYoutubeOauthVideo = oauthVideo;
+      if (!youtubeAuthConnected) throw new Error('Connect your YouTube account before analyzing.');
+      if (!oauthVideo) throw new Error('Paste a YouTube URL or video ID before analyzing.');
+      const resp = await fetch('/transcript/youtube-oauth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          video_id: oauthVideo,
+          project,
+        }),
+      });
+      return { resp, sourceLabel: oauthVideo };
+    }
+
+    async function runAnalysis() {
+      if (uploadInProgress) { showError('File is still uploading — please wait.'); return; }
+      const project = document.getElementById('project-input').value.trim();
+      if (!project)  { showError('Please enter a project name.'); return; }
+
+      clearError();
+      showScreen('screen-loading');
+
+      const transcribePhases = activeIngestionMode === 'youtube-account'
+        ? ['Fetching YouTube captions…', 'Checking transcript sources…', 'Preparing transcript…']
+        : ['Transcribing audio…', 'Processing speech…', 'Reading the file…'];
+      const analyzePhases    = ['Analyzing with Claude…', 'Identifying chapters…', 'Building highlights…', 'Almost done…'];
+
+      // Phase 1: Transcribe
+      setLoadingPhase(1, transcribePhases);
+      let txData;
+      let sourceLabel = '';
+      try {
+        const result = await fetchTranscriptForActiveSource(project);
+        const txResp = result.resp;
+        sourceLabel = result.sourceLabel;
+        txData = await txResp.json();
+        if (!txResp.ok) {
+          if (loadingInterval) clearInterval(loadingInterval);
+          showScreen('screen-pick');
+          showError(txData.error || 'Transcription failed. Please try again.');
+          return;
+        }
+      } catch (err) {
+        if (loadingInterval) clearInterval(loadingInterval);
+        showScreen('screen-pick');
+        showError(err.message || 'Network error during transcription — is the server running?');
+        return;
+      }
+
+      // Phase 2: Analyze
+      setLoadingPhase(2, analyzePhases);
+      try {
+        const resp = await fetch('/analyze', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({
+            project,
+            entries: txData.entries,
+            density: parseInt(densitySlider.value),
+          }),
+        });
+        const data = await resp.json();
+        if (loadingInterval) clearInterval(loadingInterval);
+
+        if (!resp.ok) {
+          showScreen('screen-pick');
+          showError(data.error || 'Analysis failed. Please try again.');
+          return;
+        }
+
+        data._sourceFile = txData.title || sourceLabel || uploadedOriginalName || selectedFile || selectedYoutubeUrl || selectedYoutubeOauthVideo;
+        currentData      = data;
+        showTimestamps   = false;
+        renderReview(data);
+        showScreen('screen-review');
+        window.scrollTo(0, 0);
+
+      } catch (err) {
+        if (loadingInterval) clearInterval(loadingInterval);
+        showScreen('screen-pick');
+        showError('Network error during analysis — is the server running?');
+      }
+    }
+
+    // ── Render review ──
+    function renderReview(data) {
+      document.getElementById('review-project').textContent  = data.project;
+      document.getElementById('review-filename').textContent = data._sourceFile || '';
+      document.getElementById('review-summary').textContent  = data.summary  || '';
+      document.getElementById('review-strategy').textContent = data.strategy || '';
+      updateCountRow();
+      document.getElementById('outline').innerHTML = buildOutline(currentData.overlays || []);
+      document.getElementById('toggle-ts-btn').textContent = 'Show timestamps';
+      showTimestamps = false;
+    }
+
+    // ── Overlay helpers using stable _id ──
+    function getOverlayById(id) {
+      return (currentData.overlays || []).find(o => o._id === id);
+    }
+
+    let _idCounter = 0;
+    function ensureIds(overlays) {
+      for (const o of overlays) {
+        if (!o._id) o._id = `ov-${Date.now()}-${_idCounter++}`;
+      }
+    }
+
+    // ── Toggle overlay strikethrough (soft delete) ──
+    function toggleOverlay(id) {
+      const o = getOverlayById(id);
+      if (!o) return;
+      o._disabled = !o._disabled;
+      const rowEl = document.getElementById(`row-${id}`);
+      const btnEl = document.getElementById(`del-${id}`);
+      if (rowEl) rowEl.classList.toggle('row-struck', o._disabled);
+      if (btnEl) btnEl.classList.toggle('strikethrough-active', o._disabled);
+      updateCountRow();
+    }
+
+    // ── Toggle detail panel ──
+    function toggleDetail(id) {
+      const det = document.getElementById(`detail-${id}`);
+      const btn = document.getElementById(`exp-${id}`);
+      if (!det) return;
+      det.classList.toggle('open');
+      if (btn) btn.classList.toggle('open');
+    }
+
+    // ── Inline text editing ──
+    function startEdit(id, el) {
+      if (el.contentEditable === 'true') return;
+      el.contentEditable = 'true';
+      el.focus();
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      range.collapse(false);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+      el.addEventListener('blur', () => {
+        el.contentEditable = 'false';
+        const o = getOverlayById(id);
+        if (o) {
+          o.text = el.textContent.trim() || o.text;
+          el.textContent = o.text;
+        }
+      }, { once: true });
+      el.addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); el.blur(); }
+        if (e.key === 'Escape') {
+          const o = getOverlayById(id);
+          if (o) el.textContent = o.text;
+          el.blur();
+        }
+      });
+    }
+
+    // ── Update count row ──
+    function updateCountRow() {
+      const overlays = (currentData.overlays || []).filter(o => !o._disabled);
+      const chapters = overlays.filter(o => o.type === 'CHAPTER').length;
+      const lists    = overlays.filter(o => o.type === 'LIST').length;
+      const keywords = overlays.filter(o => o.type === 'KEYWORD').length;
+      const total    = overlays.length;
+      document.getElementById('count-row').innerHTML =
+        `${chapters} chapter${chapters !== 1 ? 's' : ''}` +
+        `<span class="count-sep">·</span>` +
+        `${lists} list${lists !== 1 ? 's' : ''}` +
+        `<span class="count-sep">·</span>` +
+        `${keywords} keyword${keywords !== 1 ? 's' : ''}` +
+        `<span class="count-sep">·</span>` +
+        `<span class="count-total">${total} highlight${total !== 1 ? 's' : ''} total</span>`;
+    }
+
+    // ── Parse timestamp to seconds ──
+    function tsToSecs(ts) {
+      if (!ts) return 0;
+      const p = ts.split(':');
+      try {
+        if (p.length === 2) return parseInt(p[0]) * 60 + parseFloat(p[1]);
+        if (p.length === 3) return parseInt(p[0]) * 3600 + parseInt(p[1]) * 60 + parseFloat(p[2]);
+      } catch(e) {}
+      return 0;
+    }
+
+    // ── Build outline HTML ──
+    function buildOutline(overlays) {
+      ensureIds(overlays);
+      if (!overlays.length) {
+        return '<div style="padding:32px;text-align:center;color:var(--text-3)">No highlights found.</div>';
+      }
+
+      // Sort by timestamp and sync back
+      const sorted = [...overlays].sort((a, b) => tsToSecs(a.time) - tsToSecs(b.time));
+      currentData.overlays = sorted;
+
+      // Group into chapter sections
+      const sections = [];
+      let current = null;
+      for (const o of sorted) {
+        if (o.type === 'CHAPTER') {
+          if (current) sections.push(current);
+          current = { chapter: o, items: [] };
+        } else {
+          if (!current) current = { chapter: null, items: [] };
+          current.items.push(o);
+        }
+      }
+      if (current) sections.push(current);
+
+      let html = '';
+      let pos  = 0; // insert-zone position counter
+
+      for (const sec of sections) {
+        html += '<div class="chapter-block">';
+
+        if (sec.chapter) {
+          const ch  = sec.chapter;
+          const sid = ch._id;
+          const sc  = ch._disabled ? ' row-struck' : '';
+          const da  = ch._disabled ? ' strikethrough-active' : '';
+
+          html += insertZoneHTML(pos++);
+          html += `
+            <div class="chapter-row${sc}" id="row-${sid}">
+              <button class="expand-btn" id="exp-${sid}" onclick="toggleDetail('${sid}')"><span class="expand-chevron">▶</span></button>
+              <span class="type-pill ch">CH</span>
+              <span class="ts${showTimestamps ? '' : ' hidden'}">${esc(ch.time)}</span>
+              <span class="overlay-text" onclick="startEdit('${sid}', this)">${esc(ch.text)}</span>
+              <button class="delete-btn${da}" id="del-${sid}" onclick="toggleOverlay('${sid}')">×</button>
+            </div>
+            <div class="overlay-detail" id="detail-${sid}" style="border-left:3px solid var(--ch-border);background:var(--ch-bg);">
+              ${ch.reason ? `<p class="detail-reason">${esc(ch.reason)}</p>` : ''}
+              ${ch.quote  ? `<p class="detail-quote">"${esc(ch.quote)}"</p>` : ''}
+            </div>`;
+          html += insertFormHTML(pos - 1);
+        }
+
+        for (const item of sec.items) {
+          const sid = item._id;
+          const isKw     = item.type === 'KEYWORD';
+          const rowCls   = isKw ? 'item-row kw-row' : 'item-row list-row';
+          const detStyle = isKw
+            ? 'border-left:3px solid var(--kw-border);background:var(--kw-bg);'
+            : 'border-left:3px solid var(--ls-border);background:var(--ls-bg);';
+          const pill  = isKw ? 'kw' : 'ls';
+          const label = isKw ? 'KW' : 'LS';
+          const sc    = item._disabled ? ' row-struck' : '';
+          const da    = item._disabled ? ' strikethrough-active' : '';
+          const textHtml = isKw
+            ? `<em class="overlay-text" onclick="startEdit('${sid}', this)">${esc(item.text)}</em>`
+            : `<span class="overlay-text" onclick="startEdit('${sid}', this)">${esc(item.text)}</span>`;
+
+          html += insertZoneHTML(pos++);
+          html += `
+            <div class="${rowCls}${sc}" id="row-${sid}">
+              <button class="expand-btn" id="exp-${sid}" onclick="toggleDetail('${sid}')"><span class="expand-chevron">▶</span></button>
+              <span class="type-pill ${pill}">${label}</span>
+              <span class="ts${showTimestamps ? '' : ' hidden'}">${esc(item.time)}</span>
+              ${textHtml}
+              <button class="delete-btn${da}" id="del-${sid}" onclick="toggleOverlay('${sid}')">×</button>
+            </div>
+            <div class="overlay-detail" id="detail-${sid}" style="${detStyle}">
+              ${item.reason ? `<p class="detail-reason">${esc(item.reason)}</p>` : ''}
+              ${item.quote  ? `<p class="detail-quote">"${esc(item.quote)}"</p>` : ''}
+            </div>`;
+          html += insertFormHTML(pos - 1);
+        }
+
+        // Zone after last item in section
+        html += insertZoneHTML(pos);
+        html += insertFormHTML(pos);
+        pos++;
+
+        html += '</div>';
+      }
+
+      return html;
+    }
+
+    // ── Insert zone HTML ──
+    function insertZoneHTML(p) {
+      return `<div class="insert-zone" id="zone-${p}" onclick="openInsertForm(${p})">
+        <span class="insert-zone-line"></span>
+        <span class="insert-zone-label">+ add highlight</span>
+        <span class="insert-zone-line"></span>
+      </div>`;
+    }
+
+    // ── Insert form HTML ──
+    function insertFormHTML(p) {
+      return `<div class="insert-form" id="form-${p}">
+        <div class="insert-type-btns">
+          <button class="insert-type-btn active-kw" onclick="setInsertType(${p},'KEYWORD',this)">KW</button>
+          <button class="insert-type-btn" onclick="setInsertType(${p},'CHAPTER',this)">CH</button>
+          <button class="insert-type-btn" onclick="setInsertType(${p},'LIST',this)">LS</button>
+        </div>
+        <input class="insert-time-input" id="itime-${p}" type="text" placeholder="0:00"
+               onkeydown="if(event.key==='Enter')saveInsert(${p});if(event.key==='Escape')cancelInsert(${p})" />
+        <input class="insert-text-input" id="itext-${p}" type="text" placeholder="Overlay text…"
+               onkeydown="if(event.key==='Enter')saveInsert(${p});if(event.key==='Escape')cancelInsert(${p})" />
+        <button class="insert-save-btn"   onclick="saveInsert(${p})">✓</button>
+        <button class="insert-cancel-btn" onclick="cancelInsert(${p})">✕</button>
+      </div>`;
+    }
+
+    // ── Insert state ──
+    const insertTypes = {};
+
+    function openInsertForm(p) {
+      document.querySelectorAll('.insert-form.open').forEach(f => {
+        f.classList.remove('open');
+        const zid = f.id.replace('form-', 'zone-');
+        const z = document.getElementById(zid);
+        if (z) z.style.display = '';
+      });
+      const zone = document.getElementById(`zone-${p}`);
+      if (zone) zone.style.display = 'none';
+      const form = document.getElementById(`form-${p}`);
+      form.classList.add('open');
+      if (!insertTypes[p]) insertTypes[p] = 'KEYWORD';
+      document.getElementById(`itime-${p}`).focus();
+    }
+
+    function setInsertType(p, type, btn) {
+      insertTypes[p] = type;
+      btn.closest('.insert-type-btns').querySelectorAll('.insert-type-btn').forEach(b => {
+        b.className = 'insert-type-btn';
+      });
+      const cls = type === 'KEYWORD' ? 'active-kw' : type === 'CHAPTER' ? 'active-ch' : 'active-ls';
+      btn.classList.add(cls);
+    }
+
+    function cancelInsert(p) {
+      const form = document.getElementById(`form-${p}`);
+      form.classList.remove('open');
+      const zone = document.getElementById(`zone-${p}`);
+      if (zone) zone.style.display = '';
+    }
+
+    function saveInsert(p) {
+      const type    = insertTypes[p] || 'KEYWORD';
+      const timeVal = (document.getElementById(`itime-${p}`).value || '').trim();
+      const textVal = (document.getElementById(`itext-${p}`).value || '').trim();
+      if (!textVal) { document.getElementById(`itext-${p}`).focus(); return; }
+
+      currentData.overlays.push({
+        time:  timeVal || '0:00',
+        type:  type,
+        text:  textVal,
+        reason: '',
+        quote:  '',
+        _added: true,
+      });
+
+      document.getElementById('outline').innerHTML = buildOutline(currentData.overlays);
+      updateCountRow();
+      document.querySelectorAll('.ts').forEach(el => el.classList.toggle('hidden', !showTimestamps));
+    }
+
+    // ── HTML escape ──
+    function esc(str) {
+      return String(str ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    // ── Toggle timestamps ──
+    document.getElementById('toggle-ts-btn').addEventListener('click', () => {
+      showTimestamps = !showTimestamps;
+      document.querySelectorAll('.ts').forEach(el => el.classList.toggle('hidden', !showTimestamps));
+      document.getElementById('toggle-ts-btn').textContent =
+        showTimestamps ? 'Hide timestamps' : 'Show timestamps';
+    });
+
+    // ── Download JSON ──
+    document.getElementById('approve-btn').addEventListener('click', () => {
+      if (!currentData) return;
+      downloadJSON(currentData);
+      const btn = document.getElementById('approve-btn');
+      btn.textContent = 'Downloaded ✓';
+      btn.disabled    = true;
+      setTimeout(() => { btn.textContent = 'Download JSON'; btn.disabled = false; }, 2500);
+    });
+
+    function downloadJSON(data) {
+      const clean = {
+        project:  data.project,
+        summary:  data.summary,
+        strategy: data.strategy,
+        overlays: (data.overlays || [])
+          .filter(o => !o._disabled)
+          .map(({ _id, _disabled, _added, ...rest }) => rest),
+      };
+      const blob = new Blob([JSON.stringify(clean, null, 2)], { type: 'application/json' });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href = url; a.download = `${data.project}.json`;
+      document.body.appendChild(a); a.click();
+      document.body.removeChild(a); URL.revokeObjectURL(url);
+    }
+
+    // ── New project ──
+    document.getElementById('new-project-btn').addEventListener('click', () => {
+      currentData          = null;
+      selectedFile         = null;
+      uploadedOriginalName = '';
+      selectedYoutubeUrl   = '';
+      selectedYoutubeOauthVideo = '';
+      clearError();
+      clearSelectedFile();
+
+      document.getElementById('project-input').value = '';
+      document.getElementById('youtube-url-input').value = '';
+      document.getElementById('youtube-account-input').value = '';
+      document.getElementById('offset-input').value  = '';
+      document.getElementById('offset-hint').classList.remove('visible');
+      setIngestionMode('file');
+      refreshAnalyzeButton();
+      showScreen('screen-pick');
+    });
+
+    // ── Accordions ──
+    function toggleAccordion(id) {
+      document.getElementById(id).classList.toggle('open');
+    }
+
+    // ── Boot ──
+    init();
+  </script>
+</body>
+</html>

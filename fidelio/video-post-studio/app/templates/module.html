@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block main %}
+  <section data-active-module="{{ active_module_key }}">
+    <h2>{{ active_module_label }}</h2>
+    <p>{{ active_module_description }}</p>
+    <p>Workspace: {{ workspace.name }}</p>
+    <p>Shared workspace state: {{ workspace_summary }}</p>
+    {% if active_module_key == "toa" %}
+      <section aria-label="TOA workspace summary">
+        <h3>TOA workspace status</h3>
+        <p>Transcript available: {% if toa_workspace_summary.has_transcript %}Yes{% else %}No{% endif %}</p>
+        <p>Transcript length: {{ toa_workspace_summary.transcript_length }} characters</p>
+        <p>Transcript preview: {{ toa_workspace_summary.transcript_preview or "None" }}</p>
+        <p>{{ toa_workspace_summary.status_message }}</p>
+      </section>
+    {% endif %}
+    {% if active_module_key == "import" %}
+      {% if errors %}
+        <ul aria-label="Import validation errors">
+          {% for error in errors %}
+            <li>{{ error }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+      <form action="/import" method="post">
+        <label>
+          Source type
+          <select name="source_type">
+            {% for source_type in allowed_source_types %}
+              <option value="{{ source_type }}"{% if form_data.source_type == source_type %} selected{% endif %}>{{ source_type }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>
+          Title
+          <input name="title" type="text" value="{{ form_data.title }}">
+        </label>
+        <label>
+          Source value
+          <input name="source_value" type="text" value="{{ form_data.source_value }}">
+        </label>
+        <button type="submit">Add source</button>
+      </form>
+      <section aria-label="Imported sources">
+        <h3>Imported sources</h3>
+        <ul>
+          {% for source_asset in workspace.source_assets %}
+            <li>{{ source_asset.title }} ({{ source_asset.source_value }})</li>
+          {% else %}
+            <li>No imported sources yet.</li>
+          {% endfor %}
+        </ul>
+      </section>
+      {% if workspace.active_transcript_session and workspace.active_transcript_session.status == "ready" %}
+        <section aria-label="Transcript ready actions">
+          <h3>Transcript Ready</h3>
+          <p>
+            <button
+              type="button"
+              onclick="navigator.clipboard.writeText(document.getElementById('active-transcript-preview').value).catch(function () {});"
+            >
+              Copy Transcript
+            </button>
+            <a href="/transcripts/active.txt">Download Transcript</a>
+            <a href="/toa">Open TOA</a>
+          </p>
+          <textarea id="active-transcript-preview" readonly rows="8">{{ workspace.active_transcript_session.transcript_text }}</textarea>
+        </section>
+      {% endif %}
+    {% endif %}
+  </section>
+{% endblock %}

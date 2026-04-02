@@ -1,0 +1,1840 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="OP Quotes">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="/manifest.json">
+<title>Ostéopeinture — Quote Assistant</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Outfit:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<style>
+  :root {
+    --bg:         #0F0D0B;
+    --surface-0:  #141210;
+    --surface-1:  #1C1815;
+    --surface-2:  #241F1B;
+    --surface-3:  #2C2520;
+    --border:     #302820;
+    --border-soft: #221D19;
+
+    --accent:     #C8622A;
+    --accent-dim: #8F4520;
+    --accent-glow:rgba(200, 98, 42, 0.18);
+
+    --sage:       #7A9E6A;
+    --sage-dim:   #3A5430;
+    --blue-dim:   #2A3A4A;
+    --blue:       #6A9AAA;
+
+    --text:       #F0E6DC;
+    --text-2:     #B8A898;
+    --text-3:     #6E5E52;
+    --text-4:     #3C3028;
+
+    --font-serif: 'Cormorant Garamond', Georgia, serif;
+    --font-sans:  'Outfit', system-ui, sans-serif;
+    --font-mono:  'JetBrains Mono', monospace;
+
+    --radius-sm:  4px;
+    --radius:     8px;
+    --radius-lg:  12px;
+  }
+
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    display: flex;
+    height: 100vh;
+  }
+
+  /* ─── SCROLLBAR ─── */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--surface-3); border-radius: 4px; }
+
+  /* ─── SIDEBAR ─── */
+  #sidebar {
+    width: 232px;
+    min-width: 232px;
+    background: var(--surface-0);
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--border);
+    overflow: hidden;
+  }
+
+  #sidebar-brand {
+    padding: 20px 16px 14px;
+    border-bottom: 1px solid var(--border-soft);
+  }
+
+  .brand-wordmark {
+    font-family: var(--font-serif);
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    color: var(--text);
+    line-height: 1;
+    margin-bottom: 2px;
+  }
+
+  .brand-sub {
+    font-size: 9.5px;
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text-3);
+    font-family: var(--font-sans);
+  }
+
+  #sidebar-controls {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-soft);
+  }
+
+  #new-quote-btn {
+    width: 100%;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-family: var(--font-sans);
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    padding: 8px 12px;
+    cursor: pointer;
+    transition: background 0.15s, box-shadow 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+
+  #new-quote-btn:hover {
+    background: #D97040;
+    box-shadow: 0 0 0 3px var(--accent-glow);
+  }
+
+  .new-btn-icon {
+    font-size: 14px;
+    line-height: 1;
+    font-weight: 300;
+    margin-top: -1px;
+  }
+
+  #sidebar-section-label {
+    padding: 14px 16px 6px;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text-4);
+    font-family: var(--font-sans);
+  }
+
+  #sidebar-list {
+    flex: 1;
+    overflow-y: auto;
+  }
+
+  #sidebar-footer {
+    padding: 10px 16px;
+    border-top: 1px solid var(--border-soft);
+  }
+
+  #rules-btn {
+    width: 100%;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 7px 10px;
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-3);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+    letter-spacing: 0.03em;
+  }
+
+  #rules-btn:hover {
+    border-color: var(--accent-dim);
+    color: var(--text-2);
+    background: var(--surface-2);
+  }
+
+  /* ─── RULES MODAL ─── */
+  #rules-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(4px);
+    align-items: center;
+    justify-content: center;
+  }
+
+  #rules-modal.open {
+    display: flex;
+  }
+
+  #rules-panel {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    width: min(820px, 92vw);
+    height: min(82vh, 760px);
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.6);
+    overflow: hidden;
+    animation: modalIn 0.2s ease both;
+  }
+
+  @keyframes modalIn {
+    from { opacity: 0; transform: translateY(10px) scale(0.98); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  #rules-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-soft);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+
+  #rules-title {
+    font-family: var(--font-serif);
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text);
+    flex: 1;
+  }
+
+  #rules-subtitle {
+    font-size: 11px;
+    color: var(--text-3);
+    margin-top: 1px;
+  }
+
+  #rules-save-btn {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 7px 16px;
+    font-size: 12px;
+    font-weight: 600;
+    font-family: var(--font-sans);
+    cursor: pointer;
+    transition: background 0.15s;
+    letter-spacing: 0.03em;
+  }
+
+  #rules-save-btn:hover { background: #D97040; }
+  #rules-save-btn:disabled { background: var(--surface-3); color: var(--text-3); cursor: default; }
+
+  #rules-cancel-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 7px 14px;
+    font-size: 12px;
+    font-weight: 500;
+    font-family: var(--font-sans);
+    color: var(--text-2);
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+  }
+
+  #rules-cancel-btn:hover {
+    border-color: var(--accent-dim);
+    color: var(--text);
+  }
+
+  #rules-textarea {
+    flex: 1;
+    background: var(--surface-0);
+    color: var(--text);
+    border: none;
+    padding: 18px 20px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.7;
+    resize: none;
+    outline: none;
+    overflow-y: auto;
+  }
+
+  #rules-status {
+    padding: 8px 20px;
+    font-size: 10.5px;
+    color: var(--text-3);
+    border-top: 1px solid var(--border-soft);
+    min-height: 32px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+
+  .sidebar-empty {
+    padding: 24px 16px;
+    font-size: 12px;
+    color: var(--text-3);
+    line-height: 1.7;
+    text-align: center;
+  }
+
+  .sidebar-item {
+    padding: 10px 16px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border-soft);
+    transition: background 0.12s;
+    position: relative;
+  }
+
+  .sidebar-item::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: transparent;
+    transition: background 0.15s;
+  }
+
+  .sidebar-item:hover { background: var(--surface-1); }
+  .sidebar-item:hover::before { background: var(--surface-3); }
+
+  .sidebar-item.active {
+    background: var(--surface-2);
+  }
+
+  .sidebar-item.active::before {
+    background: var(--accent);
+  }
+
+  .sidebar-item-client {
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .sidebar-item-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 5px;
+  }
+
+  .sidebar-item-id {
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    color: var(--text-3);
+    letter-spacing: 0.03em;
+  }
+
+  .sidebar-item-total {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-2);
+    font-weight: 500;
+  }
+
+  .sidebar-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 2px 6px;
+    border-radius: 3px;
+  }
+
+  .sidebar-status::before {
+    content: '';
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+
+  .sidebar-status.gathering {
+    background: var(--sage-dim);
+    color: var(--sage);
+  }
+  .sidebar-status.gathering::before { background: var(--sage); }
+
+  .sidebar-status.quote_ready {
+    background: var(--blue-dim);
+    color: var(--blue);
+  }
+  .sidebar-status.quote_ready::before { background: var(--blue); }
+
+  .sidebar-status.sent {
+    background: var(--surface-3);
+    color: var(--text-3);
+  }
+  .sidebar-status.sent::before { background: var(--text-3); }
+
+  /* ─── MAIN ─── */
+  #main {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+  }
+
+  /* ─── CHAT PANEL ─── */
+  #chat-panel {
+    width: 50%;
+    min-width: 320px;
+    background: var(--surface-1);
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--border);
+  }
+
+  #chat-header {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border-soft);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--surface-0);
+  }
+
+  #chat-header-title {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-2);
+    letter-spacing: 0.04em;
+    flex: 1;
+  }
+
+  #session-badge {
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    color: var(--accent);
+    letter-spacing: 0.06em;
+    background: var(--accent-glow);
+    padding: 2px 7px;
+    border-radius: 3px;
+    border: 1px solid rgba(200, 98, 42, 0.25);
+  }
+
+  #messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .msg {
+    max-width: 86%;
+    padding: 10px 13px;
+    border-radius: var(--radius);
+    font-size: 13px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    animation: msgIn 0.2s ease both;
+  }
+
+  @keyframes msgIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  .msg.user {
+    background: var(--accent);
+    color: #fff;
+    align-self: flex-end;
+    border-radius: var(--radius) var(--radius) 2px var(--radius);
+    font-weight: 400;
+  }
+
+  .msg.assistant {
+    background: var(--surface-2);
+    color: var(--text);
+    align-self: flex-start;
+    border-radius: var(--radius) var(--radius) var(--radius) 2px;
+    border: 1px solid var(--border);
+  }
+
+  .msg.assistant p { margin-bottom: 6px; }
+  .msg.assistant p:last-child { margin-bottom: 0; }
+  .msg.assistant ul, .msg.assistant ol { padding-left: 18px; margin: 4px 0; }
+  .msg.assistant li { margin-bottom: 3px; }
+  .msg.assistant strong { color: #fff; font-weight: 600; }
+  .msg.assistant code { font-family: var(--font-mono); font-size: 11px; background: var(--surface-3); padding: 1px 4px; border-radius: 3px; }
+
+  .msg.system {
+    background: transparent;
+    color: var(--text-3);
+    font-size: 11.5px;
+    border-radius: var(--radius-sm);
+    align-self: center;
+    font-style: italic;
+    text-align: center;
+    border: 1px dashed var(--border);
+    padding: 7px 14px;
+    max-width: 70%;
+  }
+
+  /* ─── STATUS BAR ─── */
+  #status-bar {
+    background: var(--surface-0);
+    border-top: 1px solid var(--border-soft);
+    border-bottom: 1px solid var(--border-soft);
+    color: var(--text-3);
+    font-size: 10px;
+    padding: 5px 18px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-family: var(--font-sans);
+    letter-spacing: 0.04em;
+  }
+
+  #status-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--sage);
+    flex-shrink: 0;
+    transition: background 0.3s;
+  }
+
+  /* ─── INPUT AREA ─── */
+  #input-area {
+    padding: 12px 14px 14px;
+    background: var(--surface-1);
+  }
+
+  #image-preview-bar {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+  }
+
+  body.drop-active #input-area {
+    background: rgba(200, 98, 42, 0.06);
+    box-shadow: inset 0 0 0 1px var(--accent-dim), 0 0 0 2px var(--accent-glow);
+  }
+
+  body.drop-active #attach-btn {
+    border-color: var(--accent-dim);
+    color: var(--text);
+    background: var(--surface-3);
+  }
+
+  .img-thumb { position: relative; }
+
+  .img-thumb img {
+    height: 38px;
+    width: 38px;
+    object-fit: cover;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+  }
+
+  .img-thumb .remove-img {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    background: #8B1010;
+    color: #fff;
+    border: none;
+    border-radius: 50%;
+    width: 14px;
+    height: 14px;
+    font-size: 9px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  #input-row {
+    display: flex;
+    gap: 7px;
+    align-items: flex-end;
+  }
+
+  #message-input {
+    flex: 1;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 9px 12px;
+    font-size: 13px;
+    font-family: var(--font-sans);
+    resize: none;
+    min-height: 40px;
+    max-height: 120px;
+    overflow-y: auto;
+    outline: none;
+    background: var(--surface-0);
+    color: var(--text);
+    transition: border-color 0.2s, box-shadow 0.2s;
+    line-height: 1.5;
+  }
+
+  #message-input::placeholder { color: var(--text-4); }
+
+  #message-input:focus {
+    border-color: var(--accent-dim);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+  }
+
+  #attach-btn {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 9px 10px;
+    cursor: pointer;
+    font-size: 15px;
+    line-height: 1;
+    transition: background 0.15s, border-color 0.15s;
+    color: var(--text-3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  #attach-btn:hover {
+    background: var(--surface-3);
+    border-color: var(--accent-dim);
+    color: var(--text);
+  }
+
+  #send-btn {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius);
+    padding: 9px 16px;
+    font-size: 12.5px;
+    font-weight: 600;
+    font-family: var(--font-sans);
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    transition: background 0.15s, box-shadow 0.15s;
+    white-space: nowrap;
+  }
+
+  #send-btn:hover {
+    background: #D97040;
+    box-shadow: 0 0 0 3px var(--accent-glow);
+  }
+
+  #send-btn:disabled {
+    background: var(--surface-3);
+    color: var(--text-3);
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+
+  #file-input { display: none; }
+
+  /* ─── TYPING INDICATOR ─── */
+  .typing {
+    display: flex;
+    gap: 5px;
+    padding: 4px 2px;
+    align-items: center;
+  }
+
+  .typing span {
+    width: 5px;
+    height: 5px;
+    background: var(--text-3);
+    border-radius: 50%;
+    animation: bounce 1.4s infinite ease-in-out;
+  }
+
+  .typing span:nth-child(2) { animation-delay: 0.18s; }
+  .typing span:nth-child(3) { animation-delay: 0.36s; }
+
+  @keyframes bounce {
+    0%, 80%, 100% { transform: scale(0.55); opacity: 0.5; }
+    40%            { transform: scale(1);    opacity: 1; }
+  }
+
+  /* ─── QUOTE PANEL ─── */
+  #quote-panel {
+    flex: 1;
+    background: var(--surface-0);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  #quote-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-soft);
+    background: var(--surface-0);
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  #quote-header-title {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-3);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    flex: 1;
+    font-family: var(--font-sans);
+  }
+
+  .action-btn {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 5px 11px;
+    font-size: 11px;
+    font-weight: 500;
+    font-family: var(--font-sans);
+    cursor: pointer;
+    transition: all 0.15s;
+    color: var(--text-2);
+    letter-spacing: 0.02em;
+  }
+
+  .action-btn:hover {
+    border-color: var(--accent-dim);
+    color: var(--accent);
+    background: var(--accent-glow);
+  }
+
+  .action-btn.primary {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+  }
+
+  .action-btn.primary:hover {
+    background: #D97040;
+    border-color: #D97040;
+  }
+
+  #quote-frame-container {
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+  }
+
+  #quote-frame {
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: var(--surface-0);
+    transition: opacity 0.3s;
+  }
+
+  #quote-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: 14px;
+    color: var(--text-4);
+    text-align: center;
+    padding: 40px;
+  }
+
+  .placeholder-icon {
+    width: 52px;
+    height: 52px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.6;
+  }
+
+  #quote-placeholder p {
+    font-size: 12px;
+    line-height: 1.8;
+    max-width: 220px;
+    color: var(--text-3);
+  }
+
+  /* ─── EMAIL FORM ─── */
+  #email-form {
+    display: none;
+    padding: 16px;
+    background: var(--surface-1);
+    border-top: 1px solid var(--border);
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  #email-form.open { display: flex; }
+
+  .form-row { display: flex; flex-direction: column; gap: 4px; }
+
+  .form-label {
+    font-size: 9.5px;
+    font-weight: 600;
+    color: var(--text-3);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+  }
+
+  .form-input, .form-textarea {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 7px 10px;
+    font-size: 12.5px;
+    font-family: var(--font-sans);
+    outline: none;
+    background: var(--surface-0);
+    color: var(--text);
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  .form-input:focus, .form-textarea:focus {
+    border-color: var(--accent-dim);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+  }
+
+  .form-textarea {
+    resize: vertical;
+    min-height: 75px;
+    line-height: 1.5;
+  }
+
+  #email-send-btn {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 8px 16px;
+    font-size: 12.5px;
+    font-weight: 600;
+    font-family: var(--font-sans);
+    cursor: pointer;
+    transition: background 0.15s;
+    align-self: flex-end;
+  }
+
+  #email-send-btn:hover { background: #D97040; }
+
+  /* ─── MOBILE NAV ELEMENTS (hidden on desktop) ─── */
+  #sidebar-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 199;
+    background: rgba(0,0,0,0.55);
+  }
+  #sidebar-overlay.visible { display: block; }
+  #mobile-menu-btn, #mobile-back-btn, #mobile-quote-btn { display: none; }
+
+  /* ─── MOBILE ─── */
+  @media (max-width: 768px) {
+    html, body {
+      height: 100dvh;
+      overflow: hidden;
+    }
+    #input-area {
+      padding-bottom: max(14px, env(safe-area-inset-bottom));
+    }
+
+    /* Sidebar: off-screen by default, slides in as overlay */
+    #sidebar {
+      position: fixed;
+      left: -240px;
+      top: 0;
+      height: 100dvh;
+      z-index: 200;
+      transition: left 0.25s ease;
+      box-shadow: 4px 0 32px rgba(0,0,0,0.6);
+    }
+    #sidebar.open { left: 0; }
+
+    /* Hamburger button */
+    #mobile-menu-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: transparent;
+      border: none;
+      color: var(--text-2);
+      cursor: pointer;
+      padding: 6px 8px 6px 0;
+      border-radius: var(--radius-sm);
+      flex-shrink: 0;
+    }
+    #mobile-menu-btn:active { color: var(--accent); }
+
+    /* Chat panel takes full width */
+    #chat-panel {
+      width: 100%;
+      min-width: 0;
+      border-right: none;
+    }
+
+    /* Quote panel: off-screen right, slides in as overlay */
+    #quote-panel {
+      position: fixed;
+      inset: 0;
+      z-index: 150;
+      transform: translateX(100%);
+      transition: transform 0.25s ease;
+    }
+    #quote-panel.mobile-open { transform: translateX(0); }
+
+    /* Back button in quote header */
+    #mobile-back-btn {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      background: transparent;
+      border: none;
+      color: var(--text-2);
+      cursor: pointer;
+      font-size: 12px;
+      font-family: var(--font-sans);
+      padding: 4px 10px 4px 0;
+      flex-shrink: 0;
+    }
+    #mobile-back-btn:active { color: var(--accent); }
+
+    /* View Quote button in chat header */
+    #mobile-quote-btn {
+      display: none;
+      align-items: center;
+      gap: 4px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius-sm);
+      padding: 5px 10px;
+      font-size: 11px;
+      font-weight: 600;
+      font-family: var(--font-sans);
+      cursor: pointer;
+      letter-spacing: 0.03em;
+      flex-shrink: 0;
+    }
+    #mobile-quote-btn.visible { display: flex; }
+
+    /* Prevent iOS zoom on input focus */
+    #message-input { font-size: 16px; }
+
+    /* Bigger touch targets */
+    #send-btn { min-height: 44px; padding: 9px 18px; }
+    #attach-btn { min-height: 44px; }
+    #new-quote-btn { padding: 12px; font-size: 13px; }
+    .sidebar-item { padding: 13px 16px; }
+    #rules-btn { padding: 10px 12px; }
+
+    /* Rules modal full-screen on mobile */
+    #rules-panel {
+      width: 100vw;
+      height: 100dvh;
+      border-radius: 0;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div id="sidebar-overlay" onclick="closeSidebar()"></div>
+
+<!-- SIDEBAR -->
+<div id="sidebar">
+  <div id="sidebar-brand">
+    <div class="brand-wordmark">Ostéopeinture</div>
+    <div class="brand-sub">Quote Assistant</div>
+  </div>
+  <div id="sidebar-controls">
+    <button id="new-quote-btn" onclick="startNewSession()">
+      <span class="new-btn-icon">+</span> New Quote
+    </button>
+  </div>
+  <div id="sidebar-section-label">Past Quotes</div>
+  <div id="sidebar-list">
+    <div class="sidebar-empty">No quotes yet.<br>Start a new one above.</div>
+  </div>
+  <div id="sidebar-footer">
+    <button id="rules-btn" onclick="openRulesModal()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2"/></svg>
+      Quoting Rules
+    </button>
+  </div>
+</div>
+
+<!-- RULES MODAL -->
+<div id="rules-modal" onclick="handleModalBackdrop(event)">
+  <div id="rules-panel">
+    <div id="rules-header">
+      <div>
+        <div id="rules-title">Quoting Logic</div>
+        <div id="rules-subtitle">Changes take effect on the next assistant message — no redeploy needed.</div>
+      </div>
+      <button id="rules-cancel-btn" onclick="closeRulesModal()">Cancel</button>
+      <button id="rules-save-btn" onclick="saveRules()">Save</button>
+    </div>
+    <textarea id="rules-textarea" spellcheck="false" placeholder="Loading…"></textarea>
+    <div id="rules-status"></div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+
+  <!-- CHAT PANEL -->
+  <div id="chat-panel">
+    <div id="chat-header">
+      <button id="mobile-menu-btn" onclick="toggleSidebar()" aria-label="Menu">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div id="chat-header-title">New Quote</div>
+      <div id="session-badge" style="display:none"></div>
+      <button id="mobile-quote-btn" onclick="openQuotePanel()">Quote ›</button>
+    </div>
+    <div id="messages">
+      <div class="msg system">Select a past quote or start a new one.</div>
+    </div>
+    <div id="status-bar">
+      <div id="status-dot"></div>
+      <span id="status-text">Ready</span>
+    </div>
+    <div id="input-area">
+      <div id="image-preview-bar"></div>
+      <div id="input-row">
+        <button id="attach-btn" onclick="document.getElementById('file-input').click()" title="Attach images">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
+        </button>
+        <input type="file" id="file-input" accept="image/*" multiple onchange="onFilesSelected(event)">
+        <textarea id="message-input" placeholder="Describe the job, upload floor plans, ask anything…" rows="1"
+          onkeydown="handleKey(event)" oninput="autoResize(this)"
+          autocomplete="off" autocorrect="off" autocapitalize="sentences"
+          data-lpignore="true" data-form-type="other"></textarea>
+        <button id="send-btn" onclick="sendMessage()">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- QUOTE PANEL -->
+  <div id="quote-panel">
+    <div id="quote-header">
+      <button id="mobile-back-btn" onclick="closeQuotePanel()" aria-label="Back">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+        Back
+      </button>
+      <div id="quote-header-title">Quote Preview</div>
+      <button class="action-btn" id="btn-pdf" onclick="downloadPDF()" style="display:none">↓ PDF</button>
+      <button class="action-btn" id="btn-email-toggle" onclick="toggleEmailForm()" style="display:none">✉ Email</button>
+      <button class="action-btn" id="btn-preview" onclick="refreshPreview()" style="display:none">↺ Refresh</button>
+    </div>
+    <div id="quote-frame-container">
+      <div id="quote-placeholder">
+        <div class="placeholder-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2"/>
+            <line x1="7" y1="8" x2="17" y2="8"/>
+            <line x1="7" y1="12" x2="14" y2="12"/>
+            <line x1="7" y1="16" x2="11" y2="16"/>
+          </svg>
+        </div>
+        <p>Your quote will appear here once the assistant generates it.</p>
+      </div>
+      <iframe id="quote-frame" style="display:none"></iframe>
+    </div>
+    <div id="email-form">
+      <div class="form-row">
+        <div class="form-label">Email Type</div>
+        <select class="form-input" id="email-scenario">
+          <option value="quote_send">Send attached quote</option>
+          <option value="quote_revision">Send revised quote</option>
+        </select>
+        <div class="sidebar-item-meta" id="email-scenario-status" style="margin-top:8px;"></div>
+        <div class="sidebar-empty" id="email-scenario-help" style="margin-top:6px; text-align:left;"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-label">Signer</div>
+        <select class="form-input" id="email-signer">
+          <option value="Loric">Loric</option>
+          <option value="Graeme">Graeme</option>
+          <option value="Lubo">Lubo</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <div class="form-label">Detail</div>
+        <select class="form-input" id="email-detail-level">
+          <option value="minimal">Minimal</option>
+          <option value="standard" selected>Standard</option>
+          <option value="detailed">Detailed</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <div class="form-label">Recipient Email</div>
+        <input type="email" class="form-input" id="email-to" placeholder="client@email.com">
+      </div>
+      <div class="form-row">
+        <div class="form-label">Subject</div>
+        <input type="text" class="form-input" id="email-subject" placeholder="Quote — LASTNAME_01">
+      </div>
+      <div class="form-row">
+        <div class="form-label">Message</div>
+        <textarea class="form-textarea" id="email-body"></textarea>
+      </div>
+      <button id="email-send-btn" onclick="sendEmail()">Send Email with PDF</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+let currentSessionId = null;
+let pendingFiles = [];
+let pendingPreviewUrls = [];
+let dragDepth = 0;
+let isSending = false;
+const EMAIL_SCENARIO_HELP = {
+  quote_send: 'Use this when the quote is attached and ready to send.',
+  quote_revision: 'Use this when you are sending an updated version of an earlier quote.',
+};
+
+// ── MOBILE NAV ───────────────────────────────────────
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('sidebar-overlay').classList.toggle('visible');
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebar-overlay').classList.remove('visible');
+}
+function openQuotePanel() {
+  document.getElementById('quote-panel').classList.add('mobile-open');
+}
+function closeQuotePanel() {
+  document.getElementById('quote-panel').classList.remove('mobile-open');
+}
+const emailDraftStateBySession = new Map();
+const MAX_CLIENT_IMAGE_COUNT = 15;
+
+// ── SIDEBAR ──────────────────────────────────────────
+
+async function loadSidebar() {
+  const res = await fetch('/api/sessions');
+  const sessions = await res.json();
+  const list = document.getElementById('sidebar-list');
+
+  if (!sessions.length) {
+    list.innerHTML = '<div class="sidebar-empty">No quotes yet.<br>Start a new one above.</div>';
+    return;
+  }
+
+  list.innerHTML = sessions.map(s => {
+    const date = new Date(s.updated_at).toLocaleDateString('fr-CA', { month: 'short', day: 'numeric' });
+    const client = s.project_id || s.client_name || 'New Quote';
+    const total = s.total_amount ? formatMoney(s.total_amount) + ' $' : '—';
+    const active = s.id === currentSessionId ? 'active' : '';
+    const statusLabel = { gathering: 'In progress', quote_ready: 'Ready', sent: 'Sent' }[s.status] || s.status;
+    const statusClass = s.status || 'gathering';
+    return `<div class="sidebar-item ${active}" onclick="loadSession('${s.id}')">
+      <div class="sidebar-item-client">${esc(client)}</div>
+      <div class="sidebar-item-meta">
+        <span class="sidebar-item-id">${esc(s.project_id || date)}</span>
+        <span class="sidebar-item-total">${total}</span>
+      </div>
+      <span class="sidebar-status ${statusClass}">${statusLabel}</span>
+    </div>`;
+  }).join('');
+}
+
+async function loadSession(id) {
+  closeSidebar();
+  const res = await fetch(`/api/sessions/${id}`);
+  const session = await res.json();
+  currentSessionId = id;
+  clearAttachmentQueue();
+
+  const messagesEl = document.getElementById('messages');
+  messagesEl.innerHTML = '';
+  for (const msg of session.messages) {
+    const text = Array.isArray(msg.content)
+      ? msg.content.filter(c => c.type === 'text').map(c => c.text).join('\n')
+      : msg.content;
+    if (text) appendMessage(msg.role, text);
+  }
+
+  if (session.quoteJson) {
+    showQuote(id, session.status);
+    prefillEmail(session);
+  } else {
+    clearQuote();
+  }
+
+  setStatus(session.status);
+
+  const badge = document.getElementById('session-badge');
+  if (session.project_id) {
+    badge.textContent = session.project_id;
+    badge.style.display = '';
+  } else {
+    badge.style.display = 'none';
+  }
+
+  document.getElementById('chat-header-title').textContent = session.project_id || session.client_name || 'New Quote';
+  loadSidebar();
+}
+
+// ── SESSION MANAGEMENT ──────────────────────────────
+
+async function startNewSession() {
+  const res = await fetch('/api/sessions', { method: 'POST' });
+  const { id } = await res.json();
+  currentSessionId = id;
+  clearAttachmentQueue();
+
+  document.getElementById('messages').innerHTML = '';
+  const badge = document.getElementById('session-badge');
+  badge.textContent = '';
+  badge.style.display = 'none';
+  document.getElementById('chat-header-title').textContent = 'New Quote';
+  clearQuote();
+  setStatus('gathering');
+  loadSidebar();
+
+  appendMessage('assistant', 'Internal quote builder. Send the job details and files.');
+  document.getElementById('message-input').focus();
+}
+
+// ── MESSAGING ───────────────────────────────────────
+
+async function sendMessage() {
+  if (isSending) return;
+  if (!currentSessionId) {
+    await startNewSession();
+  }
+
+  const input = document.getElementById('message-input');
+  const text = input.value.trim();
+  if (!text && !pendingFiles.length) return;
+
+  const filesToSend = pendingFiles.slice();
+  setSendingState(true);
+
+  const formData = new FormData();
+  if (text) formData.append('message', text);
+  for (const f of filesToSend) formData.append('images', f);
+
+  const typingId = 'typing-' + Date.now();
+  const typingEl = document.createElement('div');
+  typingEl.id = typingId;
+  typingEl.className = 'msg assistant';
+  typingEl.innerHTML = '<div class="typing"><span></span><span></span><span></span></div>';
+  document.getElementById('messages').appendChild(typingEl);
+  scrollToBottom();
+
+  try {
+    const res = await fetch(`/api/sessions/${currentSessionId}/messages`, {
+      method: 'POST',
+      body: formData,
+    });
+    const data = await res.json();
+
+    typingEl.remove();
+
+    if (data.error) {
+      appendMessage('system', 'Error: ' + data.error);
+    } else {
+      const displayText = text + (filesToSend.length ? ` [${filesToSend.length} image(s)]` : '');
+      if (displayText) appendMessage('user', displayText);
+      appendMessage('assistant', data.reply);
+      setStatus(data.status);
+      input.value = '';
+      autoResize(input);
+      clearAttachmentQueue();
+
+      if (data.hasQuote) {
+        showQuote(currentSessionId, data.status);
+        await loadSessionMeta();
+      }
+
+      loadSidebar();
+    }
+  } catch (err) {
+    typingEl.remove();
+    appendMessage('system', 'Connection error. Please try again.');
+  } finally {
+    setSendingState(false);
+    input.focus();
+  }
+}
+
+async function loadSessionMeta() {
+  const res = await fetch(`/api/sessions/${currentSessionId}`);
+  const session = await res.json();
+  const badge = document.getElementById('session-badge');
+  if (session.project_id) {
+    badge.textContent = session.project_id;
+    badge.style.display = '';
+    document.getElementById('chat-header-title').textContent = session.project_id;
+  }
+  prefillEmail(session);
+}
+
+// ── MESSAGE DISPLAY ─────────────────────────────────
+
+function appendMessage(role, text) {
+  const el = document.createElement('div');
+  el.className = 'msg ' + role;
+  if (role === 'assistant') {
+    renderAssistantText(el, text);
+  } else {
+    el.textContent = text;
+  }
+  document.getElementById('messages').appendChild(el);
+  scrollToBottom();
+  return el;
+}
+
+function renderAssistantText(el, text) {
+  const lines = String(text || '').replace(/\r\n/g, '\n').split('\n');
+  let listEl = null;
+
+  const flushList = () => {
+    if (listEl) {
+      el.appendChild(listEl);
+      listEl = null;
+    }
+  };
+
+  for (const rawLine of lines) {
+    const line = rawLine.trimEnd();
+    const trimmed = line.trim();
+
+    if (!trimmed) {
+      flushList();
+      continue;
+    }
+
+    const headingMatch = trimmed.match(/^(#{1,3})\s+(.*)$/);
+    if (headingMatch) {
+      flushList();
+      const heading = document.createElement(headingMatch[1].length === 1 ? 'h3' : 'h4');
+      heading.textContent = headingMatch[2];
+      el.appendChild(heading);
+      continue;
+    }
+
+    const bulletMatch = trimmed.match(/^[-*]\s+(.*)$/);
+    if (bulletMatch) {
+      if (!listEl) listEl = document.createElement('ul');
+      const item = document.createElement('li');
+      item.textContent = bulletMatch[1];
+      listEl.appendChild(item);
+      continue;
+    }
+
+    flushList();
+    const paragraph = document.createElement('p');
+    paragraph.textContent = trimmed;
+    el.appendChild(paragraph);
+  }
+
+  flushList();
+
+  if (!el.childNodes.length) {
+    el.textContent = text || '';
+  }
+}
+
+function scrollToBottom() {
+  const m = document.getElementById('messages');
+  m.scrollTop = m.scrollHeight;
+}
+
+// ── QUOTE PANEL ─────────────────────────────────────
+
+function showQuote(sessionId, status) {
+  document.getElementById('quote-placeholder').style.display = 'none';
+  const frame = document.getElementById('quote-frame');
+  frame.style.display = 'block';
+  frame.src = `/preview/${sessionId}?t=${Date.now()}`;
+
+  document.getElementById('btn-pdf').style.display = '';
+  document.getElementById('btn-email-toggle').style.display = '';
+  document.getElementById('btn-preview').style.display = '';
+  document.getElementById('mobile-quote-btn').classList.add('visible');
+}
+
+function clearQuote() {
+  document.getElementById('quote-placeholder').style.display = 'flex';
+  document.getElementById('quote-frame').style.display = 'none';
+  document.getElementById('quote-frame').src = '';
+  document.getElementById('btn-pdf').style.display = 'none';
+  document.getElementById('btn-email-toggle').style.display = 'none';
+  document.getElementById('btn-preview').style.display = 'none';
+  document.getElementById('email-form').classList.remove('open');
+  document.getElementById('mobile-quote-btn').classList.remove('visible');
+  closeQuotePanel();
+}
+
+function refreshPreview() {
+  if (!currentSessionId) return;
+  const frame = document.getElementById('quote-frame');
+  frame.src = `/preview/${currentSessionId}?t=${Date.now()}`;
+}
+
+// ── PDF / EMAIL ─────────────────────────────────────
+
+async function downloadPDF() {
+  if (!currentSessionId) return;
+  const btn = document.getElementById('btn-pdf');
+  btn.textContent = '⏳ Generating…';
+  btn.disabled = true;
+  try {
+    const res = await fetch(`/api/sessions/${currentSessionId}/pdf`, { method: 'POST' });
+    if (!res.ok) { alert('PDF generation failed.'); return; }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `quote-${currentSessionId.slice(0,8)}.pdf`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    alert('Error: ' + e.message);
+  } finally {
+    btn.textContent = '↓ PDF';
+    btn.disabled = false;
+  }
+}
+
+function toggleEmailForm() {
+  document.getElementById('email-form').classList.toggle('open');
+}
+
+function prefillEmail(session) {
+  if (!session || !session.quoteJson) return;
+  const draft = session.emailDraft || {};
+  const settings = draft.settings || {};
+  const state = getEmailDraftState(session.id);
+  const subjectEl = document.getElementById('email-subject');
+  const bodyEl = document.getElementById('email-body');
+  const toEl = document.getElementById('email-to');
+  const scenarioEl = document.getElementById('email-scenario');
+  const signerEl = document.getElementById('email-signer');
+  const detailEl = document.getElementById('email-detail-level');
+
+  if (!state.subjectDirty) subjectEl.value = draft.subject || '';
+  if (!state.bodyDirty) bodyEl.value = draft.body || '';
+  if (!state.toDirty) toEl.value = draft.recipient || session.email_recipient || '';
+  scenarioEl.value = ['quote_send', 'quote_revision'].includes(settings.scenario) ? settings.scenario : 'quote_send';
+  signerEl.value = settings.signer || 'Loric';
+  detailEl.value = settings.detailLevel || 'standard';
+  renderEmailScenarioInfo(settings);
+}
+
+async function refreshEmailDraftFromSettings(changedField = '') {
+  if (!currentSessionId) return;
+
+  const recipient = document.getElementById('email-to').value.trim();
+  const payload = { recipient };
+
+  if (changedField === 'scenario') payload.scenario = document.getElementById('email-scenario').value;
+  if (changedField === 'signer') payload.signer = document.getElementById('email-signer').value;
+  if (changedField === 'detailLevel') payload.detailLevel = document.getElementById('email-detail-level').value;
+
+  const res = await fetch(`/api/sessions/${currentSessionId}/email-draft`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json();
+  if (!data.ok) {
+    alert('Error: ' + (data.error || 'Unable to update email draft.'));
+    return;
+  }
+
+  const draft = data.emailDraft || {};
+  renderEmailScenarioInfo(draft.settings || {});
+  const state = getEmailDraftState(currentSessionId);
+  if (!state.subjectDirty) document.getElementById('email-subject').value = draft.subject || '';
+  if (!state.bodyDirty) document.getElementById('email-body').value = draft.body || '';
+  if (!state.toDirty) document.getElementById('email-to').value = draft.recipient || recipient;
+}
+
+function getScenarioLabel(value) {
+  const select = document.getElementById('email-scenario');
+  const option = Array.from(select.options).find((item) => item.value === value);
+  return option ? option.textContent : value;
+}
+
+function renderEmailScenarioInfo(settings = {}) {
+  const statusEl = document.getElementById('email-scenario-status');
+  const helpEl = document.getElementById('email-scenario-help');
+  const scenario = settings.scenario || document.getElementById('email-scenario').value || 'quote_send';
+  const suggestedScenario = settings.suggestedScenario || scenario;
+  const manual = Boolean(settings.scenarioManual);
+
+  if (manual) {
+    statusEl.textContent = `Using your choice. Auto-pick was: ${getScenarioLabel(suggestedScenario)}.`;
+  } else {
+    statusEl.textContent = `Auto-picked: ${getScenarioLabel(suggestedScenario)}.`;
+  }
+
+  helpEl.textContent = EMAIL_SCENARIO_HELP[scenario] || '';
+}
+
+async function sendEmail() {
+  const to = document.getElementById('email-to').value.trim();
+  const subject = document.getElementById('email-subject').value.trim();
+  const body = document.getElementById('email-body').value.trim();
+
+  if (!to) { alert('Please enter a recipient email.'); return; }
+
+  const btn = document.getElementById('email-send-btn');
+  btn.textContent = 'Sending…';
+  btn.disabled = true;
+
+  try {
+    const res = await fetch(`/api/sessions/${currentSessionId}/send-email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ to, subject, body }),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      btn.textContent = '✓ Sent!';
+      setStatus('sent');
+      loadSidebar();
+      setTimeout(() => {
+        btn.textContent = 'Send Email with PDF';
+        btn.disabled = false;
+      }, 3000);
+    } else {
+      alert('Error: ' + data.error);
+      btn.textContent = 'Send Email with PDF';
+      btn.disabled = false;
+    }
+  } catch (e) {
+    alert('Error: ' + e.message);
+    btn.textContent = 'Send Email with PDF';
+    btn.disabled = false;
+  }
+}
+
+// ── FILE HANDLING ────────────────────────────────────
+
+function onFilesSelected(event) {
+  addFilesToQueue(Array.from(event.target.files || []));
+  event.target.value = '';
+}
+
+function addFilesToQueue(files) {
+  if (isSending) return;
+  const validFiles = [];
+  let rejectedCount = 0;
+  let overflowCount = 0;
+
+  for (const file of files || []) {
+    if (!isImageFile(file)) {
+      rejectedCount += 1;
+    } else if (pendingFiles.length + validFiles.length < MAX_CLIENT_IMAGE_COUNT) {
+      validFiles.push(file);
+    } else {
+      overflowCount += 1;
+    }
+  }
+
+  if (validFiles.length) {
+    pendingFiles = pendingFiles.concat(validFiles);
+    renderImagePreviews();
+  }
+
+  if (rejectedCount) {
+    appendMessage('system', 'Images only.');
+  }
+
+  if (overflowCount) {
+    appendMessage('system', `Limit ${MAX_CLIENT_IMAGE_COUNT} images. Extra files ignored.`);
+  }
+}
+
+function isImageFile(file) {
+  if (!file || typeof file !== 'object') return false;
+  if (typeof file.type === 'string' && file.type.startsWith('image/')) return true;
+  return /\.(avif|gif|heic|heif|jpeg|jpg|png|webp|bmp|tif|tiff)$/i.test(file.name || '');
+}
+
+function renderImagePreviews() {
+  const bar = document.getElementById('image-preview-bar');
+  revokePendingPreviewUrls();
+  bar.innerHTML = '';
+  pendingPreviewUrls = [];
+  pendingFiles.forEach((file, i) => {
+    const url = URL.createObjectURL(file);
+    pendingPreviewUrls.push(url);
+    const div = document.createElement('div');
+    div.className = 'img-thumb';
+    div.innerHTML = `<img src="${url}"><button class="remove-img" onclick="removeImage(${i})">×</button>`;
+    bar.appendChild(div);
+  });
+}
+
+function removeImage(index) {
+  pendingFiles.splice(index, 1);
+  renderImagePreviews();
+}
+
+function clearAttachmentQueue() {
+  revokePendingPreviewUrls();
+  pendingFiles = [];
+  pendingPreviewUrls = [];
+  dragDepth = 0;
+  setDropActive(false);
+  document.getElementById('image-preview-bar').innerHTML = '';
+}
+
+function isFileDrag(event) {
+  const dt = event && event.dataTransfer;
+  if (!dt) return false;
+  if (dt.types && Array.from(dt.types).includes('Files')) return true;
+  if (dt.items) {
+    return Array.from(dt.items).some((item) => item.kind === 'file');
+  }
+  return false;
+}
+
+function setDropActive(active) {
+  document.body.classList.toggle('drop-active', active);
+}
+
+function handleDocumentDragEnter(event) {
+  if (!isFileDrag(event)) return;
+  event.preventDefault();
+  dragDepth += 1;
+  setDropActive(true);
+}
+
+function handleDocumentDragOver(event) {
+  if (!isFileDrag(event)) return;
+  event.preventDefault();
+  setDropActive(true);
+}
+
+function handleDocumentDragLeave(event) {
+  if (!isFileDrag(event)) return;
+  event.preventDefault();
+  dragDepth = Math.max(0, dragDepth - 1);
+  if (!dragDepth) setDropActive(false);
+}
+
+function handleDocumentDrop(event) {
+  if (!isFileDrag(event)) return;
+  event.preventDefault();
+  clearDropState();
+  addFilesToQueue(Array.from(event.dataTransfer.files || []));
+}
+
+function clearDropState() {
+  dragDepth = 0;
+  setDropActive(false);
+}
+
+function setSendingState(active) {
+  isSending = active;
+  document.getElementById('send-btn').disabled = active;
+  document.getElementById('message-input').disabled = active;
+  document.getElementById('attach-btn').disabled = active;
+  document.getElementById('file-input').disabled = active;
+}
+
+function revokePendingPreviewUrls() {
+  for (const url of pendingPreviewUrls) {
+    URL.revokeObjectURL(url);
+  }
+}
+
+function getEmailDraftState(sessionId) {
+  if (!sessionId) return { subjectDirty: false, bodyDirty: false, toDirty: false };
+  if (!emailDraftStateBySession.has(sessionId)) {
+    emailDraftStateBySession.set(sessionId, { subjectDirty: false, bodyDirty: false, toDirty: false });
+  }
+  return emailDraftStateBySession.get(sessionId);
+}
+
+function markEmailDraftDirty(field) {
+  if (!currentSessionId) return;
+  const state = getEmailDraftState(currentSessionId);
+  state[`${field}Dirty`] = true;
+}
+
+// ── STATUS ───────────────────────────────────────────
+
+function setStatus(status) {
+  const dot = document.getElementById('status-dot');
+  const text = document.getElementById('status-text');
+  const states = {
+    gathering:   ['#7A9E6A', 'Gathering information'],
+    quote_ready: ['#6A9AAA', 'Quote ready'],
+    email_ready: ['#9AAA6A', 'Ready to send'],
+    sent:        ['#5A5048', 'Sent'],
+  };
+  const [color, label] = states[status] || ['#5A5048', status || 'Ready'];
+  dot.style.background = color;
+  text.textContent = label;
+}
+
+// ── HELPERS ──────────────────────────────────────────
+
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    if (isSending) return;
+    sendMessage();
+  }
+}
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+
+function formatMoney(n) {
+  return Math.round(n).toLocaleString('fr-CA');
+}
+
+function esc(str) {
+  const div = document.createElement('div');
+  div.textContent = str || '';
+  return div.innerHTML;
+}
+
+// ── QUOTING RULES MODAL ──────────────────────────────
+
+async function openRulesModal() {
+  const modal = document.getElementById('rules-modal');
+  const textarea = document.getElementById('rules-textarea');
+  const status = document.getElementById('rules-status');
+
+  modal.classList.add('open');
+  textarea.value = 'Loading…';
+  status.textContent = '';
+
+  try {
+    const res = await fetch('/api/quoting-logic');
+    const data = await res.json();
+    textarea.value = data.content;
+    status.textContent = 'Loaded from /data/QUOTING_LOGIC.md';
+  } catch (e) {
+    textarea.value = '';
+    status.textContent = 'Failed to load file.';
+  }
+}
+
+function closeRulesModal() {
+  document.getElementById('rules-modal').classList.remove('open');
+  document.getElementById('rules-status').textContent = '';
+}
+
+function handleModalBackdrop(e) {
+  if (e.target === document.getElementById('rules-modal')) closeRulesModal();
+}
+
+async function saveRules() {
+  const btn = document.getElementById('rules-save-btn');
+  const status = document.getElementById('rules-status');
+  const content = document.getElementById('rules-textarea').value;
+
+  btn.textContent = 'Saving…';
+  btn.disabled = true;
+
+  try {
+    const res = await fetch('/api/quoting-logic', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content }),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      status.textContent = '✓ Saved — new rules active on the next assistant message.';
+      btn.textContent = '✓ Saved';
+      setTimeout(() => {
+        btn.textContent = 'Save';
+        btn.disabled = false;
+      }, 2000);
+    } else {
+      status.textContent = 'Error: ' + (data.error || 'unknown');
+      btn.textContent = 'Save';
+      btn.disabled = false;
+    }
+  } catch (e) {
+    status.textContent = 'Network error.';
+    btn.textContent = 'Save';
+    btn.disabled = false;
+  }
+}
+
+// close modal on Escape
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeRulesModal();
+});
+
+document.addEventListener('dragenter', handleDocumentDragEnter, true);
+document.addEventListener('dragover', handleDocumentDragOver, true);
+document.addEventListener('dragleave', handleDocumentDragLeave, true);
+document.addEventListener('drop', handleDocumentDrop, true);
+document.addEventListener('dragend', clearDropState, true);
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) clearDropState();
+});
+window.addEventListener('blur', clearDropState);
+document.getElementById('email-subject').addEventListener('input', () => markEmailDraftDirty('subject'));
+document.getElementById('email-body').addEventListener('input', () => markEmailDraftDirty('body'));
+document.getElementById('email-to').addEventListener('input', () => markEmailDraftDirty('to'));
+document.getElementById('email-scenario').addEventListener('change', () => refreshEmailDraftFromSettings('scenario'));
+document.getElementById('email-signer').addEventListener('change', () => refreshEmailDraftFromSettings('signer'));
+document.getElementById('email-detail-level').addEventListener('change', () => refreshEmailDraftFromSettings('detailLevel'));
+
+// ── INIT ─────────────────────────────────────────────
+loadSidebar();
+</script>
+</body>
+</html>

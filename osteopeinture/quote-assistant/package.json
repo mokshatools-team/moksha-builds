@@ -1,0 +1,26 @@
+{
+  "name": "osteopeinture-quote-assistant",
+  "version": "1.0.0",
+  "description": "AI-powered quote assistant for Ostéopeinture",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "test": "node --test tests/*.test.js"
+  },
+  "engines": {
+    "node": ">=20 <25"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "better-sqlite3": "^9.6.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "heic-convert": "^2.1.0",
+    "multer": "^2.0.0",
+    "nodemailer": "^8.0.1",
+    "playwright": "^1.44.0",
+    "sharp": "^0.34.3",
+    "uuid": "^9.0.1"
+  }
+}

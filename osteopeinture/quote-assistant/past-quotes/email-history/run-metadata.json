@@ -1,0 +1,18 @@
+{
+  "generatedAt": "2026-04-02T04:20:19.957Z",
+  "searchStart": "1-Jan-2025",
+  "accounts": [
+    "info@osteopeinture.com",
+    "osteopeinture@gmail.com"
+  ],
+  "suspicious": false,
+  "relevantMessages": 847,
+  "relevantThreads": 464,
+  "attachmentRecords": 400,
+  "pdfAttachmentsSaved": 398,
+  "nonPdfSkips": 500,
+  "zeroResultFolders": 0,
+  "accountErrors": 0,
+  "parseErrors": 0,
+  "parseFailureCount": 0
+}
