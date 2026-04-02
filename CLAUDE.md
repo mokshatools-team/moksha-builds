@@ -1,4 +1,4 @@
-# MOKSHA Automations — Claude Operating SOP
+# MOKSHA BUILDS — Claude Operating SOP
 
 You are building production tools for MOKSHA, a four-person collective
 operating five companies: MOKSHA AI Solutions, FIDELIO Productions, LXR,
@@ -7,14 +7,18 @@ All builds are web apps or automation tools deployed live on Railway.
 
 ---
 
-## Before You Do Anything
+## Session Start (every time, no exceptions)
 
-1. Read the CONTEXT.md inside the active build folder
-2. Confirm the live Railway URL for this build
-3. State what "working" means for this specific build's main user flow
-4. List any unknowns — do not guess or invent
+Before touching any code:
 
-Do not write code until you have done all four.
+1. Read CLAUDE.md (this file)
+2. Read CONTEXT.md inside the active build folder
+3. State current build status in 2 sentences
+4. Confirm the live Railway URL for this build
+5. State what "working" means for today's task specifically
+6. List all unknowns — do not guess, do not invent
+
+Do not write a single line of code until all six are done.
 
 ---
 
@@ -26,84 +30,104 @@ A task is NOT done when:
 - Railway says "deploy successful"
 
 A task IS done only when:
-- The live Railway URL is tested
+- The live Railway URL has been tested
 - The exact user flow for this build works end to end
-- You have confirmed this yourself, not asked Loric to check
+- You have verified this yourself — never ask Loric to check
 
 ---
 
-## Required Build Loop
+## Mandatory Build Loop
 
-1. Implement the change
-2. Deploy to Railway via CLI: railway up
-3. Wait for deploy to complete
-4. Fetch the live URL and test the exact user flow
-5. If broken:
-   - Run railway logs to read the error
-   - Check for missing environment variables
-   - Check network/API failures
-   - Fix → redeploy → retest
-6. Repeat until the live app works correctly
+Every change follows this exact sequence:
 
-Never ask Loric to check the live app unless you are genuinely blocked
-after two failed fix attempts, and always include the Railway logs when
-you do.
+### Phase 1 — Plan
+- Read CONTEXT.md and the relevant spec in docs/
+- If no spec exists for this task, stop and tell Loric before building
+- State what you are going to build in plain language before touching code
+
+### Phase 2 — Build
+- Follow existing code patterns — never invent new architecture
+- Make small, targeted changes — never large rewrites
+- Never hardcode environment variables — list required ones explicitly
+
+### Phase 3 — Review (mandatory before every commit)
+- Invoke /requesting-code-review skill
+- Spawn code-quality-reviewer subagent using subagent-driven-development/code-quality-reviewer-prompt.md
+- Spawn spec-reviewer subagent using subagent-driven-development/spec-reviewer-prompt.md
+- Both reviewers must pass before proceeding
+- If either reviewer flags issues: fix them, then re-review
+- Do not skip this phase even for small changes
+
+### Phase 4 — Deploy
+- Deploy command: railway up
+- Wait for deploy confirmation before proceeding
+
+### Phase 5 — Verify (mandatory after every deploy)
+- Hit the live Railway URL
+- Test the exact user flow that was changed — not just "is the server up"
+- Check Railway logs: railway logs
+- If broken:
+  - Read logs first before touching code
+  - Check for missing environment variables
+  - Check network and API failures
+  - Fix → redeploy → retest
+  - Repeat until working
+- Never ask Loric to manually test unless blocked after two failed attempts
+- When asking Loric for help, always include the Railway logs
+
+### Phase 6 — Commit and close
+- Invoke /receiving-code-review if any review feedback was received
+- Commit with a clear message describing what changed and why
+- Update CONTEXT.md with:
+  - What was built or changed today
+  - Current status
+  - Live URL confirmed working (or current blocker if not)
+  - Exact next step for next session
+- Push to GitHub: git add . && git commit -m "message" && git push
 
 ---
 
 ## Railway Rules
 
 - Deploy command: railway up
-- Read logs command: railway logs
-- Environment variables are set in the Railway dashboard — never hardcode
-  them, never guess their names, always list which ones are required
-- If a deploy fails, read the logs before doing anything else
+- Logs command: railway logs
+- Environment variables live in Railway dashboard — never hardcode them
+- If deploy fails: read logs before doing anything else
+- Railway is not connected to GitHub for auto-deploy — always deploy manually via railway up
 
 ---
 
 ## Hard Rules
 
 - Never stop at deploy success
-- Never guess commands — check package.json first
+- Never guess commands — check package.json or requirements.txt first
 - Never invent environment variable names
 - Never rewrite architecture when a small fix will do
 - Never ask Loric to manually test unless truly blocked
-- Follow existing code patterns in the project — do not invent new ones
+- Never skip the review phase
+- Follow existing code patterns — do not invent new structure
 - Prefer small targeted changes over large rewrites
+- Explain structural changes in plain language before making them — Loric is not a developer
 
 ---
 
-## Session Start (every time)
+## Folder Structure
 
-When starting any session, before touching code:
+MOKSHA BUILDS/
+├── CLAUDE.md              ← this file, read every session
+├── AGENTS.md
+├── docs/                  ← specs and plans live here
+├── osteopeinture/         ← OstéoPeinture builds
+├── fidelio/               ← FIDELIO builds
+└── moksha-internal/       ← MOKSHA internal tools
 
-1. Read CONTEXT.md in the active build folder
-2. State current build status in 2 sentences
-3. Confirm the live Railway URL
-4. Confirm what done looks like for today's task
-5. List unknowns
-
----
-
-## End of Session
-
-Before closing any session:
-
-Update CONTEXT.md with:
-- What was built or changed today
-- Current status
-- Live URL confirmed working (or current blocker)
-- Exact next step for next session
-
-Push to GitHub.
+Each build folder contains its own CONTEXT.md — read it, maintain it, update it every session.
 
 ---
 
 ## Build Conventions
 
-- Each build lives in its own subfolder inside MOKSHA Automations
-- Each build has its own CONTEXT.md — read it, maintain it
-- Company prefixes: OP (OstéoPeinture), FDL (FIDELIO), MOK (MOKSHA),
-  RSV (RSV client), WED (weddings)
-- Loric is not a developer — explain what you're doing in plain language
-  before doing it, especially for structural changes
+- Company prefixes: OP (OstéoPeinture), FDL (FIDELIO), MOK (MOKSHA), RSV, WED
+- Each build has a spec in docs/ before Claude Code touches it
+- Loric is not a developer — plain language always
+- When in doubt, do less and confirm with Loric
