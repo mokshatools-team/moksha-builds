@@ -114,20 +114,31 @@ You describe the job to the AI assistant (client name, address, surfaces, scope,
 
 ## What Was Last Worked On (2026-04-03)
 
-### Session 2 — 5 fixes deployed:
+### Session 3 — Email panel overhaul + sidebar fixes:
 
-1. **Email textarea expanded** — body textarea now has min-height 200px and flexes to fill the available space in the email panel.
-2. **PDF spacing fix** — removed trailing spacer row after the last section in each format (room-based and category-based). Also skips spacer before a new floor header. No more unwanted extra space in any section.
-3. **Sidebar delete button** — hover-visible (×) button on each sidebar item. Confirm dialog before deletion. Removes from database and sidebar. If the deleted session was active, resets to the start screen.
-4. **Editable quote names with LASTNAME_## format** — new sessions default to `NEW_01`, `NEW_02`, etc. Double-click the name in the sidebar to rename. Enter to save, Escape to cancel. Name shows in both sidebar and quote panel header. Backend `PATCH /api/sessions/:id/name` endpoint. When the AI produces a quote JSON with a projectId, that replaces the default name.
-5. **OSTÉOPEINTURE logo in PDF footer** — added "Ostéopeinture" in the same style as the header logo (Montserrat, 10px, 600 weight, 5px letter-spacing, #7B3A10) above the address block in the PDF footer.
+1. **Email settings horizontal grid** — Type, Signer, Length, Language, Recipient all in one row (5-column CSS grid). Saves vertical space.
+2. **Language selector** — English/French dropdown wired to the email draft system. Changes regenerate the draft in the selected language.
+3. **Follow Up option** — added as a third email type alongside Send Quote and Revised Quote.
+4. **Removed refine input** — the separate refine row in the email panel is gone. Email refinement should happen through the main chat.
+5. **Email Draft header styled** — serif font, larger text, bottom border to visually separate it as a section.
+6. **Horizontal resizable divider** — draggable divider between quote preview and email panel. Drag up/down to resize. Only visible when email panel is open.
+7. **Fixed raw JSON in chat on session reload** — loading old sessions now shows "Quote ready" instead of the raw JSON blob.
+8. **Fixed sidebar double-click rename** — added 250ms click delay so double-click to rename isn't overridden by loadSession. Guard variable prevents race conditions.
+9. **Removed gap/help text** — the confusing scenario-status and scenario-help divs under Email Type are gone.
+10. **Renamed Detail to Length** — clearer label for the email detail level dropdown.
+
+### Session 2 — 5 fixes:
+1. Email textarea expanded (min-height 200px, flexes)
+2. PDF spacing fix (trailing spacer removed)
+3. Sidebar delete button
+4. Editable quote names (NEW_##, double-click rename)
+5. OSTÉOPEINTURE logo in PDF footer
 
 ### Session 1 — 4 UI/UX changes:
-
 1. Resizable panel divider
 2. JSON hidden from chat
 3. Email panel minimize/restore
-4. Iterative email refinement
+4. Iterative email refinement (now removed from UI)
 
 ### Previous work (2026-04-01):
 - Upload pipeline (HEIC, Sharp, drag-and-drop)

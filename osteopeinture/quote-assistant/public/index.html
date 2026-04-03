@@ -880,16 +880,48 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 2px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border-soft);
+    margin-bottom: 4px;
   }
 
   #email-form-header-label {
-    font-size: 10px;
+    font-family: var(--font-serif);
+    font-size: 14px;
     font-weight: 600;
-    color: var(--text-3);
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
+    color: var(--text);
+    letter-spacing: 0.03em;
   }
+
+  .email-settings-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+  }
+  .email-settings-grid .form-input {
+    font-size: 11.5px;
+    padding: 6px 8px;
+  }
+  .email-settings-grid .form-label {
+    font-size: 8.5px;
+  }
+
+  /* ─── EMAIL DIVIDER ─── */
+  #email-divider {
+    display: none;
+    height: 5px;
+    cursor: row-resize;
+    background: var(--border);
+    flex-shrink: 0;
+    transition: background 0.15s;
+  }
+  #email-divider.visible { display: block; }
+  #email-divider:hover,
+  #email-divider.dragging {
+    background: var(--accent-dim);
+  }
+  body.email-resizing { cursor: row-resize !important; user-select: none !important; }
+  body.email-resizing iframe { pointer-events: none !important; }
 
   #email-minimize-btn {
     background: var(--surface-2);
@@ -970,56 +1002,6 @@
     min-height: 200px;
     flex: 1;
     line-height: 1.5;
-  }
-
-  #email-refine-row {
-    display: flex;
-    gap: 6px;
-    align-items: flex-end;
-  }
-
-  #email-refine-input {
-    flex: 1;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    padding: 7px 10px;
-    font-size: 12px;
-    font-family: var(--font-sans);
-    outline: none;
-    background: var(--surface-0);
-    color: var(--text);
-    transition: border-color 0.2s, box-shadow 0.2s;
-  }
-
-  #email-refine-input::placeholder { color: var(--text-4); }
-
-  #email-refine-input:focus {
-    border-color: var(--accent-dim);
-    box-shadow: 0 0 0 3px var(--accent-glow);
-  }
-
-  #email-refine-btn {
-    background: var(--surface-2);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    padding: 7px 12px;
-    font-size: 11px;
-    font-weight: 600;
-    font-family: var(--font-sans);
-    color: var(--text-2);
-    cursor: pointer;
-    transition: all 0.15s;
-    white-space: nowrap;
-    letter-spacing: 0.02em;
-  }
-  #email-refine-btn:hover {
-    border-color: var(--accent-dim);
-    color: var(--accent);
-    background: var(--accent-glow);
-  }
-  #email-refine-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
   }
 
   #email-send-btn {
@@ -1268,39 +1250,48 @@
       <iframe id="quote-frame" style="display:none"></iframe>
       <button id="email-restore-btn" onclick="restoreEmailForm()">✉ Email</button>
     </div>
+    <div id="email-divider"></div>
     <div id="email-form">
       <div id="email-form-header">
         <div id="email-form-header-label">Email Draft</div>
         <button id="email-minimize-btn" onclick="minimizeEmailForm()" title="Minimize">−</button>
       </div>
-      <div class="form-row">
-        <div class="form-label">Email Type</div>
-        <select class="form-input" id="email-scenario">
-          <option value="quote_send">Send attached quote</option>
-          <option value="quote_revision">Send revised quote</option>
-        </select>
-        <div class="sidebar-item-meta" id="email-scenario-status" style="margin-top:8px;"></div>
-        <div class="sidebar-empty" id="email-scenario-help" style="margin-top:6px; text-align:left;"></div>
-      </div>
-      <div class="form-row">
-        <div class="form-label">Signer</div>
-        <select class="form-input" id="email-signer">
-          <option value="Loric">Loric</option>
-          <option value="Graeme">Graeme</option>
-          <option value="Lubo">Lubo</option>
-        </select>
-      </div>
-      <div class="form-row">
-        <div class="form-label">Detail</div>
-        <select class="form-input" id="email-detail-level">
-          <option value="minimal">Minimal</option>
-          <option value="standard" selected>Standard</option>
-          <option value="detailed">Detailed</option>
-        </select>
-      </div>
-      <div class="form-row">
-        <div class="form-label">Recipient Email</div>
-        <input type="email" class="form-input" id="email-to" placeholder="client@email.com">
+      <div class="email-settings-grid">
+        <div class="form-row">
+          <div class="form-label">Type</div>
+          <select class="form-input" id="email-scenario">
+            <option value="quote_send">Send quote</option>
+            <option value="quote_revision">Revised quote</option>
+            <option value="quote_follow_up">Follow up</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <div class="form-label">Signer</div>
+          <select class="form-input" id="email-signer">
+            <option value="Loric">Loric</option>
+            <option value="Graeme">Graeme</option>
+            <option value="Lubo">Lubo</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <div class="form-label">Length</div>
+          <select class="form-input" id="email-detail-level">
+            <option value="minimal">Short</option>
+            <option value="standard" selected>Standard</option>
+            <option value="detailed">Detailed</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <div class="form-label">Language</div>
+          <select class="form-input" id="email-language" onchange="refreshEmailDraftFromSettings('language')">
+            <option value="english">English</option>
+            <option value="french">French</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <div class="form-label">Recipient</div>
+          <input type="email" class="form-input" id="email-to" placeholder="client@email.com">
+        </div>
       </div>
       <div class="form-row">
         <div class="form-label">Subject</div>
@@ -1309,11 +1300,6 @@
       <div class="form-row form-row-flex">
         <div class="form-label">Message</div>
         <textarea class="form-textarea" id="email-body"></textarea>
-      </div>
-      <div id="email-refine-row">
-        <input type="text" id="email-refine-input" placeholder="Refine: &quot;make it warmer&quot;, &quot;add a note about primer&quot;…"
-          onkeydown="if(event.key==='Enter'){event.preventDefault();refineEmail();}">
-        <button id="email-refine-btn" onclick="refineEmail()">Refine</button>
       </div>
       <button id="email-send-btn" onclick="sendEmail()">Send Email with PDF</button>
     </div>
@@ -1327,10 +1313,6 @@ let pendingFiles = [];
 let pendingPreviewUrls = [];
 let dragDepth = 0;
 let isSending = false;
-const EMAIL_SCENARIO_HELP = {
-  quote_send: 'Use this when the quote is attached and ready to send.',
-  quote_revision: 'Use this when you are sending an updated version of an earlier quote.',
-};
 
 // ── MOBILE NAV ───────────────────────────────────────
 function toggleSidebar() {
@@ -1369,9 +1351,9 @@ async function loadSidebar() {
     const active = s.id === currentSessionId ? 'active' : '';
     const statusLabel = { gathering: 'In progress', quote_ready: 'Ready', sent: 'Sent' }[s.status] || s.status;
     const statusClass = s.status || 'gathering';
-    return `<div class="sidebar-item ${active}" onclick="loadSession('${s.id}')">
+    return `<div class="sidebar-item ${active}" onclick="handleSidebarClick('${s.id}')">
       <button class="sidebar-item-delete" onclick="event.stopPropagation();deleteSession('${s.id}')" title="Delete">×</button>
-      <div class="sidebar-item-client" ondblclick="event.stopPropagation();startRenameSession('${s.id}',this)">${esc(client)}</div>
+      <div class="sidebar-item-client" onclick="event.stopPropagation()" ondblclick="startRenameSession('${s.id}',this)">${esc(client)}</div>
       <div class="sidebar-item-meta">
         <span class="sidebar-item-id">${esc(s.project_id || date)}</span>
         <span class="sidebar-item-total">${total}</span>
@@ -1381,7 +1363,18 @@ async function loadSidebar() {
   }).join('');
 }
 
+let sidebarClickTimer = null;
+let isRenaming = false;
+
+function handleSidebarClick(id) {
+  if (isRenaming) return;
+  if (sidebarClickTimer) clearTimeout(sidebarClickTimer);
+  sidebarClickTimer = setTimeout(() => { loadSession(id); }, 250);
+}
+
 function startRenameSession(id, el) {
+  if (sidebarClickTimer) clearTimeout(sidebarClickTimer);
+  isRenaming = true;
   const currentName = el.textContent.trim();
   const input = document.createElement('input');
   input.type = 'text';
@@ -1393,7 +1386,10 @@ function startRenameSession(id, el) {
   input.focus();
   input.select();
 
+  let finished = false;
   async function finishRename() {
+    if (finished) return;
+    finished = true;
     const newName = input.value.trim();
     if (newName && newName !== currentName) {
       try {
@@ -1410,13 +1406,14 @@ function startRenameSession(id, el) {
         }
       } catch (e) { /* revert on error */ }
     }
+    isRenaming = false;
     loadSidebar();
   }
 
   input.addEventListener('blur', finishRename);
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
-    if (e.key === 'Escape') { el.textContent = currentName; }
+    if (e.key === 'Escape') { finished = true; isRenaming = false; el.textContent = currentName; }
   });
 }
 
@@ -1450,7 +1447,13 @@ async function loadSession(id) {
     const text = Array.isArray(msg.content)
       ? msg.content.filter(c => c.type === 'text').map(c => c.text).join('\n')
       : msg.content;
-    if (text) appendMessage(msg.role, text);
+    if (!text) continue;
+    const trimmed = text.trim();
+    if (msg.role === 'assistant' && trimmed.startsWith('{') && trimmed.endsWith('}')) {
+      appendMessage('assistant', 'Quote ready — see the panel on the right.');
+    } else {
+      appendMessage(msg.role, text);
+    }
   }
 
   if (session.quoteJson) {
@@ -1705,18 +1708,22 @@ async function downloadPDF() {
 
 function toggleEmailForm() {
   const form = document.getElementById('email-form');
+  const divider = document.getElementById('email-divider');
   form.classList.remove('minimized');
   form.classList.toggle('open');
+  divider.classList.toggle('visible', form.classList.contains('open'));
   document.getElementById('email-restore-btn').classList.remove('visible');
 }
 
 function minimizeEmailForm() {
   document.getElementById('email-form').classList.add('minimized');
+  document.getElementById('email-divider').classList.remove('visible');
   document.getElementById('email-restore-btn').classList.add('visible');
 }
 
 function restoreEmailForm() {
   document.getElementById('email-form').classList.remove('minimized');
+  document.getElementById('email-divider').classList.add('visible');
   document.getElementById('email-restore-btn').classList.remove('visible');
 }
 
@@ -1735,10 +1742,10 @@ function prefillEmail(session) {
   if (!state.subjectDirty) subjectEl.value = draft.subject || '';
   if (!state.bodyDirty) bodyEl.value = draft.body || '';
   if (!state.toDirty) toEl.value = draft.recipient || session.email_recipient || '';
-  scenarioEl.value = ['quote_send', 'quote_revision'].includes(settings.scenario) ? settings.scenario : 'quote_send';
+  scenarioEl.value = ['quote_send', 'quote_revision', 'quote_follow_up'].includes(settings.scenario) ? settings.scenario : 'quote_send';
   signerEl.value = settings.signer || 'Loric';
   detailEl.value = settings.detailLevel || 'standard';
-  renderEmailScenarioInfo(settings);
+  document.getElementById('email-language').value = settings.language || 'english';
 }
 
 async function refreshEmailDraftFromSettings(changedField = '') {
@@ -1750,6 +1757,7 @@ async function refreshEmailDraftFromSettings(changedField = '') {
   if (changedField === 'scenario') payload.scenario = document.getElementById('email-scenario').value;
   if (changedField === 'signer') payload.signer = document.getElementById('email-signer').value;
   if (changedField === 'detailLevel') payload.detailLevel = document.getElementById('email-detail-level').value;
+  if (changedField === 'language') payload.language = document.getElementById('email-language').value;
 
   const res = await fetch(`/api/sessions/${currentSessionId}/email-draft`, {
     method: 'PUT',
@@ -1763,70 +1771,10 @@ async function refreshEmailDraftFromSettings(changedField = '') {
   }
 
   const draft = data.emailDraft || {};
-  renderEmailScenarioInfo(draft.settings || {});
   const state = getEmailDraftState(currentSessionId);
   if (!state.subjectDirty) document.getElementById('email-subject').value = draft.subject || '';
   if (!state.bodyDirty) document.getElementById('email-body').value = draft.body || '';
   if (!state.toDirty) document.getElementById('email-to').value = draft.recipient || recipient;
-}
-
-function getScenarioLabel(value) {
-  const select = document.getElementById('email-scenario');
-  const option = Array.from(select.options).find((item) => item.value === value);
-  return option ? option.textContent : value;
-}
-
-function renderEmailScenarioInfo(settings = {}) {
-  const statusEl = document.getElementById('email-scenario-status');
-  const helpEl = document.getElementById('email-scenario-help');
-  const scenario = settings.scenario || document.getElementById('email-scenario').value || 'quote_send';
-  const suggestedScenario = settings.suggestedScenario || scenario;
-  const manual = Boolean(settings.scenarioManual);
-
-  if (manual) {
-    statusEl.textContent = `Using your choice. Auto-pick was: ${getScenarioLabel(suggestedScenario)}.`;
-  } else {
-    statusEl.textContent = `Auto-picked: ${getScenarioLabel(suggestedScenario)}.`;
-  }
-
-  helpEl.textContent = EMAIL_SCENARIO_HELP[scenario] || '';
-}
-
-async function refineEmail() {
-  const input = document.getElementById('email-refine-input');
-  const instruction = input.value.trim();
-  if (!instruction || !currentSessionId) return;
-
-  const bodyEl = document.getElementById('email-body');
-  const currentDraft = bodyEl.value.trim();
-  if (!currentDraft) { alert('No email draft to refine.'); return; }
-
-  const btn = document.getElementById('email-refine-btn');
-  btn.disabled = true;
-  btn.textContent = 'Refining…';
-
-  try {
-    const res = await fetch(`/api/sessions/${currentSessionId}/email/refine`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ instruction, currentDraft }),
-    });
-    const data = await res.json();
-    if (data.error) {
-      alert('Refine error: ' + data.error);
-    } else if (data.refinedDraft) {
-      bodyEl.value = data.refinedDraft;
-      const state = getEmailDraftState(currentSessionId);
-      state.bodyDirty = true;
-    }
-  } catch (e) {
-    alert('Connection error: ' + e.message);
-  } finally {
-    btn.disabled = false;
-    btn.textContent = 'Refine';
-    input.value = '';
-    input.focus();
-  }
 }
 
 async function sendEmail() {
@@ -2020,6 +1968,42 @@ function clearDropState() {
   function onMouseUp() {
     divider.classList.remove('dragging');
     document.body.classList.remove('panel-resizing');
+    document.removeEventListener('mousemove', onMouseMove);
+    document.removeEventListener('mouseup', onMouseUp);
+  }
+})();
+
+// ── EMAIL DIVIDER RESIZE ────────────────────────────
+(function initEmailDivider() {
+  const divider = document.getElementById('email-divider');
+  const frameContainer = document.getElementById('quote-frame-container');
+  const quotePanel = document.getElementById('quote-panel');
+  if (!divider) return;
+
+  let startY = 0;
+  let startH = 0;
+
+  divider.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    startY = e.clientY;
+    startH = frameContainer.getBoundingClientRect().height;
+    divider.classList.add('dragging');
+    document.body.classList.add('email-resizing');
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  });
+
+  function onMouseMove(e) {
+    const panelH = quotePanel.getBoundingClientRect().height;
+    let newH = startH + (e.clientY - startY);
+    newH = Math.max(80, Math.min(newH, panelH - 200));
+    frameContainer.style.height = newH + 'px';
+    frameContainer.style.flex = 'none';
+  }
+
+  function onMouseUp() {
+    divider.classList.remove('dragging');
+    document.body.classList.remove('email-resizing');
     document.removeEventListener('mousemove', onMouseMove);
     document.removeEventListener('mouseup', onMouseUp);
   }
