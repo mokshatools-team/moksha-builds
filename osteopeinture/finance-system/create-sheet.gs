@@ -592,9 +592,9 @@ function buildGSTQST(ss) {
       } else if (label === 'QST Collected (9.975%)') {
         formula = `=${columnToLetter(2 + m)}${rowMap['Taxable Revenue']}*0.09975`;
       } else if (label === 'GST Paid on Expenses (ITC)') {
-        formula = `=IFERROR(SUMPRODUCT(ISNUMBER(MATCH(Transactions!F$2:F$2000,IF(Categories!D$2:D$100="Y",Categories!A$2:A$100,""),0))*(Transactions!H$2:H$2000="${monthStr}")*(Transactions!E$2:E$2000)*-1,0)*0.05`;
+        formula = `=IFERROR(SUMPRODUCT((COUNTIFS(Categories!A$2:A$100,Transactions!F$2:F$2000,Categories!D$2:D$100,"Y")>0)*(Transactions!H$2:H$2000="${monthStr}")*(Transactions!E$2:E$2000)*-1,0)*0.05,0)`;
       } else if (label === 'QST Paid on Expenses (ITC)') {
-        formula = `=IFERROR(SUMPRODUCT(ISNUMBER(MATCH(Transactions!F$2:F$2000,IF(Categories!D$2:D$100="Y",Categories!A$2:A$100,""),0))*(Transactions!H$2:H$2000="${monthStr}")*(Transactions!E$2:E$2000)*-1,0)*0.09975`;
+        formula = `=IFERROR(SUMPRODUCT((COUNTIFS(Categories!A$2:A$100,Transactions!F$2:F$2000,Categories!D$2:D$100,"Y")>0)*(Transactions!H$2:H$2000="${monthStr}")*(Transactions!E$2:E$2000)*-1,0)*0.09975,0)`;
       }
       sh.getRange(row, 2 + m).setFormula(formula).setNumberFormat('#,##0.00');
     }

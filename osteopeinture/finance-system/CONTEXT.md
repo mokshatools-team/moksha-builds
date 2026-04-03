@@ -237,7 +237,7 @@ All three have existing data in the 2025 Tiller sheet (2026 section in P&L by co
 
 Feeds into per-job P&L. Does NOT auto-create rows in Transactions — wages entered manually in both places (or a sync script can be built later).
 
-**Future:** Jibble API integration to auto-pull timesheet data. Not built now — Wages sheet is designed to accept Jibble data later without restructuring.
+**Future:** Jibble API integration to auto-pull timesheet data. Not built now — Wages sheet is designed to accept Jibble data later without restructuring. Jibble integration pending — will write to Wages tab using same column structure, needs job-tagging confirmed in Jibble settings. Separate session item once core system is live.
 
 ---
 
