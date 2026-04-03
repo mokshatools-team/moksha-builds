@@ -1,6 +1,6 @@
 # CONTEXT — Text Overlay Assistant
 **Company:** FIDELIO Productions
-**Last updated:** 2026-04-02
+**Last updated:** 2026-04-03
 
 ---
 
@@ -33,9 +33,9 @@ The full workflow: upload or paste URL → transcribe → Claude analysis → re
 
 ## Live Railway URL
 
-**Unknown — not documented in any config file.**
+**https://toa.up.railway.app**
 
-`railway.toml` only specifies the builder (`nixpacks`). The Railway URL was never recorded. To find it: log into railway.app, open the project for this service, and copy the public domain. Record it here once confirmed.
+Service name in Railway: `fidelio - text overlay assistant` (project: `moksha-tools`)
 
 ---
 
@@ -53,7 +53,7 @@ The full workflow: upload or paste URL → transcribe → Claude analysis → re
 - Route validation tests covering transcription, OAuth flow, and video listing
 
 **What's incomplete or unknown:**
-- Live Railway URL not documented
+- Live Railway URL confirmed: https://toa.up.railway.app (not end-to-end tested yet)
 - No end-to-end test against the live Railway deployment has been recorded
 - YouTube transcript API (`youtube_transcript_api`) is listed as a fallback path in code but is **not** in `requirements.txt` — it would fail silently on Railway if that path is ever triggered
 
@@ -80,7 +80,7 @@ The full workflow: upload or paste URL → transcribe → Claude analysis → re
 Not formally documented. Based on the `docs/superpowers/plans/2026-03-31-transcript-module.md` plan, the transcript fetching module was a recent addition. No follow-up work has been scoped yet.
 
 Suggested priorities for next session:
-1. Confirm and document the live Railway URL
+1. End-to-end test the live URL https://toa.up.railway.app (upload a file or YouTube URL → analyze → download JSON)
 2. Fix the README template name discrepancy (`OA_` vs `TOA_`)
 3. Remove the dead `youtube_transcript_api` import path or add it to requirements.txt
 
