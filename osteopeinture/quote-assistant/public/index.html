@@ -825,6 +825,7 @@
     border: none;
     background: var(--surface-0);
     transition: opacity 0.3s;
+    touch-action: auto;
   }
 
   #quote-placeholder {
@@ -1109,11 +1110,19 @@
     html, body {
       height: 100dvh;
       overflow: hidden;
+      touch-action: pan-x pan-y;
     }
     #input-area {
       padding-bottom: max(14px, env(safe-area-inset-bottom));
     }
 
+    /* Safe area top — prevents status bar overlap in PWA standalone mode */
+    #chat-header {
+      padding-top: max(14px, env(safe-area-inset-top));
+    }
+    #quote-header {
+      padding-top: max(12px, env(safe-area-inset-top));
+    }
     #panel-divider { display: none; }
     #email-divider { display: none !important; }
 
@@ -1126,6 +1135,7 @@
       z-index: 200;
       transition: left 0.25s ease;
       box-shadow: 4px 0 32px rgba(0,0,0,0.6);
+      padding-top: env(safe-area-inset-top);
     }
     #sidebar.open { left: 0; }
 
