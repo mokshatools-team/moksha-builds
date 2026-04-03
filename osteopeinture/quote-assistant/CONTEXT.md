@@ -94,6 +94,7 @@ You describe the job to the AI assistant (client name, address, surfaces, scope,
 | Email send via SMTP | Working (requires SMTP env vars) |
 | Session list / history | Working |
 | Quoting logic editor (admin) | Working (edits volume only, not repo) |
+| Mobile layout | Working (slide-up email, bottom nav, swipe, touch targets) |
 | Gmail scraper (past-quotes) | Ran once locally — dataset exists, not deployed |
 | Email pattern analysis | Ran once locally — `email-patterns.md` exists |
 
@@ -113,6 +114,22 @@ You describe the job to the AI assistant (client name, address, surfaces, scope,
 ---
 
 ## What Was Last Worked On (2026-04-03)
+
+### Session 4 — Full mobile support (3 tiers):
+
+**Tier 1+2 (layout fixes + UX):**
+1. Email settings grid stacks to 2x3 on mobile (Type+Signer, Length+Language, Recipient full-width)
+2. Email divider hidden on mobile
+3. Sidebar delete button always visible on mobile (no hover dependency)
+4. Sidebar rename pencil icon always visible on mobile (replaces double-click)
+5. Email panel is a full-screen slide-up sheet on mobile with close button
+6. Send Email button sticky at bottom of email form on mobile
+7. Email restore pill enlarged to 44px touch target
+
+**Tier 3 (polish):**
+8. Bottom nav bar — persistent Chat / Quote / Email tabs at bottom of screen
+9. Swipe gestures — swipe left on chat opens quote, swipe right goes back (50px threshold)
+10. Image preview bar scrolls horizontally on mobile instead of wrapping
 
 ### Session 3 — Email panel overhaul + sidebar fixes:
 
