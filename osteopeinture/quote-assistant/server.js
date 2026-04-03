@@ -1336,6 +1336,42 @@ app.post('/api/sessions/:id/adjust-quote', (req, res) => {
   res.json({ ok: true });
 });
 
+// Refine email draft via Claude
+app.post('/api/sessions/:id/email/refine', express.json(), async (req, res) => {
+  const session = getSession(req.params.id);
+  if (!session) return res.status(404).json({ error: 'Session not found' });
+
+  const { instruction, currentDraft } = req.body;
+  if (!instruction || !currentDraft) {
+    return res.status(400).json({ error: 'Missing instruction or currentDraft' });
+  }
+
+  try {
+    const response = await anthropic.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 2048,
+      system: `You are an email editor for OstéoPeinture, a painting company in Montréal. You receive a draft email and a refinement instruction. Apply the instruction and return ONLY the updated email body — no explanation, no preamble, no quotes around it. Preserve the existing sign-off and structure unless the instruction says otherwise. Keep the tone warm, professional, and concise.`,
+      messages: [
+        {
+          role: 'user',
+          content: `Here is the current email draft:\n\n${currentDraft}\n\n---\n\nInstruction: ${instruction}\n\nReturn only the updated email body.`,
+        },
+      ],
+    });
+
+    const refinedDraft = response.content
+      .filter((part) => part.type === 'text')
+      .map((part) => part.text)
+      .join('\n')
+      .trim();
+
+    res.json({ ok: true, refinedDraft });
+  } catch (err) {
+    console.error('Email refine error:', err);
+    res.status(500).json({ error: err.message || 'Failed to refine email' });
+  }
+});
+
 // ============================================================
 // START SERVER
 // ============================================================

@@ -101,7 +101,7 @@ You describe the job to the AI assistant (client name, address, surfaces, scope,
 
 ## Known Issues and Limitations
 
-1. **Railway URL not confirmed** — cannot verify the live deployment without relinking.
+1. ~~Railway URL not confirmed~~ — confirmed 2026-04-03.
 2. **Exterior primer prices TBC** — Seal Grip, Kembond, galvanized primer prices are flagged in `QUOTING_LOGIC.md` but not finalized.
 3. **Ceiling/trim benchmarks are provisional** — the wall benchmark is used as a fallback; real ceiling and trim benchmarks are not yet confirmed from job data.
 4. **Playwright Chromium risk** — PDF and email attachment generation depend on Chromium running inside Docker. If Playwright fails to launch (e.g., missing system deps in the Docker build), both `/api/sessions/:id/pdf` and `/api/sessions/:id/send-email` will fail. Check Railway logs if PDF is broken.
@@ -112,28 +112,26 @@ You describe the job to the AI assistant (client name, address, surfaces, scope,
 
 ---
 
-## What Was Last Worked On (as of 2026-04-01 to 2026-04-03)
+## What Was Last Worked On (2026-04-03)
 
-Two major implementation plans were executed:
+Four UI/UX changes deployed to Railway:
 
-1. **Upload pipeline and internal tone** (`2026-04-01-upload-pipeline-and-internal-tone.md`):
-   - Added `lib/image-upload.js` with HEIC conversion, Sharp-based compression, request budgeting, and batch normalization.
-   - Wired the image pipeline into the `/api/sessions/:id/messages` route.
-   - Switched the assistant system prompt to an internal admin tone (terse, no pleasantries).
-   - Added global drag-and-drop image attachment on the frontend.
+1. **Resizable panel divider** — draggable vertical handle between chat and quote panels. Min 280px chat, 300px quote. Mouse-only (hidden on mobile).
+2. **JSON hidden from chat** — when the assistant outputs a quote JSON, the chat now shows "Quote ready — see the panel on the right." instead of the raw JSON blob.
+3. **Email panel minimize/restore** — minimize button (−) in email form header collapses it. Floating "✉ Email" pill appears at bottom-right of quote panel to restore it.
+4. **Iterative email refinement** — text input + "Refine" button below the email body textarea. Sends the current draft + instruction to `POST /api/sessions/:id/email/refine`, which calls Claude to rewrite the draft. Multiple refinements supported.
 
-2. **Email logic and Gmail thread scrape** (`2026-04-01-email-logic-and-thread-scrape.md`):
-   - Ran the Gmail scraper (`past-quotes/scrape-gmail.js`) to capture OstéoPeinture email history since January 2025.
-   - Built `past-quotes/analyze-email-patterns.js` and generated `past-quotes/email-patterns.md`.
-   - Authored `EMAIL_LOGIC.md` from the pattern analysis.
-   - Integrated `EMAIL_LOGIC.md` into the server's email draft panel.
+Previous work (2026-04-01):
+- Upload pipeline (HEIC, Sharp, drag-and-drop)
+- Email logic + Gmail thread scrape
+- Internal admin tone
 
 ---
 
 ## What Needs to Happen Next
 
 ### Quote Generator
-- [ ] Confirm live Railway URL and verify the full quote flow end to end on the live server.
+- [x] Confirm live Railway URL — confirmed at https://op-quote-assistant.up.railway.app
 - [ ] Confirm or replace the TBC exterior primer prices in `QUOTING_LOGIC.md` (Seal Grip, Kembond Metal, galvanized metal).
 - [ ] Validate the ceiling benchmark from actual job data and update `QUOTING_LOGIC.md` Section 20 when confirmed.
 - [ ] Test Playwright PDF generation on the live Railway deploy — confirm it works or diagnose Chromium issue.

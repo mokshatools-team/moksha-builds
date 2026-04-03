@@ -417,12 +417,11 @@
 
   /* ─── CHAT PANEL ─── */
   #chat-panel {
-    width: 50%;
-    min-width: 320px;
+    flex: 1 1 50%;
+    min-width: 280px;
     background: var(--surface-1);
     display: flex;
     flex-direction: column;
-    border-right: 1px solid var(--border);
   }
 
   #chat-header {
@@ -693,9 +692,44 @@
     40%            { transform: scale(1);    opacity: 1; }
   }
 
+  /* ─── PANEL DIVIDER ─── */
+  #panel-divider {
+    width: 5px;
+    cursor: col-resize;
+    background: var(--border);
+    flex-shrink: 0;
+    position: relative;
+    z-index: 10;
+    transition: background 0.15s;
+  }
+  #panel-divider:hover,
+  #panel-divider.dragging {
+    background: var(--accent-dim);
+  }
+  #panel-divider::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 3px;
+    height: 28px;
+    border-radius: 2px;
+    background: var(--text-4);
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+  #panel-divider:hover::after,
+  #panel-divider.dragging::after {
+    opacity: 1;
+  }
+  body.panel-resizing { cursor: col-resize !important; user-select: none !important; }
+  body.panel-resizing iframe { pointer-events: none !important; }
+
   /* ─── QUOTE PANEL ─── */
   #quote-panel {
     flex: 1;
+    min-width: 300px;
     background: var(--surface-0);
     display: flex;
     flex-direction: column;
@@ -809,6 +843,71 @@
 
   #email-form.open { display: flex; }
 
+  #email-form.minimized {
+    display: none !important;
+  }
+
+  #email-form-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 2px;
+  }
+
+  #email-form-header-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-3);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
+  #email-minimize-btn {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--text-3);
+    font-size: 14px;
+    line-height: 1;
+    transition: all 0.15s;
+  }
+  #email-minimize-btn:hover {
+    border-color: var(--accent-dim);
+    color: var(--text);
+    background: var(--surface-3);
+  }
+
+  #email-restore-btn {
+    display: none;
+    position: absolute;
+    bottom: 12px;
+    right: 14px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    padding: 6px 14px;
+    font-size: 11px;
+    font-weight: 600;
+    font-family: var(--font-sans);
+    cursor: pointer;
+    z-index: 20;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.4);
+    transition: background 0.15s, transform 0.15s;
+    letter-spacing: 0.03em;
+  }
+  #email-restore-btn:hover {
+    background: #D97040;
+    transform: translateY(-1px);
+  }
+  #email-restore-btn.visible { display: flex; align-items: center; gap: 5px; }
+
   .form-row { display: flex; flex-direction: column; gap: 4px; }
 
   .form-label {
@@ -840,6 +939,56 @@
     resize: vertical;
     min-height: 75px;
     line-height: 1.5;
+  }
+
+  #email-refine-row {
+    display: flex;
+    gap: 6px;
+    align-items: flex-end;
+  }
+
+  #email-refine-input {
+    flex: 1;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 7px 10px;
+    font-size: 12px;
+    font-family: var(--font-sans);
+    outline: none;
+    background: var(--surface-0);
+    color: var(--text);
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  #email-refine-input::placeholder { color: var(--text-4); }
+
+  #email-refine-input:focus {
+    border-color: var(--accent-dim);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+  }
+
+  #email-refine-btn {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 7px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    font-family: var(--font-sans);
+    color: var(--text-2);
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+    letter-spacing: 0.02em;
+  }
+  #email-refine-btn:hover {
+    border-color: var(--accent-dim);
+    color: var(--accent);
+    background: var(--accent-glow);
+  }
+  #email-refine-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 
   #email-send-btn {
@@ -878,6 +1027,8 @@
     #input-area {
       padding-bottom: max(14px, env(safe-area-inset-bottom));
     }
+
+    #panel-divider { display: none; }
 
     /* Sidebar: off-screen by default, slides in as overlay */
     #sidebar {
@@ -1056,6 +1207,9 @@
     </div>
   </div>
 
+  <!-- PANEL DIVIDER -->
+  <div id="panel-divider"></div>
+
   <!-- QUOTE PANEL -->
   <div id="quote-panel">
     <div id="quote-header">
@@ -1081,8 +1235,13 @@
         <p>Your quote will appear here once the assistant generates it.</p>
       </div>
       <iframe id="quote-frame" style="display:none"></iframe>
+      <button id="email-restore-btn" onclick="restoreEmailForm()">✉ Email</button>
     </div>
     <div id="email-form">
+      <div id="email-form-header">
+        <div id="email-form-header-label">Email Draft</div>
+        <button id="email-minimize-btn" onclick="minimizeEmailForm()" title="Minimize">−</button>
+      </div>
       <div class="form-row">
         <div class="form-label">Email Type</div>
         <select class="form-input" id="email-scenario">
@@ -1119,6 +1278,11 @@
       <div class="form-row">
         <div class="form-label">Message</div>
         <textarea class="form-textarea" id="email-body"></textarea>
+      </div>
+      <div id="email-refine-row">
+        <input type="text" id="email-refine-input" placeholder="Refine: &quot;make it warmer&quot;, &quot;add a note about primer&quot;…"
+          onkeydown="if(event.key==='Enter'){event.preventDefault();refineEmail();}">
+        <button id="email-refine-btn" onclick="refineEmail()">Refine</button>
       </div>
       <button id="email-send-btn" onclick="sendEmail()">Send Email with PDF</button>
     </div>
@@ -1284,7 +1448,11 @@ async function sendMessage() {
     } else {
       const displayText = text + (filesToSend.length ? ` [${filesToSend.length} image(s)]` : '');
       if (displayText) appendMessage('user', displayText);
-      appendMessage('assistant', data.reply);
+      if (data.hasQuote) {
+        appendMessage('assistant', 'Quote ready — see the panel on the right.');
+      } else {
+        appendMessage('assistant', data.reply);
+      }
       setStatus(data.status);
       input.value = '';
       autoResize(input);
@@ -1447,7 +1615,20 @@ async function downloadPDF() {
 }
 
 function toggleEmailForm() {
-  document.getElementById('email-form').classList.toggle('open');
+  const form = document.getElementById('email-form');
+  form.classList.remove('minimized');
+  form.classList.toggle('open');
+  document.getElementById('email-restore-btn').classList.remove('visible');
+}
+
+function minimizeEmailForm() {
+  document.getElementById('email-form').classList.add('minimized');
+  document.getElementById('email-restore-btn').classList.add('visible');
+}
+
+function restoreEmailForm() {
+  document.getElementById('email-form').classList.remove('minimized');
+  document.getElementById('email-restore-btn').classList.remove('visible');
 }
 
 function prefillEmail(session) {
@@ -1520,6 +1701,43 @@ function renderEmailScenarioInfo(settings = {}) {
   }
 
   helpEl.textContent = EMAIL_SCENARIO_HELP[scenario] || '';
+}
+
+async function refineEmail() {
+  const input = document.getElementById('email-refine-input');
+  const instruction = input.value.trim();
+  if (!instruction || !currentSessionId) return;
+
+  const bodyEl = document.getElementById('email-body');
+  const currentDraft = bodyEl.value.trim();
+  if (!currentDraft) { alert('No email draft to refine.'); return; }
+
+  const btn = document.getElementById('email-refine-btn');
+  btn.disabled = true;
+  btn.textContent = 'Refining…';
+
+  try {
+    const res = await fetch(`/api/sessions/${currentSessionId}/email/refine`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ instruction, currentDraft }),
+    });
+    const data = await res.json();
+    if (data.error) {
+      alert('Refine error: ' + data.error);
+    } else if (data.refinedDraft) {
+      bodyEl.value = data.refinedDraft;
+      const state = getEmailDraftState(currentSessionId);
+      state.bodyDirty = true;
+    }
+  } catch (e) {
+    alert('Connection error: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Refine';
+    input.value = '';
+    input.focus();
+  }
 }
 
 async function sendEmail() {
@@ -1677,6 +1895,46 @@ function clearDropState() {
   dragDepth = 0;
   setDropActive(false);
 }
+
+// ── PANEL DIVIDER RESIZE ────────────────────────────
+(function initPanelDivider() {
+  const divider = document.getElementById('panel-divider');
+  const chatPanel = document.getElementById('chat-panel');
+  const quotePanel = document.getElementById('quote-panel');
+  const main = document.getElementById('main');
+  if (!divider) return;
+
+  let startX = 0;
+  let startChatW = 0;
+
+  divider.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    startX = e.clientX;
+    startChatW = chatPanel.getBoundingClientRect().width;
+    divider.classList.add('dragging');
+    document.body.classList.add('panel-resizing');
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  });
+
+  function onMouseMove(e) {
+    const mainW = main.getBoundingClientRect().width;
+    const dividerW = divider.getBoundingClientRect().width;
+    const available = mainW - dividerW;
+    let newChatW = startChatW + (e.clientX - startX);
+    newChatW = Math.max(280, Math.min(newChatW, available - 300));
+    chatPanel.style.width = newChatW + 'px';
+    chatPanel.style.flex = 'none';
+    quotePanel.style.flex = '1';
+  }
+
+  function onMouseUp() {
+    divider.classList.remove('dragging');
+    document.body.classList.remove('panel-resizing');
+    document.removeEventListener('mousemove', onMouseMove);
+    document.removeEventListener('mouseup', onMouseUp);
+  }
+})();
 
 function setSendingState(active) {
   isSending = active;
