@@ -392,6 +392,8 @@ Available on Google Drive for May–Dec 2024 (monthly CSVs + formatted compilati
 - **14 wage rows migrated** from 2025 Tiller sheet to 2026 Wages tab (Edler, Yann, Fred across FLYERING, DUFRESNE_01, CHAUT_01, KENNERKNECHT_01)
 - **OP Bank Imports folder** created on Google Drive: `1rx7sYNTGya2wxMPP0Bf12_f9Dnbt3pgu`
 - **Full audit completed** of both 2025 Tiller sheet and 2026 sheet against design spec — no structural adjustments needed
+- **Script properties set** — Loric ran `setupScriptProperties()` manually in Apps Script editor (Drive folder ID + Claude API key)
+- **Hourly import trigger installed** — Loric ran `installTrigger()` manually in Apps Script editor
 
 ### What's Built (from prior Codex/Claude sessions)
 - `create-sheet.gs` with all 12 tab builders and `addBossOwner()` fixup — **was run, all 12 tabs exist in live sheet**
@@ -402,8 +404,6 @@ Available on Google Drive for May–Dec 2024 (monthly CSVs + formatted compilati
 - Bank detection + normalization for RBC, BMO MC, CIBC — **in import-csv.gs**
 
 ### What's NOT Done
-- Script properties not set up — requires running `setupScriptProperties()` in Apps Script editor (gws and clasp lack auth scope). Drive folder ID: `1rx7sYNTGya2wxMPP0Bf12_f9Dnbt3pgu`. Claude API key: stored in conversation, do not commit.
-- Hourly import trigger not installed — requires `import-csv.gs` to be pushed to Apps Script project first, then `installTrigger()` run in editor
 - Report formulas not yet verified with real transaction data (opening balances are transfers, excluded from P&L — need actual revenue/expense transactions)
 - Bank CSVs (Jan–Mar 2026) not yet imported — Loric to export from RBC, BMO MC, CIBC
 - Conversational interface not built (most critical unbuilt deliverable)
@@ -414,13 +414,10 @@ Available on Google Drive for May–Dec 2024 (monthly CSVs + formatted compilati
 
 ## Priority Order for Next Session
 
-1. **Set script properties** — Loric runs `setupScriptProperties()` in Apps Script editor, or authenticate clasp (`clasp login`) so Claude Code can push and run remotely
-2. **Push import-csv.gs to Apps Script project** — copy from original folder, review, push via clasp
-3. **Install hourly trigger** — run `installTrigger()` in editor
-4. **Import Jan–Mar 2026 bank CSVs** — Loric exports from RBC, BMO MC, CIBC and drops into OP Bank Imports folder on Drive (or pastes into Import tab)
-5. **Verify all report formulas** with real transaction data
-6. **Build conversational interface** — Claude reads/writes to sheet via Sheets API, natural language entry, mobile-friendly
-7. **Copy remaining files** from original folder to this repo
+1. **Import Jan–Mar 2026 bank CSVs** — Loric exports from RBC, BMO MC, CIBC and drops into OP Bank Imports folder on Drive (or pastes into Import tab)
+2. **Verify all report formulas** with real transaction data
+3. **Build conversational interface** — Claude reads/writes to sheet via Sheets API, natural language entry, mobile-friendly
+4. **Copy remaining files** from original folder to this repo
 
 ---
 
