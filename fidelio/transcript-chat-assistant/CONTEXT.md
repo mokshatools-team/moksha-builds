@@ -38,6 +38,29 @@ Service name in Railway: `transcript-chat-assistant` (project: `moksha-tools`)
 
 ---
 
+## Known Blockers — Do Not Touch Without Reading This
+
+### YouTube 429 — Railway IP Blocked
+YouTube is actively blocking Railway's server IPs from downloading audio via yt-dlp.
+This affects TOA, transcript-chat-assistant, and video-post-studio — all three share the same root problem.
+
+Do NOT attempt to fix this within this build alone. It must be solved at the shared infrastructure level across all three builds in one dedicated session.
+
+Current workaround: Use the FILE UPLOAD tab instead of YouTube URL. File uploads work correctly.
+
+Fix options (for future session):
+- Option A (recommended): Switch to YouTube caption API — no yt-dlp, no ffmpeg, no IP blocking. Works for any video with captions.
+- Option B: Proxy layer routing downloads through a non-Railway service
+- Option C: Cookie-based auth for yt-dlp — fragile, not recommended
+
+Secondary issues also blocked until 429 is resolved:
+- nixpacks.toml missing (ffmpeg + Node.js not installed) — one-file fix but pointless until 429 is solved
+- youtube_transcript_api referenced in code but not in requirements.txt — dead code
+
+Status: ON HOLD. Do not work on YouTube ingestion until dedicated cross-build session is scheduled.
+
+---
+
 ## Current Status
 
 **What works:**
