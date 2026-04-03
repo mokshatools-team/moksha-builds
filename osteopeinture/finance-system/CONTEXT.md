@@ -384,8 +384,17 @@ Available on Google Drive for May–Dec 2024 (monthly CSVs + formatted compilati
 
 ## Current Status (as of 2026-04-03)
 
+### What's Done (this session)
+- **BOSS added** to Accounts, Account Balances, Owner Balances, and Dashboard via Sheets API
+- **GST/QST ITC formulas fixed** — replaced broken IF/MATCH with COUNTIFS. All #ERROR! resolved. Fix applied to both live sheet and `create-sheet.gs`
+- **Sales Tax Payable** added as new account (type: Tax Liability) to Accounts, Account Balances, and dropdown validation
+- **5 opening balances entered** in Transactions dated 2024-12-31: RBC $185.20, Cash $961, Receivable:Client $4,598.23, BMO MC -$8,085.27, Sales Tax Payable -$4,271.60
+- **14 wage rows migrated** from 2025 Tiller sheet to 2026 Wages tab (Edler, Yann, Fred across FLYERING, DUFRESNE_01, CHAUT_01, KENNERKNECHT_01)
+- **OP Bank Imports folder** created on Google Drive: `1rx7sYNTGya2wxMPP0Bf12_f9Dnbt3pgu`
+- **Full audit completed** of both 2025 Tiller sheet and 2026 sheet against design spec — no structural adjustments needed
+
 ### What's Built (from prior Codex/Claude sessions)
-- `create-sheet.gs` with all 12 tab builders and `addBossOwner()` fixup — **never tested or run**
+- `create-sheet.gs` with all 12 tab builders and `addBossOwner()` fixup — **was run, all 12 tabs exist in live sheet**
 - `import-csv.gs` with bank CSV importer, Drive folder watcher, Push to Transactions — **in original folder only**
 - `cash-entry-sidebar.gs` + `sidebar.html` — **in original folder, untested**
 - Custom OstéoPeinture menu — **in original folder**
@@ -393,31 +402,25 @@ Available on Google Drive for May–Dec 2024 (monthly CSVs + formatted compilati
 - Bank detection + normalization for RBC, BMO MC, CIBC — **in import-csv.gs**
 
 ### What's NOT Done
-- `create-sheet.gs` never run or tested
-- `addBossOwner()` never run
-- Script properties not set up (Drive folder ID + Claude API key)
-- Hourly import trigger not installed
-- Opening balances not entered in the sheet
-- Report formulas not verified with real data
-- Conversational interface not built
-- Invoice generator not built (separate session)
-- Additional files not copied from original folder to this repo
+- Script properties not set up — requires running `setupScriptProperties()` in Apps Script editor (gws and clasp lack auth scope). Drive folder ID: `1rx7sYNTGya2wxMPP0Bf12_f9Dnbt3pgu`. Claude API key: stored in conversation, do not commit.
+- Hourly import trigger not installed — requires `import-csv.gs` to be pushed to Apps Script project first, then `installTrigger()` run in editor
+- Report formulas not yet verified with real transaction data (opening balances are transfers, excluded from P&L — need actual revenue/expense transactions)
+- Bank CSVs (Jan–Mar 2026) not yet imported — Loric to export from RBC, BMO MC, CIBC
+- Conversational interface not built (most critical unbuilt deliverable)
+- Invoice generator not built (separate session, after finance system is live)
+- Additional files (`import-csv.gs`, `cash-entry-sidebar.gs`, `sidebar.html`, `SETUP.md`) not copied from original folder to this repo
 
 ---
 
 ## Priority Order for Next Session
 
-1. Identify which of the two "OstéoPeinture — Finance 2026" sheets on Drive is the correct one (match against spreadsheet ID above)
-2. Audit existing 2026 sheet against this design spec
-3. Run `create-sheet.gs` if sheet needs to be rebuilt or is wrong
-4. Run `addBossOwner()`
-5. Set script properties (Drive folder ID + Claude API key)
-6. Install hourly trigger
-7. Enter opening balances
-8. Import Jan–Mar 2026 bank CSVs and verify categorization
-9. Verify all report formulas calculate correctly with real data
-10. Build conversational interface (if time allows — otherwise next session)
-11. Copy remaining files from original folder to this repo
+1. **Set script properties** — Loric runs `setupScriptProperties()` in Apps Script editor, or authenticate clasp (`clasp login`) so Claude Code can push and run remotely
+2. **Push import-csv.gs to Apps Script project** — copy from original folder, review, push via clasp
+3. **Install hourly trigger** — run `installTrigger()` in editor
+4. **Import Jan–Mar 2026 bank CSVs** — Loric exports from RBC, BMO MC, CIBC and drops into OP Bank Imports folder on Drive (or pastes into Import tab)
+5. **Verify all report formulas** with real transaction data
+6. **Build conversational interface** — Claude reads/writes to sheet via Sheets API, natural language entry, mobile-friendly
+7. **Copy remaining files** from original folder to this repo
 
 ---
 
