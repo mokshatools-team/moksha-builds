@@ -382,6 +382,32 @@
     border-radius: 3px;
   }
 
+  .sidebar-item-delete {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 18px;
+    height: 18px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 3px;
+    color: var(--text-4);
+    font-size: 12px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.15s, color 0.15s, border-color 0.15s, background 0.15s;
+  }
+  .sidebar-item:hover .sidebar-item-delete { opacity: 1; }
+  .sidebar-item-delete:hover {
+    color: #e85050;
+    border-color: #e85050;
+    background: rgba(232, 80, 80, 0.1);
+  }
+
   .sidebar-status::before {
     content: '';
     width: 4px;
@@ -839,6 +865,9 @@
     border-top: 1px solid var(--border);
     flex-direction: column;
     gap: 10px;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
   }
 
   #email-form.open { display: flex; }
@@ -909,6 +938,7 @@
   #email-restore-btn.visible { display: flex; align-items: center; gap: 5px; }
 
   .form-row { display: flex; flex-direction: column; gap: 4px; }
+  .form-row-flex { flex: 1; min-height: 0; }
 
   .form-label {
     font-size: 9.5px;
@@ -937,7 +967,8 @@
 
   .form-textarea {
     resize: vertical;
-    min-height: 75px;
+    min-height: 200px;
+    flex: 1;
     line-height: 1.5;
   }
 
@@ -1275,7 +1306,7 @@
         <div class="form-label">Subject</div>
         <input type="text" class="form-input" id="email-subject" placeholder="Quote — LASTNAME_01">
       </div>
-      <div class="form-row">
+      <div class="form-row form-row-flex">
         <div class="form-label">Message</div>
         <textarea class="form-textarea" id="email-body"></textarea>
       </div>
@@ -1339,7 +1370,8 @@ async function loadSidebar() {
     const statusLabel = { gathering: 'In progress', quote_ready: 'Ready', sent: 'Sent' }[s.status] || s.status;
     const statusClass = s.status || 'gathering';
     return `<div class="sidebar-item ${active}" onclick="loadSession('${s.id}')">
-      <div class="sidebar-item-client">${esc(client)}</div>
+      <button class="sidebar-item-delete" onclick="event.stopPropagation();deleteSession('${s.id}')" title="Delete">×</button>
+      <div class="sidebar-item-client" ondblclick="event.stopPropagation();startRenameSession('${s.id}',this)">${esc(client)}</div>
       <div class="sidebar-item-meta">
         <span class="sidebar-item-id">${esc(s.project_id || date)}</span>
         <span class="sidebar-item-total">${total}</span>
@@ -1347,6 +1379,62 @@ async function loadSidebar() {
       <span class="sidebar-status ${statusClass}">${statusLabel}</span>
     </div>`;
   }).join('');
+}
+
+function startRenameSession(id, el) {
+  const currentName = el.textContent.trim();
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.value = currentName;
+  input.className = 'form-input';
+  input.style.cssText = 'font-size:12px;padding:3px 6px;width:100%;';
+  el.textContent = '';
+  el.appendChild(input);
+  input.focus();
+  input.select();
+
+  async function finishRename() {
+    const newName = input.value.trim();
+    if (newName && newName !== currentName) {
+      try {
+        await fetch(`/api/sessions/${id}/name`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: newName }),
+        });
+        if (currentSessionId === id) {
+          document.getElementById('chat-header-title').textContent = newName;
+          const badge = document.getElementById('session-badge');
+          badge.textContent = newName;
+          badge.style.display = '';
+        }
+      } catch (e) { /* revert on error */ }
+    }
+    loadSidebar();
+  }
+
+  input.addEventListener('blur', finishRename);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+    if (e.key === 'Escape') { el.textContent = currentName; }
+  });
+}
+
+async function deleteSession(id) {
+  if (!confirm('Delete this quote?')) return;
+  try {
+    await fetch(`/api/sessions/${id}`, { method: 'DELETE' });
+    if (currentSessionId === id) {
+      currentSessionId = null;
+      document.getElementById('messages').innerHTML = '<div class="msg system">Select a past quote or start a new one.</div>';
+      clearQuote();
+      document.getElementById('chat-header-title').textContent = 'New Quote';
+      document.getElementById('session-badge').style.display = 'none';
+    }
+    loadSidebar();
+  } catch (e) {
+    alert('Failed to delete: ' + e.message);
+  }
 }
 
 async function loadSession(id) {
@@ -1390,15 +1478,16 @@ async function loadSession(id) {
 
 async function startNewSession() {
   const res = await fetch('/api/sessions', { method: 'POST' });
-  const { id } = await res.json();
-  currentSessionId = id;
+  const data = await res.json();
+  currentSessionId = data.id;
   clearAttachmentQueue();
 
   document.getElementById('messages').innerHTML = '';
   const badge = document.getElementById('session-badge');
-  badge.textContent = '';
-  badge.style.display = 'none';
-  document.getElementById('chat-header-title').textContent = 'New Quote';
+  const title = data.projectId || 'New Quote';
+  badge.textContent = title;
+  badge.style.display = '';
+  document.getElementById('chat-header-title').textContent = title;
   clearQuote();
   setStatus('gathering');
   loadSidebar();

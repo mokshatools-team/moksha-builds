@@ -114,14 +114,22 @@ You describe the job to the AI assistant (client name, address, surfaces, scope,
 
 ## What Was Last Worked On (2026-04-03)
 
-Four UI/UX changes deployed to Railway:
+### Session 2 — 5 fixes deployed:
 
-1. **Resizable panel divider** — draggable vertical handle between chat and quote panels. Min 280px chat, 300px quote. Mouse-only (hidden on mobile).
-2. **JSON hidden from chat** — when the assistant outputs a quote JSON, the chat now shows "Quote ready — see the panel on the right." instead of the raw JSON blob.
-3. **Email panel minimize/restore** — minimize button (−) in email form header collapses it. Floating "✉ Email" pill appears at bottom-right of quote panel to restore it.
-4. **Iterative email refinement** — text input + "Refine" button below the email body textarea. Sends the current draft + instruction to `POST /api/sessions/:id/email/refine`, which calls Claude to rewrite the draft. Multiple refinements supported.
+1. **Email textarea expanded** — body textarea now has min-height 200px and flexes to fill the available space in the email panel.
+2. **PDF spacing fix** — removed trailing spacer row after the last section in each format (room-based and category-based). Also skips spacer before a new floor header. No more unwanted extra space in any section.
+3. **Sidebar delete button** — hover-visible (×) button on each sidebar item. Confirm dialog before deletion. Removes from database and sidebar. If the deleted session was active, resets to the start screen.
+4. **Editable quote names with LASTNAME_## format** — new sessions default to `NEW_01`, `NEW_02`, etc. Double-click the name in the sidebar to rename. Enter to save, Escape to cancel. Name shows in both sidebar and quote panel header. Backend `PATCH /api/sessions/:id/name` endpoint. When the AI produces a quote JSON with a projectId, that replaces the default name.
+5. **OSTÉOPEINTURE logo in PDF footer** — added "Ostéopeinture" in the same style as the header logo (Montserrat, 10px, 600 weight, 5px letter-spacing, #7B3A10) above the address block in the PDF footer.
 
-Previous work (2026-04-01):
+### Session 1 — 4 UI/UX changes:
+
+1. Resizable panel divider
+2. JSON hidden from chat
+3. Email panel minimize/restore
+4. Iterative email refinement
+
+### Previous work (2026-04-01):
 - Upload pipeline (HEIC, Sharp, drag-and-drop)
 - Email logic + Gmail thread scrape
 - Internal admin tone

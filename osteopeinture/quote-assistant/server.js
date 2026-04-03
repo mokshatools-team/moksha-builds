@@ -59,6 +59,23 @@ function createFallbackDatabase() {
         };
       }
 
+      if (sql.includes('SELECT project_id FROM sessions WHERE project_id LIKE')) {
+        return {
+          all(prefix) {
+            const rows = Array.from(sessions.values())
+              .filter((r) => r.project_id && r.project_id.startsWith(prefix.replace('_%', '')))
+              .sort((a, b) => String(b.project_id).localeCompare(String(a.project_id)));
+            return rows.map((r) => ({ project_id: r.project_id }));
+          },
+        };
+      }
+
+      if (sql.includes('DELETE FROM sessions WHERE id')) {
+        return {
+          run(id) { sessions.delete(id); },
+        };
+      }
+
       if (sql.includes('FROM sessions ORDER BY updated_at DESC LIMIT 50')) {
         return {
           all() {
@@ -632,7 +649,8 @@ function renderQuoteHTML(data) {
   let tableHtml = '';
   if (isRoomBased) {
     let currentFloor = null;
-    for (const sec of sections) {
+    for (let si = 0; si < sections.length; si++) {
+      const sec = sections[si];
       if (sec.floor && sec.floor !== currentFloor) {
         currentFloor = sec.floor;
         tableHtml += `<tr class="row-floor"><td colspan="2">${esc(sec.floor)}</td></tr>`;
@@ -645,18 +663,25 @@ function renderQuoteHTML(data) {
       for (const excl of (sec.exclusions || [])) {
         tableHtml += `<tr class="row-note"><td colspan="2"><span class="arrow">➛</span>${esc(excl)}</td></tr>`;
       }
-      tableHtml += `<tr class="row-spacer"><td colspan="2"></td></tr>`;
+      const nextSec = sections[si + 1];
+      const nextIsNewFloor = nextSec && nextSec.floor && nextSec.floor !== currentFloor;
+      if (si < sections.length - 1 && !nextIsNewFloor) {
+        tableHtml += `<tr class="row-spacer"><td colspan="2"></td></tr>`;
+      }
     }
   } else {
     // Category-based (Bunding/renovation style)
-    for (const sec of sections) {
+    for (let si = 0; si < sections.length; si++) {
+      const sec = sections[si];
       const secTotal = sec.total != null ? sec.total : (sec.items || []).reduce((s, i) => s + (i.price || 0), 0);
       const rangeLabel = sec.range ? ` <span style="font-size:7.5px;font-weight:400;color:#888;">${esc(sec.range)}</span>` : '';
       tableHtml += `<tr class="row-section"><td class="col-desc">${esc(sec.title || sec.name || '')}${rangeLabel}</td><td class="col-price">${secTotal ? fmt(secTotal) : ''}</td></tr>`;
       for (const item of (sec.items || [])) {
         tableHtml += `<tr class="row-item"><td class="col-desc"><span class="arrow">➛</span>${esc(item.description || '')}</td><td class="col-price">${item.price ? fmt(item.price) : ''}</td></tr>`;
       }
-      tableHtml += `<tr class="row-spacer"><td colspan="2"></td></tr>`;
+      if (si < sections.length - 1) {
+        tableHtml += `<tr class="row-spacer"><td colspan="2"></td></tr>`;
+      }
     }
   }
 
@@ -750,6 +775,7 @@ body { background:#e8e8e8; font-family:'Montserrat',sans-serif; padding:40px 20p
 .sig-grid { display:grid; grid-template-columns:1fr 1fr; }
 .sig-cell { padding:10px 14px; font-size:8px; font-weight:600; min-height:70px; display:flex; flex-direction:column; align-items:flex-start; }
 .footer { text-align:center; margin-top:36px; }
+.footer-logo { font-family:'Montserrat',sans-serif; font-size:10px; font-weight:600; letter-spacing:5px; color:#7B3A10; text-transform:uppercase; margin-bottom:5px; }
 .footer-info { font-size:7.5px; color:#666; line-height:1.9; }
 @media print { body { background:white; padding:0; } .page { box-shadow:none; width:100%; padding:32px 40px; } }
 </style>
@@ -804,6 +830,7 @@ body { background:#e8e8e8; font-family:'Montserrat',sans-serif; padding:40px 20p
     <div class="sig-cell">OstéoPeinture Representative</div>
   </div>
   <div class="footer">
+    <div class="footer-logo">Ostéopeinture</div>
     <div class="footer-info">
       #201 - 80 rue Saint-Viateur E., Montréal, QC H2T 1A6<br>
       438-870-8087 | info@osteopeinture.com | www.osteopeinture.com<br>
@@ -1034,15 +1061,40 @@ function sendUploadError(res, error) {
 // API ROUTES
 // ============================================================
 
+// Generate next sequential project ID with a given prefix
+function nextProjectId(prefix) {
+  const rows = db.prepare(
+    "SELECT project_id FROM sessions WHERE project_id LIKE ? ORDER BY project_id DESC LIMIT 1"
+  ).all(prefix + '_%');
+  let num = 1;
+  if (rows.length) {
+    const match = rows[0].project_id.match(/_(\d+)$/);
+    if (match) num = parseInt(match[1], 10) + 1;
+  }
+  return `${prefix}_${String(num).padStart(2, '0')}`;
+}
+
 // Create session
 function createSessionHandler(req, res) {
   const id = uuidv4();
   const now = new Date().toISOString();
-  saveSession({ id, createdAt: now, status: 'gathering', messages: [] });
-  res.json({ id });
+  const projectId = nextProjectId('NEW');
+  saveSession({ id, createdAt: now, status: 'gathering', messages: [], projectId });
+  res.json({ id, projectId });
 }
 
 app.post('/api/sessions', createSessionHandler);
+
+// Rename session
+app.patch('/api/sessions/:id/name', express.json(), (req, res) => {
+  const session = getSession(req.params.id);
+  if (!session) return res.status(404).json({ error: 'Session not found' });
+  const { name } = req.body;
+  if (!name || !name.trim()) return res.status(400).json({ error: 'Missing name' });
+  session.projectId = name.trim();
+  saveSession(session);
+  res.json({ ok: true, projectId: session.projectId });
+});
 
 // Get quoting logic file
 app.get('/api/quoting-logic', (req, res) => {
@@ -1333,6 +1385,14 @@ app.post('/api/sessions/:id/adjust-quote', (req, res) => {
   session.address = quoteJson.address || session.address;
   saveSession(session);
 
+  res.json({ ok: true });
+});
+
+// Delete session
+app.delete('/api/sessions/:id', (req, res) => {
+  const session = getSession(req.params.id);
+  if (!session) return res.status(404).json({ error: 'Session not found' });
+  db.prepare('DELETE FROM sessions WHERE id = ?').run(req.params.id);
   res.json({ ok: true });
 });
 
