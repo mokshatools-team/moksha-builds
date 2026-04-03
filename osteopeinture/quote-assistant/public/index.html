@@ -1066,6 +1066,44 @@
   }
   .sidebar-item-rename:hover { color: var(--accent); }
 
+  /* ─── MOBILE NAV BAR (hidden on desktop) ─── */
+  #mobile-nav {
+    display: none;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 48px;
+    background: var(--surface-0);
+    border-top: 1px solid var(--border);
+    z-index: 300;
+    align-items: center;
+    justify-content: space-around;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .mobile-nav-tab {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    background: transparent;
+    border: none;
+    color: var(--text-3);
+    font-family: var(--font-sans);
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    cursor: pointer;
+    padding: 6px 0;
+    transition: color 0.15s;
+    height: 100%;
+  }
+  .mobile-nav-tab.active { color: var(--accent); }
+  .mobile-nav-tab svg { width: 18px; height: 18px; }
+
   /* ─── MOBILE ─── */
   @media (max-width: 768px) {
     html, body {
@@ -1226,6 +1264,25 @@
     #new-quote-btn { padding: 12px; font-size: 13px; }
     .sidebar-item { padding: 13px 16px; }
     #rules-btn { padding: 10px 12px; }
+
+    /* Image preview: horizontal scroll on mobile */
+    #image-preview-bar {
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    #image-preview-bar::-webkit-scrollbar { display: none; }
+
+    /* Bottom nav bar */
+    #mobile-nav {
+      display: flex !important;
+    }
+
+    /* Adjust chat panel to leave room for bottom nav */
+    #main {
+      height: calc(100dvh - 48px);
+    }
 
     /* Rules modal full-screen on mobile */
     #rules-panel {
@@ -1401,6 +1458,22 @@
     </div>
   </div>
 
+</div>
+
+<!-- MOBILE BOTTOM NAV -->
+<div id="mobile-nav">
+  <button class="mobile-nav-tab active" id="nav-chat" onclick="mobileNavTo('chat')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+    Chat
+  </button>
+  <button class="mobile-nav-tab" id="nav-quote" onclick="mobileNavTo('quote')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="7" y1="8" x2="17" y2="8"/><line x1="7" y1="12" x2="14" y2="12"/><line x1="7" y1="16" x2="11" y2="16"/></svg>
+    Quote
+  </button>
+  <button class="mobile-nav-tab" id="nav-email" onclick="mobileNavTo('email')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="4" width="20" height="16" rx="2"/><polyline points="22,7 12,13 2,7"/></svg>
+    Email
+  </button>
 </div>
 
 <script>
@@ -2260,6 +2333,68 @@ document.getElementById('email-to').addEventListener('input', () => markEmailDra
 document.getElementById('email-scenario').addEventListener('change', () => refreshEmailDraftFromSettings('scenario'));
 document.getElementById('email-signer').addEventListener('change', () => refreshEmailDraftFromSettings('signer'));
 document.getElementById('email-detail-level').addEventListener('change', () => refreshEmailDraftFromSettings('detailLevel'));
+
+// ── MOBILE BOTTOM NAV ───────────────────────────────
+let mobileCurrentView = 'chat';
+
+function mobileNavTo(view) {
+  const isMobile = window.innerWidth <= 768;
+  if (!isMobile) return;
+
+  mobileCurrentView = view;
+  const quotePanel = document.getElementById('quote-panel');
+  const emailForm = document.getElementById('email-form');
+
+  // Update tab highlights
+  document.querySelectorAll('.mobile-nav-tab').forEach((t) => t.classList.remove('active'));
+  const tab = document.getElementById('nav-' + view);
+  if (tab) tab.classList.add('active');
+
+  if (view === 'chat') {
+    quotePanel.classList.remove('mobile-open');
+    emailForm.classList.remove('open');
+    emailForm.classList.remove('minimized');
+  } else if (view === 'quote') {
+    quotePanel.classList.add('mobile-open');
+    emailForm.classList.remove('open');
+    emailForm.classList.remove('minimized');
+  } else if (view === 'email') {
+    quotePanel.classList.add('mobile-open');
+    emailForm.classList.add('open');
+    emailForm.classList.remove('minimized');
+  }
+}
+
+// ── SWIPE GESTURES ──────────────────────────────────
+(function initSwipeGestures() {
+  const THRESHOLD = 50;
+  let touchStartX = 0;
+  let touchStartY = 0;
+  let swiping = false;
+
+  document.addEventListener('touchstart', (e) => {
+    if (window.innerWidth > 768) return;
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+    swiping = true;
+  }, { passive: true });
+
+  document.addEventListener('touchend', (e) => {
+    if (!swiping || window.innerWidth > 768) return;
+    swiping = false;
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    const dy = e.changedTouches[0].clientY - touchStartY;
+    if (Math.abs(dx) < THRESHOLD || Math.abs(dy) > Math.abs(dx)) return;
+
+    if (dx < -THRESHOLD && mobileCurrentView === 'chat') {
+      mobileNavTo('quote');
+    } else if (dx > THRESHOLD && mobileCurrentView === 'quote') {
+      mobileNavTo('chat');
+    } else if (dx > THRESHOLD && mobileCurrentView === 'email') {
+      mobileNavTo('quote');
+    }
+  }, { passive: true });
+})();
 
 // ── INIT ─────────────────────────────────────────────
 loadSidebar();
