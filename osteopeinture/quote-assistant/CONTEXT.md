@@ -75,11 +75,7 @@ You describe the job to the AI assistant (client name, address, surfaces, scope,
 
 ## Live Railway URL
 
-**Unknown — Railway project is not linked in this local terminal session.**
-
-To get the URL: run `railway link` inside this folder, then `railway status`. The URL format will be `https://osteopeinture-quote-assistant-production-XXXX.up.railway.app` or similar.
-
-> Next session: confirm the live URL via `railway link` + `railway status` and update this file.
+**https://op-quote-assistant.up.railway.app**
 
 ---
 
