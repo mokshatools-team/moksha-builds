@@ -906,22 +906,59 @@ Quick ballpark path:
 
 Full quote path:
 - Say: "Here's my full quote summary before I generate the JSON — please confirm or correct anything."
-- Show ALL FOUR sections using clean readable markdown (### headers, bullet points — NO markdown tables):
-### 1. Scope & General Conditions
-- List what's included + general conditions
+- Use clean readable markdown (### headers, bullet points — NO markdown tables).
+- Show ALL FIVE sections in this exact order:
 
-### 2. Cost Breakdown
-- Room by room with subtotals and floor groupings
-- Item descriptions must NOT include paint product names or finishes — keep descriptions to work type only (e.g. "Walls and ceiling — 2 coats", NOT "Walls and ceiling — 2 coats, SW Duration Home Low Sheen")
+### 1. Benchmarks & Assumptions
+State the benchmarks and rates chosen for this specific job BEFORE showing any room numbers. One bullet per benchmark. Examples:
+- Rate: $65/h (standard) or $55/h (relationship)
+- Walls: 1.64 min/sqft/coat (standard speed)
+- Ceilings: using wall benchmark provisionally (1.64 min/sqft/coat)
+- Doors: 30 min/face including frame
+- Windows: Victorian frames → 30 min/window or Modern flat → 15 min/window
+- Primer: [needed / not needed] — [product if applicable]
+- Tier: [high-end / standard] → [product selections]
+- Any other job-specific assumptions (e.g. "space is vacant", "bare gypsum needs PVA primer")
 
-### 3. Paint & Products
-- Products selected, colours, finishes, approx. material cost per product
+### 2. Scope & General Conditions
+- List what's included + general conditions (same as before)
 
-### 4. Details & Modalities
+### 3. Room-by-Room Breakdown
+For each room, list EVERY surface on its own line. Each line shows: surface description, approximate sqft or count, coats, labour hours, labour cost, and paint gallons needed for that surface — all on ONE line.
+
+Format per room:
+### [Room Name] — [Floor] — $[room total]
+- Ceiling: ~[sqft] sqft, [coats] coats → [hours]h → $[cost] — [gal] gal [product]
+- Walls: ~[sqft] sqft, [coats] coats → [hours]h → $[cost] — [gal] gal [product]
+- Walls (primer): ~[sqft] sqft, 1 coat → [hours]h → $[cost] — [gal] gal [primer product]
+- Baseboards: ~[length] lin ft → [hours]h → $[cost] — [gal] gal [product]
+- [N] doors ([faces] faces): [hours]h → $[cost] — [gal] gal [product]
+- [N] windows ([type]): [hours]h → $[cost] — [gal] gal [product]
+- Closet interior: → [hours]h → $[cost] — [gal] gal [product]
+- Setup/protection share: [hours]h → $[cost]
+
+Omit surfaces that don't apply. Each room ends with its total. Group rooms by floor with floor subtotals when relevant.
+
+### 4. Project Paint & Materials Totals
+Do NOT split materials per room. Show one project-level summary:
+- Total paint by surface type, product, and colour. Example:
+  - Ceilings: [X] gal PM400 (White)
+  - Walls: [X] gal Duration Home ([colour])
+  - Trim/doors/baseboards: [X] gal PM200 HP ([colour])
+  - Primers: [X] gal [product]
+  - Bathroom walls: [X] gal [product] (if different from main walls)
+- Total paint cost: $[X]
+- Floor protection: $[X]
+- Consumables: $[X]
+- Total materials: $[X]
+
+### 5. Details & Modalities
+- Total labour: [X] hours → $[X]
+- Total materials: $[X]
+- Subtotal (before tax): $[X]
 - Start date, duration, deposit (25% rounded up to nearest $100), payment terms
-- State which parts were measured vs estimated.
-- Include door and window assumptions, closet inclusion, and setup and day-count assumptions.
-- Mention any provisional benchmark used.
+- State which parts were measured vs estimated
+- Day count assumption (e.g. "~X work days at 6h/day × 3 painters")
 
 **Phase 4 — Generate JSON:**
 Once the user confirms, output ONLY the raw JSON with no explanation, no markdown fences. The JSON must be valid and parseable.
