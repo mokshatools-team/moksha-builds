@@ -1030,6 +1030,41 @@
   }
   #sidebar-overlay.visible { display: block; }
   #mobile-menu-btn, #mobile-back-btn, #mobile-quote-btn { display: none; }
+  #mobile-email-close {
+    display: none;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    width: 22px;
+    height: 22px;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--text-3);
+    font-size: 12px;
+    line-height: 1;
+    transition: all 0.15s;
+  }
+  #mobile-email-close:hover { border-color: var(--accent-dim); color: var(--text); background: var(--surface-3); }
+  .sidebar-item-rename {
+    display: none;
+    position: absolute;
+    top: 8px;
+    right: 28px;
+    width: 18px;
+    height: 18px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 3px;
+    color: var(--text-4);
+    font-size: 11px;
+    line-height: 1;
+    cursor: pointer;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.15s, color 0.15s;
+  }
+  .sidebar-item-rename:hover { color: var(--accent); }
 
   /* ─── MOBILE ─── */
   @media (max-width: 768px) {
@@ -1042,6 +1077,7 @@
     }
 
     #panel-divider { display: none; }
+    #email-divider { display: none !important; }
 
     /* Sidebar: off-screen by default, slides in as overlay */
     #sidebar {
@@ -1054,6 +1090,12 @@
       box-shadow: 4px 0 32px rgba(0,0,0,0.6);
     }
     #sidebar.open { left: 0; }
+
+    /* Sidebar — always show delete + rename on mobile (no hover) */
+    .sidebar-item-delete { opacity: 1; }
+    .sidebar-item-rename {
+      display: flex !important;
+    }
 
     /* Hamburger button */
     #mobile-menu-btn {
@@ -1086,6 +1128,59 @@
       transition: transform 0.25s ease;
     }
     #quote-panel.mobile-open { transform: translateX(0); }
+
+    /* Email form: full-screen slide-up sheet on mobile */
+    #email-form {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      top: 0;
+      z-index: 250;
+      transform: translateY(100%);
+      transition: transform 0.3s ease;
+      border-top: none;
+      border-radius: 0;
+      padding: 14px 16px;
+      padding-bottom: max(14px, env(safe-area-inset-bottom));
+    }
+    #email-form.open {
+      display: flex;
+      transform: translateY(0);
+    }
+    #email-form.minimized {
+      transform: translateY(100%) !important;
+    }
+
+    /* Email settings: 2×3 grid on mobile */
+    .email-settings-grid {
+      grid-template-columns: 1fr 1fr;
+    }
+    .email-settings-grid .form-row:last-child {
+      grid-column: 1 / -1;
+    }
+
+    /* Sticky send button at bottom */
+    #email-send-btn {
+      position: sticky;
+      bottom: 0;
+      min-height: 44px;
+      font-size: 14px;
+      margin-top: 8px;
+      flex-shrink: 0;
+    }
+
+    /* Mobile email close button */
+    #mobile-email-close {
+      display: flex;
+    }
+
+    /* Email restore pill: bigger touch target */
+    #email-restore-btn {
+      min-height: 44px;
+      padding: 10px 18px;
+      font-size: 13px;
+    }
 
     /* Back button in quote header */
     #mobile-back-btn {
@@ -1254,6 +1349,7 @@
     <div id="email-form">
       <div id="email-form-header">
         <div id="email-form-header-label">Email Draft</div>
+        <button id="mobile-email-close" onclick="toggleEmailForm()" title="Close">✕</button>
         <button id="email-minimize-btn" onclick="minimizeEmailForm()" title="Minimize">−</button>
       </div>
       <div class="email-settings-grid">
@@ -1352,6 +1448,7 @@ async function loadSidebar() {
     const statusLabel = { gathering: 'In progress', quote_ready: 'Ready', sent: 'Sent' }[s.status] || s.status;
     const statusClass = s.status || 'gathering';
     return `<div class="sidebar-item ${active}" onclick="handleSidebarClick('${s.id}')">
+      <button class="sidebar-item-rename" onclick="event.stopPropagation();startRenameSession('${s.id}',this.parentElement.querySelector('.sidebar-item-client'))" title="Rename">✎</button>
       <button class="sidebar-item-delete" onclick="event.stopPropagation();deleteSession('${s.id}')" title="Delete">×</button>
       <div class="sidebar-item-client" onclick="event.stopPropagation()" ondblclick="startRenameSession('${s.id}',this)">${esc(client)}</div>
       <div class="sidebar-item-meta">
