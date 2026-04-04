@@ -139,7 +139,10 @@ function checkBankExportFolder() {
 // ── CSV PROCESSING ────────────────────────────────────────────────────────────
 
 function processCSVFile(file) {
-  const content = file.getBlob().getDataAsString('UTF-8');
+  // Strip BOM (byte order mark) that French-locale bank exports include
+  let content = file.getBlob().getDataAsString('UTF-8');
+  content = content.replace(/^\uFEFF/, '');
+
   const rows = Utilities.parseCsv(content);
   if (!rows || rows.length === 0) return 0;
 
@@ -163,16 +166,22 @@ function processCSVFile(file) {
 function detectBank(rows) {
   if (!rows || rows.length === 0) return 'UNKNOWN';
 
-  const firstRow = rows[0].map(c => (c || '').trim().toLowerCase());
-  const firstRowStr = firstRow.join(',');
+  // Check first 3 rows for headers (BMO has a metadata line before the real header)
+  const headerCandidates = rows.slice(0, 3).map(r =>
+    r.map(c => (c || '').trim().toLowerCase()).join(',')
+  );
+  const allHeaders = headerCandidates.join('|||');
 
-  // RBC: has "account number" and "transaction date" in header
-  if (firstRowStr.includes('account number') && firstRowStr.includes('transaction date')) {
+  // RBC: EN "account number" + "transaction date" or FR "numéro du compte" + "date de l'opération"
+  if ((allHeaders.includes('account number') && allHeaders.includes('transaction date')) ||
+      (allHeaders.includes('numéro du compte') || allHeaders.includes('numero du compte')) &&
+      (allHeaders.includes("date de l'opération") || allHeaders.includes("date de l'operation"))) {
     return 'RBC';
   }
 
-  // BMO MC: has "item #" and "card #" in header
-  if (firstRowStr.includes('item #') && firstRowStr.includes('card #')) {
+  // BMO MC: EN "item #" + "card #" or FR "article no" + "carte no"
+  if ((allHeaders.includes('item #') && allHeaders.includes('card #')) ||
+      (allHeaders.includes('article no') && allHeaders.includes('carte no'))) {
     return 'BMO MC';
   }
 
@@ -193,8 +202,9 @@ function detectBank(rows) {
 
 /**
  * RBC format (has header row):
- * Account Number | Account Type | Transaction Date | Cheque Number |
- * Description 1 | Description 2 | CAD$ | USD$
+ * EN: Account Number | Account Type | Transaction Date | Cheque Number | Description 1 | Description 2 | CAD$ | USD$
+ * FR: Type de compte | Numéro du compte | Date de l'opération | Numéro du chèque | Description 1 | Description 2 | CAD$ | USD$
+ * Note: FR column order differs — date is col 3 (index 2) in both, CAD$ is col 7 (index 6) in both.
  * Amounts are already signed (negative = debit, positive = credit).
  */
 function normalizeRBC(rows) {
@@ -210,13 +220,26 @@ function normalizeRBC(rows) {
 }
 
 /**
- * BMO MC format (has header row):
- * Item # | Card # | Transaction Date | Posting Date | Transaction Amount | Description
+ * BMO MC format:
+ * EN: Item # | Card # | Transaction Date | Posting Date | Transaction Amount | Description
+ * FR: Article no | Carte no | Date de la transaction | Date de l'inscription | Montant | Description
+ * BMO French exports have a metadata line before the header ("Les données suivantes...").
+ * Dates may be YYYYMMDD (no separators).
  * Amounts are positive for charges (debits) — negate them.
  * Credits (payments) appear as negative in BMO export — negate to make positive.
  */
 function normalizeBMO(rows) {
-  const dataRows = rows.slice(1); // skip header
+  // Find the actual header row (skip metadata lines)
+  let headerIdx = 0;
+  for (let i = 0; i < Math.min(rows.length, 3); i++) {
+    const rowStr = rows[i].map(c => (c || '').trim().toLowerCase()).join(',');
+    if (rowStr.includes('item #') || rowStr.includes('card #') ||
+        rowStr.includes('article no') || rowStr.includes('carte no')) {
+      headerIdx = i;
+      break;
+    }
+  }
+  const dataRows = rows.slice(headerIdx + 1);
   return dataRows.map(row => {
     if (!row[2] || !row[4]) return null;
     const date = normalizeDate(row[2]);
@@ -516,6 +539,11 @@ function normalizeDate(raw) {
 
   // Already YYYY-MM-DD
   if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+
+  // YYYYMMDD (BMO French export)
+  if (/^\d{8}$/.test(s)) {
+    return s.slice(0, 4) + '-' + s.slice(4, 6) + '-' + s.slice(6, 8);
+  }
 
   // MM/DD/YYYY (RBC sometimes)
   const mdyMatch = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
