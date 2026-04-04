@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="OP Quotes">
@@ -825,7 +825,6 @@
     border: none;
     background: var(--surface-0);
     transition: opacity 0.3s;
-    touch-action: auto;
   }
 
   #quote-placeholder {
@@ -1110,7 +1109,6 @@
     html, body {
       height: 100dvh;
       overflow: hidden;
-      touch-action: pan-x pan-y;
     }
     #input-area {
       padding-bottom: max(14px, env(safe-area-inset-bottom));
@@ -1176,6 +1174,18 @@
       transition: transform 0.25s ease;
     }
     #quote-panel.mobile-open { transform: translateX(0); }
+
+    /* Scale quote preview to fit mobile screen */
+    #quote-frame-container {
+      overflow: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    #quote-frame {
+      width: 920px;
+      height: 300%;
+      transform: scale(var(--quote-scale, 0.42));
+      transform-origin: top left;
+    }
 
     /* Email form: full-screen slide-up sheet on mobile */
     #email-form {
@@ -1831,6 +1841,14 @@ function scrollToBottom() {
 
 // ── QUOTE PANEL ─────────────────────────────────────
 
+function updateQuoteScale() {
+  if (window.innerWidth > 768) return;
+  const container = document.getElementById('quote-frame-container');
+  if (!container) return;
+  const scale = container.clientWidth / 920;
+  container.style.setProperty('--quote-scale', Math.min(scale, 1).toFixed(3));
+}
+
 function showQuote(sessionId, status) {
   document.getElementById('quote-placeholder').style.display = 'none';
   const frame = document.getElementById('quote-frame');
@@ -1841,6 +1859,7 @@ function showQuote(sessionId, status) {
   document.getElementById('btn-email-toggle').style.display = '';
   document.getElementById('btn-preview').style.display = '';
   document.getElementById('mobile-quote-btn').classList.add('visible');
+  updateQuoteScale();
 }
 
 function clearQuote() {
@@ -2368,6 +2387,7 @@ function mobileNavTo(view) {
     quotePanel.classList.add('mobile-open');
     emailForm.classList.remove('open');
     emailForm.classList.remove('minimized');
+    setTimeout(updateQuoteScale, 50);
   } else if (view === 'email') {
     quotePanel.classList.add('mobile-open');
     emailForm.classList.add('open');
@@ -2408,6 +2428,7 @@ function mobileNavTo(view) {
 
 // ── INIT ─────────────────────────────────────────────
 loadSidebar();
+window.addEventListener('resize', updateQuoteScale);
 </script>
 </body>
 </html>
