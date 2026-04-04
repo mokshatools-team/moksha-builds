@@ -1,0 +1,86 @@
+{
+  "client_id": "dre-alexandra",
+  "client_name": "Dre Alexandra Champagne",
+  "language": "fr",
+
+  "folders": {
+    "short_form": {
+      "name": "Short Form",
+      "tab": "Short Form",
+      "local_path": "./test-drop/dre-alexandra/short-form/",
+      "platforms": ["yt_shorts", "ig", "fb", "tt1"],
+      "copy_module_required": false
+    },
+    "long_form": {
+      "name": "Long Form",
+      "tab": "Long Form",
+      "local_path": "./test-drop/dre-alexandra/long-form/",
+      "platforms": ["yt"],
+      "copy_module_required": true
+    }
+  },
+
+  "content_types": {
+    "PS":   { "name": "Podcast Short",      "format": "short_form" },
+    "YTS":  { "name": "Fondations Short",   "format": "short_form" },
+    "POD":  { "name": "Podcast",            "format": "long_form"  },
+    "YTF":  { "name": "Fondations Episode", "format": "long_form"  },
+    "VLOG": { "name": "Vlog",               "format": "long_form"  }
+  },
+
+  "platforms": {
+    "yt": {
+      "name": "YouTube",
+      "type": "youtube",
+      "publer_account_id": "MOCK_YT_ACCOUNT_ID"
+    },
+    "yt_shorts": {
+      "name": "YouTube Shorts",
+      "type": "youtube_shorts",
+      "publer_account_id": "MOCK_YTS_ACCOUNT_ID"
+    },
+    "ig": {
+      "name": "Instagram",
+      "type": "instagram",
+      "publer_account_id": "MOCK_IG_ACCOUNT_ID"
+    },
+    "fb": {
+      "name": "Facebook",
+      "type": "facebook",
+      "publer_account_id": "MOCK_FB_ACCOUNT_ID"
+    },
+    "tt1": {
+      "name": "TikTok Ch.1",
+      "type": "tiktok",
+      "publer_account_id": "MOCK_TT1_ACCOUNT_ID"
+    }
+  },
+
+  "sheets": {
+    "workbook_id": "MOCK_SHEETS_WORKBOOK_ID"
+  },
+
+  "youtube": {
+    "channel_id": "MOCK_YOUTUBE_CHANNEL_ID"
+  },
+
+  "publer": {
+    "workspace_id": "MOCK_PUBLER_WORKSPACE_ID",
+    "api_key": "ENV:PUBLER_API_KEY_DRE_ALEXANDRA"
+  },
+
+  "caption_prompts": {
+    "short_form": "clients/dre-alexandra/prompts/short-form-caption-prompt.md",
+    "long_form": "clients/dre-alexandra/prompts/long-form-caption-prompt.md"
+  },
+
+  "sequencing": {
+    "interleave": true,
+    "note": "Round-robin across sessions. Accept current platform position as baseline."
+  },
+
+  "backlog": {
+    "exists": true,
+    "platforms_with_backlog": ["yt", "yt_shorts", "ig", "fb", "tt1"]
+  }
+}

@@ -1,0 +1,245 @@
+{
+  "name": "FDL1 — Short-Form Publishing Pipeline",
+  "nodes": [
+    {
+      "id": "webhook-trigger",
+      "name": "Webhook — File Detected",
+      "type": "n8n-nodes-base.webhook",
+      "position": [250, 300],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "fdl1-pipeline",
+        "responseMode": "onReceived",
+        "responseData": "allEntries"
+      },
+      "notes": "Receives POST from watcher.py with: asset_id, topic_slug, content_type, session_id, file_path, format, client_id"
+    },
+    {
+      "id": "route-format",
+      "name": "Route — Short vs Long Form",
+      "type": "n8n-nodes-base.if",
+      "position": [450, 300],
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.format }}",
+              "operation": "equals",
+              "value2": "short_form"
+            }
+          ]
+        }
+      },
+      "notes": "Routes to short-form or long-form branch"
+    },
+    {
+      "id": "youtube-upload",
+      "name": "YouTube — Upload Unlisted",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [650, 200],
+      "parameters": {
+        "method": "POST",
+        "url": "https://www.googleapis.com/upload/youtube/v3/videos",
+        "qs": {
+          "part": "snippet,status",
+          "uploadType": "multipart"
+        },
+        "body": {
+          "snippet": {
+            "title": "={{ $json.asset_id }} {{ $json.topic_slug }}",
+            "description": "Uploaded by FDL1 pipeline"
+          },
+          "status": {
+            "privacyStatus": "unlisted"
+          }
+        }
+      },
+      "notes": "Uploads video to YouTube as Unlisted. Uses OAuth credentials. Returns video ID."
+    },
+    {
+      "id": "youtube-poll",
+      "name": "YouTube — Poll Processing",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [850, 200],
+      "parameters": {
+        "method": "GET",
+        "url": "https://www.googleapis.com/youtube/v3/videos",
+        "qs": {
+          "part": "processingDetails",
+          "id": "={{ $json.id }}"
+        }
+      },
+      "notes": "Poll every 30s until processingStatus=succeeded or 30min timeout. Use n8n Wait node + loop."
+    },
+    {
+      "id": "whisper-transcribe",
+      "name": "Whisper — Transcribe Audio",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1050, 200],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/audio/transcriptions",
+        "body": {
+          "model": "whisper-1",
+          "language": "={{ $json.language }}"
+        }
+      },
+      "notes": "Sends audio to Whisper API. Returns transcript text."
+    },
+    {
+      "id": "claude-captions",
+      "name": "Claude — Generate Captions",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1250, 200],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "headers": {
+          "x-api-key": "={{ $env.ANTHROPIC_API_KEY }}",
+          "anthropic-version": "2023-06-01",
+          "content-type": "application/json"
+        },
+        "body": {
+          "model": "claude-sonnet-4-20250514",
+          "max_tokens": 2048,
+          "system": "Caption generation prompt loaded from config",
+          "messages": [
+            {
+              "role": "user",
+              "content": "Asset ID: {{ $json.asset_id }}\nContent type: {{ $json.content_type }}\nTopic: {{ $json.topic_slug }}\nTranscript: {{ $json.transcript }}\nGenerate captions in JSON format with keys for each active platform. Language: {{ $json.language }}."
+            }
+          ]
+        }
+      },
+      "notes": "Claude generates platform-specific captions. Response is JSON with caption per platform key."
+    },
+    {
+      "id": "sheets-write-row",
+      "name": "Sheets — Write Asset Row",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [1450, 200],
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": "={{ $json.workbook_id }}",
+        "sheetName": "={{ $json.tab_name }}"
+      },
+      "notes": "Writes new row with asset data, YouTube URL, captions. Sets pipeline_status=captions_ready."
+    },
+    {
+      "id": "publer-media-import",
+      "name": "Publer — Import Media from YouTube",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1650, 200],
+      "parameters": {
+        "method": "POST",
+        "url": "https://app.publer.com/api/v1/media/upload_from_url",
+        "headers": {
+          "Authorization": "Bearer {{ $env.PUBLER_API_KEY }}"
+        },
+        "body": {
+          "url": "={{ $json.youtube_url }}"
+        }
+      },
+      "notes": "Imports video from YouTube URL into Publer media library. Poll job_status until complete."
+    },
+    {
+      "id": "publer-create-drafts",
+      "name": "Publer — Create Platform Drafts",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1850, 200],
+      "parameters": {
+        "method": "POST",
+        "url": "https://app.publer.com/api/v1/posts",
+        "headers": {
+          "Authorization": "Bearer {{ $env.PUBLER_API_KEY }}"
+        },
+        "body": {
+          "state": "draft",
+          "media_ids": "={{ [$json.media_id] }}",
+          "text": "={{ $json.caption }}"
+        }
+      },
+      "notes": "Creates one draft post per active platform. Loops over platforms. Returns publer_id per post."
+    },
+    {
+      "id": "sheets-update-publer",
+      "name": "Sheets — Update Publer IDs + Status",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [2050, 200],
+      "parameters": {
+        "operation": "update",
+        "documentId": "={{ $json.workbook_id }}",
+        "sheetName": "={{ $json.tab_name }}"
+      },
+      "notes": "Updates row with publer_id per platform. Sets pipeline_status=drafted."
+    },
+    {
+      "id": "long-form-youtube",
+      "name": "Long Form — YouTube Upload",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [650, 450],
+      "parameters": {},
+      "notes": "Same YouTube upload as short form. Unlisted."
+    },
+    {
+      "id": "long-form-whisper",
+      "name": "Long Form — Whisper Transcribe",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [850, 450],
+      "parameters": {},
+      "notes": "Same Whisper transcription as short form."
+    },
+    {
+      "id": "long-form-sheets",
+      "name": "Long Form — Write Row (pending_copy)",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [1050, 450],
+      "parameters": {},
+      "notes": "Writes row with youtube_url, transcript, pipeline_status=pending_copy, copy_ready=FALSE. STOPS HERE. No captions, no Publer."
+    }
+  ],
+  "connections": {
+    "webhook-trigger": {
+      "main": [["route-format"]]
+    },
+    "route-format": {
+      "main": [
+        ["youtube-upload"],
+        ["long-form-youtube"]
+      ]
+    },
+    "youtube-upload": {
+      "main": [["youtube-poll"]]
+    },
+    "youtube-poll": {
+      "main": [["whisper-transcribe"]]
+    },
+    "whisper-transcribe": {
+      "main": [["claude-captions"]]
+    },
+    "claude-captions": {
+      "main": [["sheets-write-row"]]
+    },
+    "sheets-write-row": {
+      "main": [["publer-media-import"]]
+    },
+    "publer-media-import": {
+      "main": [["publer-create-drafts"]]
+    },
+    "publer-create-drafts": {
+      "main": [["sheets-update-publer"]]
+    },
+    "long-form-youtube": {
+      "main": [["long-form-whisper"]]
+    },
+    "long-form-whisper": {
+      "main": [["long-form-sheets"]]
+    }
+  },
+  "meta": {
+    "version": "1.0.0",
+    "description": "FDL1 Content Publishing Pipeline — Phase 1. Short-form: full pipeline. Long-form: stub (stops at pending_copy).",
+    "created": "2026-04-04",
+    "author": "MOKSHA / FIDELIO Productions"
+  }
+}
