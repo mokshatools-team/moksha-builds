@@ -172,16 +172,14 @@ function detectBank(rows) {
   );
   const allHeaders = headerCandidates.join('|||');
 
-  // RBC: EN "account number" + "transaction date" or FR "numéro du compte" + "date de l'opération"
-  if ((allHeaders.includes('account number') && allHeaders.includes('transaction date')) ||
-      (allHeaders.includes('numéro du compte') || allHeaders.includes('numero du compte')) &&
-      (allHeaders.includes("date de l'opération") || allHeaders.includes("date de l'operation"))) {
+  // RBC: has "cad$" in header (unique to RBC, works in both EN and FR)
+  if (allHeaders.includes('cad$')) {
     return 'RBC';
   }
 
   // BMO MC: EN "item #" + "card #" or FR "article no" + "carte no"
-  if ((allHeaders.includes('item #') && allHeaders.includes('card #')) ||
-      (allHeaders.includes('article no') && allHeaders.includes('carte no'))) {
+  if (allHeaders.includes('item #') || allHeaders.includes('card #') ||
+      allHeaders.includes('article no') || allHeaders.includes('carte no')) {
     return 'BMO MC';
   }
 
