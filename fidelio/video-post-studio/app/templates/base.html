@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Video Post Studio</title>
+  </head>
+  <body>
+    <header>
+      <h1>Video Post Studio</h1>
+      <p>Current workspace: {{ workspace.name }}</p>
+      <p>Active module: {{ active_module_label }}</p>
+      <p>{{ active_module_description }}</p>
+      <p>Shared workspace state: {{ workspace_summary }}</p>
+    </header>
+    <nav aria-label="Modules">
+      <ul>
+        {% for module_key, module_info in modules.items() %}
+          <li><a href="/{{ module_key }}">{{ module_info.label }}</a></li>
+        {% endfor %}
+      </ul>
+    </nav>
+    <main>
+      {% block main %}
+      <p>Use the shell to switch between modules.</p>
+      {% endblock %}
+    </main>
+  </body>
+</html>

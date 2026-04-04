@@ -1,0 +1,765 @@
+{
+  "extractedAt": "2026-04-01T22:35:50.503Z",
+  "label": "both (counted in interior)",
+  "total": 7,
+  "errors": 1,
+  "quotes": [
+    {
+      "clientName": "Construction Pereira",
+      "projectId": "PEREIRA_01",
+      "address": "3159 rue Evelyn, Verdun",
+      "date": "26 Février 2024",
+      "year": 2024,
+      "jobType": "both",
+      "projectType": "Peinture intérieure et extérieure — murs, plafonds, boiseries, portes et soufflages extérieurs",
+      "floors": [
+        "Sous-sol",
+        "Rez-de-chaussée",
+        "Étage"
+      ],
+      "sections": [
+        {
+          "floor": "Tous les étages",
+          "name": "Murs, plafonds et boiseries",
+          "items": [
+            {
+              "description": "Peindre les murs, plafonds et boiseries sur les différents étages, selon le devis et le schème de couleur demandé",
+              "price": null
+            }
+          ],
+          "total": null
+        },
+        {
+          "floor": "Extérieur",
+          "name": "Soufflages de portes et fenêtres extérieures",
+          "items": [
+            {
+              "description": "Peindre les soufflages de portes et fenêtres extérieures capées en pin. Aucun cadrage n'est installé sur celles-ci.",
+              "price": null
+            }
+          ],
+          "total": null
+        },
+        {
+          "floor": "Sous-sol",
+          "name": "Portes intérieures",
+          "items": [
+            {
+              "description": "Peindre les 3 portes et 'pocket door' du sous-sol",
+              "price": null
+            }
+          ],
+          "total": null
+        },
+        {
+          "floor": "Rez-de-chaussée",
+          "name": "Portes intérieures",
+          "items": [
+            {
+              "description": "Peindre la 'pocket door' du RDC",
+              "price": null
+            }
+          ],
+          "total": null
+        },
+        {
+          "floor": "Étage",
+          "name": "Portes intérieures",
+          "items": [
+            {
+              "description": "Peindre les 3 portes et 'pocket door' de l'étage",
+              "price": null
+            }
+          ],
+          "total": null
+        },
+        {
+          "floor": "Tous les étages",
+          "name": "Retouches plâtre",
+          "items": [
+            {
+              "description": "Les retouches mineures des joints de plâtres sont incluses",
+              "price": null
+            }
+          ],
+          "total": null
+        }
+      ],
+      "paints": [
+        {
+          "type": "Primer",
+          "product": "Sherwin Williams PVA Primer",
+          "color": "Extra-Blanc",
+          "finish": "Mat",
+          "approxCost": null
+        },
+        {
+          "type": "Murs",
+          "product": "SW Duration Home",
+          "color": "Couleurs variés",
+          "finish": "Velours",
+          "approxCost": null
+        },
+        {
+          "type": "Plafonds",
+          "product": "SW ProMar 400",
+          "color": "BM CC-20",
+          "finish": "Mat",
+          "approxCost": null
+        },
+        {
+          "type": "Plinthes & Portes",
+          "product": "SW ProMar 200 Haute Performance",
+          "color": "BM CC-20",
+          "finish": "Perle",
+          "approxCost": null
+        }
+      ],
+      "laborTotal": 10600,
+      "materialsTotal": 2200,
+      "subtotal": 12800,
+      "tps": 640,
+      "tvq": 1276.8,
+      "grandTotal": 14717,
+      "deposit": 1000,
+      "depositPercent": null,
+      "duration": "Première visite: 3-4 jours; Deuxième visite: 5-6 jours",
+      "startDate": "5 Mars 2024",
+      "paymentMethod": "La balance restante est à acquitter à la complétion de la première phase de travaux (30%), et à la fin de la 2e visite (70%).",
+      "specialConditions": [
+        "Tout travail additionnel demandé sera chargé en sus.",
+        "Cette soumission est valide pour une durée de 30 jours.",
+        "Le client est responsable de s'assurer que les travaux sont conformes aux spécifications et permis exigés par la Ville.",
+        "Aucun cadrage n'est installé sur les soufflages de portes et fenêtres extérieures capées en pin."
+      ],
+      "notes": "Deux visites planifiées: Première visite début 5 Mars 2024 (3-4 jours), Deuxième visite début 15 Avril 2024 (5-6 jours). TPS# 7784757551RT0001, TVQ# 1231045518. RBQ# 5790-0045-01.",
+      "_sourceFile": "2024-02-27_Re_Peinture_EVELYN_PEREIRA_-_SOUMISSION.pdf"
+    },
+    {
+      "clientName": "Ronald Kaulbach",
+      "projectId": "KAULBACH_02",
+      "address": "472 Strathcona Ave",
+      "date": "March 22, 2024",
+      "year": 2024,
+      "jobType": "exterior",
+      "projectType": "Exterior painting of back balcony, fascias, soffits, bannisters, and optional garage doors",
+      "floors": null,
+      "sections": [
+        {
+          "floor": null,
+          "name": "Exterior",
+          "items": [
+            {
+              "description": "Back Balcony",
+              "price": 3000
+            },
+            {
+              "description": "Triangle Fascias",
+              "price": 900
+            },
+            {
+              "description": "Upper soffit",
+              "price": 500
+            },
+            {
+              "description": "Bannisters (including repair)",
+              "price": 800
+            },
+            {
+              "description": "Lower fascia",
+              "price": 300
+            },
+            {
+              "description": "Lower soffit",
+              "price": 500
+            }
+          ],
+          "total": 6000
+        },
+        {
+          "floor": null,
+          "name": "Optional / Suggested",
+          "items": [
+            {
+              "description": "Garage doors",
+              "price": 1600
+            }
+          ],
+          "total": 1600
+        }
+      ],
+      "paints": [
+        {
+          "type": "Exterior",
+          "product": "Sherwin Williams Duration EXT",
+          "color": "Extra White",
+          "finish": "Eggshell",
+          "approxCost": 0
+        },
+        {
+          "type": "Exterior",
+          "product": "Sherwin Williams Duration EXT",
+          "color": "Black",
+          "finish": "Eggshell",
+          "approxCost": 0
+        }
+      ],
+      "laborTotal": null,
+      "materialsTotal": null,
+      "subtotal": 6000,
+      "tps": 0,
+      "tvq": 0,
+      "grandTotal": 3000,
+      "deposit": 900,
+      "depositPercent": 30,
+      "duration": "3 days",
+      "startDate": "Summer 2024",
+      "paymentMethod": "The remaining balance is to be paid in cash, cheque or e-transfer at the middle (50%) and upon completion of the work (50%)",
+      "specialConditions": [
+        "Proper preparation work, including primer where needed, and 2 coats of paint on all agreed upon surfaces",
+        "Outdoor preparation includes cleaning of surfaces, chipping, and scraping of loose paint, caulking, and puttying",
+        "Clean up and vacuum at the end of each day, leaving the space clean",
+        "Protection of all plants and vegetation",
+        "A clean and respectful working environment to make the work period as smooth as possible for you",
+        "Any major repairs asked to be undertaken will be charged at 60 $/h",
+        "Any unknown repairs that may arise will be charged as an extra at $60/H"
+      ],
+      "notes": "Grand Total listed as $3,000 which appears to reflect only the Back Balcony line item; full itemized subtotal is $6,000 without optional extras, or $7,600 with suggested extras (garage doors). Quote valid for 30 days. Client is responsible for ensuring work conforms to City specifications and permits. RBQ# 5790-0045-01.",
+      "_sourceFile": "2024-03-25_Ostéopeinture_Painting_Quote_KAULBACH_02.pdf"
+    },
+    {
+      "clientName": "Mark Smith",
+      "projectId": "SMITH_01",
+      "address": "615 Ave Clarke",
+      "date": "April 3, 2024",
+      "year": 2024,
+      "jobType": "both",
+      "projectType": "Painting of staircase (interior) and side door with metal grill (exterior)",
+      "floors": [],
+      "sections": [
+        {
+          "floor": null,
+          "name": "Interior - Staircase",
+          "items": [
+            {
+              "description": "Painting of staircase - Includes basic preparation of surfaces, caulking, and cleaning",
+              "price": 900
+            },
+            {
+              "description": "Major repairs of problematic walls will be charged by the hour as discussed on the estimate",
+              "price": 60
+            }
+          ],
+          "total": 900
+        },
+        {
+          "floor": null,
+          "name": "Exterior - Side Door",
+          "items": [
+            {
+              "description": "Painting of side door - Includes scraping, sanding, caulking, and spot priming where needed",
+              "price": 500
+            },
+            {
+              "description": "Includes the painting of metal grill",
+              "price": 0
+            }
+          ],
+          "total": 500
+        }
+      ],
+      "paints": [
+        {
+          "type": "Interior walls and trim",
+          "product": "Sherwin Williams Superpaint",
+          "color": "Colour match",
+          "finish": "Eggshell",
+          "approxCost": 0
+        },
+        {
+          "type": "Exterior",
+          "product": "Sherwin Williams Duration EXT",
+          "color": "Colour match",
+          "finish": "Eggshell",
+          "approxCost": 0
+        }
+      ],
+      "laborTotal": 1400,
+      "materialsTotal": 0,
+      "subtotal": 1400,
+      "tps": 0,
+      "tvq": 0,
+      "grandTotal": 1400,
+      "deposit": 300,
+      "depositPercent": 21.43,
+      "duration": "3 days",
+      "startDate": "Spring 2024",
+      "paymentMethod": "Deposit to be paid at the beginning of the project; remaining balance to be paid in CASH upon completion of the work",
+      "specialConditions": [
+        "Preparation, primer where needed and 2 coats of paint on all walls and trim",
+        "Clean up and vacuum at the end of each day",
+        "Covering of all floors and any furniture present in the space",
+        "Removal and reinstallation of any wall plates and wall hardware",
+        "Any major additional repairs will be charged at 60$/H plus taxes and materials",
+        "This quote is valid for a period of 30 days",
+        "The client is responsible for ensuring that the work conforms to the specifications and permits required by the City"
+      ],
+      "notes": "RBQ# 5790-0045-01. Company: Ostéopeinture, #201 - 80 Saint-Viateur East, Montreal, QC, H2T 1A6. Contact: 438-870-8087 | osteopeinture@gmail.com. The 60$/H rate for major repairs is listed as a line item condition, not an invoiced amount. Grand total does not include taxes.",
+      "_sourceFile": "2024-04-03_Painting_Quote_Ostéopeinture_SMITH_01_-_QUOTE_INT.pdf"
+    },
+    {
+      "clientName": null,
+      "projectId": "JEANNE-MANCE_01",
+      "address": "6684 rue Jeanne-Mance",
+      "date": "11 Avril 2024",
+      "year": 2024,
+      "jobType": "exterior",
+      "projectType": "Peinture extérieure — poutres et poteaux extérieurs en métal, table intérieure en métal",
+      "floors": null,
+      "sections": [
+        {
+          "floor": null,
+          "name": "Peinture des poutres et poteaux extérieures",
+          "items": [
+            {
+              "description": "Peinture des poutres et poteaux extérieures — incluant le traitement de la rouille : grattage, meulage, nettoyage, et apprêt à métal industriel; incluant la protection des fenêtres et des surfaces en verre lors du meulage de la rouille; incluant le meulage nécessaire pour l'installation du système de pergolas",
+              "price": 2675
+            }
+          ],
+          "total": 2675
+        },
+        {
+          "floor": null,
+          "name": "Table intérieure en métal",
+          "items": [
+            {
+              "description": "Table intérieure en métal — inclut le traitement de la rouille : grattage, meulage, nettoyage, et apprêt à métal industriel; à peindre la même couleur que les poutres extérieures",
+              "price": 175
+            }
+          ],
+          "total": 175
+        }
+      ],
+      "paints": [
+        {
+          "type": "Métal — apprêt",
+          "product": "Sherwin Williams Kem Bond — Apprêt industriel pour métal",
+          "color": "Blanc",
+          "finish": null,
+          "approxCost": 0
+        },
+        {
+          "type": "Métal — finition extérieure",
+          "product": "SW Peinture extérieure Duration",
+          "color": "À déterminer",
+          "finish": null,
+          "approxCost": 0
+        }
+      ],
+      "laborTotal": null,
+      "materialsTotal": null,
+      "subtotal": 2850,
+      "tps": 142.5,
+      "tvq": 284.29,
+      "grandTotal": 3277,
+      "deposit": 750,
+      "depositPercent": 26.3,
+      "duration": "4-5 jours",
+      "startDate": "Juin 2024",
+      "paymentMethod": "La balance restante est à acquitter à la complétion des travaux.",
+      "specialConditions": [
+        "Traitement de la rouille inclus : grattage, meulage, nettoyage, et apprêt à métal industriel",
+        "Protection des fenêtres et des surfaces en verre lors du meulage de la rouille",
+        "Meulage nécessaire pour l'installation du système de pergolas inclus",
+        "Tout travail additionnel demandé sera chargé en sus",
+        "Cette soumission est valide pour une durée de 30 jours",
+        "Le client est responsable de s'assurer que les travaux sont conformes aux spécifications et permis exigés par la Ville"
+      ],
+      "notes": "TPS # 7784757551RT0001 | TVQ # 1231045518 | RBQ# 5790-0045-01. Prix inclut la peinture haut-de-gamme et tous les matériaux nécessaires, un travail de préparation minutieux, l'apprêt et 2 couches de finition, la protection et le nettoyage de la propriété suite aux travaux (galerie, arbustes, pelouse, etc.).",
+      "_sourceFile": "2024-04-11_Soumission_Peinture_6684_Jeanne-Mance_JEANNE-MANCE_01_-_SOUMISSION.pdf"
+    },
+    {
+      "clientName": "Robert Lando",
+      "projectId": "LANDO_02",
+      "address": "3070 Jean Girard Street",
+      "date": "August 9, 2024",
+      "year": 2024,
+      "jobType": "exterior",
+      "projectType": "Exterior painting of windows, doors, and metal work including anti-rust treatment",
+      "floors": null,
+      "sections": [
+        {
+          "floor": null,
+          "name": "Exterior Windows",
+          "items": [
+            {
+              "description": "15 windows [450$ each]",
+              "price": 6750
+            },
+            {
+              "description": "5 dormer windows [500$ each]",
+              "price": 2500
+            }
+          ],
+          "total": 9250
+        },
+        {
+          "floor": null,
+          "name": "Interior Windows",
+          "items": [
+            {
+              "description": "15 windows [250$ each]",
+              "price": 3750
+            },
+            {
+              "description": "5 dormer windows [250$ each]",
+              "price": 1250
+            }
+          ],
+          "total": 5000
+        },
+        {
+          "floor": null,
+          "name": "Doors",
+          "items": [
+            {
+              "description": "Front door & doorframe",
+              "price": 450
+            },
+            {
+              "description": "Patio double door & doorframe",
+              "price": 650
+            }
+          ],
+          "total": 1100
+        },
+        {
+          "floor": null,
+          "name": "Metal Work",
+          "items": [
+            {
+              "description": "Railing & spindles (includes anti-rust treatment: abrasion of rust, industrial grade metal primer and paint)",
+              "price": 1000
+            },
+            {
+              "description": "Front door awning (includes anti-rust treatment: abrasion of rust, industrial grade metal primer and paint)",
+              "price": 350
+            }
+          ],
+          "total": 1350
+        }
+      ],
+      "paints": [
+        {
+          "type": "Windows",
+          "product": "Sherwin Williams Duration",
+          "color": "Color match existing",
+          "finish": null,
+          "approxCost": 0
+        },
+        {
+          "type": "Doors",
+          "product": "Sherwin Williams Duration",
+          "color": "Color match existing",
+          "finish": null,
+          "approxCost": 0
+        },
+        {
+          "type": "Metal work",
+          "product": "SW B54",
+          "color": "Color match existing",
+          "finish": null,
+          "approxCost": 0
+        }
+      ],
+      "laborTotal": null,
+      "materialsTotal": null,
+      "subtotal": 16700,
+      "tps": 835,
+      "tvq": 1665.83,
+      "grandTotal": 19201,
+      "deposit": 1700,
+      "depositPercent": 10.18,
+      "duration": "Approx 7 days",
+      "startDate": "TBD",
+      "paymentMethod": "The remaining balance is to be paid in cash, cheque or e-transfer, with installments spread out on a weekly basis throughout the work.",
+      "specialConditions": [
+        "Proper outdoor preparation: cleaning of surfaces, chipping, and scraping of loose paint, caulking, and resurfacing",
+        "Clean up at the end of each day, leaving the space clean",
+        "Protection of all plants and vegetation",
+        "A clean and respectful working environment to make the work period as smooth as possible for you",
+        "Major repairs are excluded from the quote and will be charged at 75 $/h plus taxes & materials",
+        "All additional work will be charged accordingly",
+        "This quote is valid for a period of 30 days",
+        "The client is responsible for ensuring that the work conforms to the specifications and permits required by the City"
+      ],
+      "notes": "TPS # 7784757551RT0001 | TVQ # 1231045518 | RBQ# 5790-0045-01. Quote includes high-end exterior paint and all materials required for proper preparation of surfaces.",
+      "_sourceFile": "2024-08-12_Interior_and_Exterior_Painting_Quotes_LANDO_01_-_QUOTE_EXT.pdf"
+    },
+    {
+      "clientName": "Robert Lando",
+      "projectId": "LANDO_02",
+      "address": "3070 Jean Girard Street",
+      "date": "August 9, 2024",
+      "year": 2024,
+      "jobType": "exterior",
+      "projectType": "Exterior painting of windows, doors, and metal work including anti-rust treatment",
+      "floors": null,
+      "sections": [
+        {
+          "floor": null,
+          "name": "Exterior Windows",
+          "items": [
+            {
+              "description": "15 windows [450$ each]",
+              "price": 4125
+            },
+            {
+              "description": "5 dormer windows [500$ each]",
+              "price": 2025
+            }
+          ],
+          "total": 6150
+        },
+        {
+          "floor": null,
+          "name": "Interior Windows",
+          "items": [
+            {
+              "description": "15 windows [250$ each]",
+              "price": 2250
+            },
+            {
+              "description": "5 dormer windows [250$ each]",
+              "price": 750
+            }
+          ],
+          "total": 3000
+        },
+        {
+          "floor": null,
+          "name": "Doors",
+          "items": [
+            {
+              "description": "Front door & doorframe",
+              "price": 450
+            },
+            {
+              "description": "Patio double door & doorframe",
+              "price": 650
+            }
+          ],
+          "total": 1100
+        },
+        {
+          "floor": null,
+          "name": "Metal Work",
+          "items": [
+            {
+              "description": "Railing & spindles",
+              "price": 900
+            },
+            {
+              "description": "Front door awning",
+              "price": 350
+            }
+          ],
+          "total": 1250
+        }
+      ],
+      "paints": [
+        {
+          "type": "Windows",
+          "product": "Sherwin Williams Duration",
+          "color": "Color match existing",
+          "finish": null,
+          "approxCost": 0
+        },
+        {
+          "type": "Doors",
+          "product": "Sherwin Williams Duration",
+          "color": "Color match existing",
+          "finish": null,
+          "approxCost": 0
+        },
+        {
+          "type": "Metal work",
+          "product": "SW B54",
+          "color": "Color match existing",
+          "finish": null,
+          "approxCost": 0
+        }
+      ],
+      "laborTotal": null,
+      "materialsTotal": null,
+      "subtotal": 11500,
+      "tps": 575,
+      "tvq": 1147.13,
+      "grandTotal": 13222,
+      "deposit": 1700,
+      "depositPercent": 14.79,
+      "duration": "Approx 7 days",
+      "startDate": "TBD",
+      "paymentMethod": "The remaining balance is to be paid in cash, cheque or e-transfer, with installments spread out on a weekly basis throughout the work.",
+      "specialConditions": [
+        "Proper outdoor preparation: cleaning of surfaces, chipping, and scraping of loose paint, caulking, and resurfacing",
+        "Clean up at the end of each day, leaving the space clean",
+        "Protection of all plants and vegetation",
+        "A clean and respectful working environment to make the work period as smooth as possible for you",
+        "Major repairs are excluded from the quote and will be charged at 75 $/h plus taxes & materials",
+        "Metal work includes anti-rust treatment (abrasion of rust, industrial grade metal primer and paint)",
+        "This quote is valid for a period of 30 days",
+        "The client is responsible for ensuring that the work conforms to the specifications and permits required by the City"
+      ],
+      "notes": "Quote includes high-end exterior paint and all materials required for proper preparation of surfaces. TPS # 7784757551RT0001, TVQ # 1231045518, RBQ# 5790-0045-01. All additional work will be charged accordingly.",
+      "_sourceFile": "2024-08-13_Re_Interior_and_Exterior_Painting_Quotes_LANDO_01_-_QUOTE_EXT_ADJUSTED_.pdf"
+    },
+    {
+      "clientName": "Robert Lando",
+      "projectId": "LANDO_02",
+      "address": "3070 Jean-Girard Street, Montreal, QC H3H 1Y2",
+      "date": "October 21th, 2024",
+      "year": 2024,
+      "jobType": "both",
+      "projectType": "Exterior and interior window painting, door painting, metalwork (railing, awning), plus various repairs and add-ons",
+      "floors": null,
+      "sections": [
+        {
+          "floor": null,
+          "name": "A. Initial Contract – Exterior Windows",
+          "items": [
+            {
+              "description": "15 windows [275$ each]",
+              "price": 4125
+            },
+            {
+              "description": "5 dormer windows [405$ each]",
+              "price": 2025
+            }
+          ],
+          "total": 6150
+        },
+        {
+          "floor": null,
+          "name": "A. Initial Contract – Interior Windows",
+          "items": [
+            {
+              "description": "15 windows [150$ each]",
+              "price": 2250
+            },
+            {
+              "description": "5 dormer windows [150$ each]",
+              "price": 750
+            }
+          ],
+          "total": 3000
+        },
+        {
+          "floor": null,
+          "name": "A. Initial Contract – Doors",
+          "items": [
+            {
+              "description": "Front door & doorframe",
+              "price": 450
+            },
+            {
+              "description": "Patio double door & doorframe",
+              "price": 650
+            }
+          ],
+          "total": 1100
+        },
+        {
+          "floor": null,
+          "name": "A. Initial Contract – Metal Work",
+          "items": [
+            {
+              "description": "Railing & spindles",
+              "price": 900
+            },
+            {
+              "description": "Front door awning",
+              "price": 350
+            }
+          ],
+          "total": 1250
+        },
+        {
+          "floor": null,
+          "name": "B. Extras / Add-Ons",
+          "items": [
+            {
+              "description": "Repair of exterior window frames – 8H + materials [50$] – Includes replacement of window screen stoppers",
+              "price": 650
+            },
+            {
+              "description": "Repair of patio door and sill – 5H + materials [20$]",
+              "price": 395
+            },
+            {
+              "description": "Replacement of patio door screen – 3H + materials [30$]",
+              "price": 255
+            },
+            {
+              "description": "Repair of Front Door – 8H + materials [75$]",
+              "price": 675
+            },
+            {
+              "description": "Repair of coach lights – 2.5H",
+              "price": 150
+            }
+          ],
+          "total": 2125
+        }
+      ],
+      "paints": [
+        {
+          "type": "Exterior Windows",
+          "product": "Sherwin Williams Duration Exterior",
+          "color": "Custom colour match",
+          "finish": "Satin",
+          "approxCost": 0
+        },
+        {
+          "type": "Front Railing",
+          "product": "SW DTM",
+          "color": "SW 7069 Iron Ore",
+          "finish": "Satin",
+          "approxCost": 0
+        },
+        {
+          "type": "Front Door & Awning",
+          "product": "SW Duration Exterior",
+          "color": "SW 7025 Backdrop",
+          "finish": "Satin",
+          "approxCost": 0
+        }
+      ],
+      "laborTotal": null,
+      "materialsTotal": null,
+      "subtotal": 13625,
+      "tps": 681.25,
+      "tvq": 1359.09,
+      "grandTotal": 15665.34,
+      "deposit": 1700,
+      "depositPercent": null,
+      "duration": null,
+      "startDate": null,
+      "paymentMethod": "cheque, direct deposit, e-transfer or cash upon completion of the work",
+      "specialConditions": [
+        "Includes replacement of window screen stoppers (part of exterior window frame repair)",
+        "Remaining balance to be paid upon completion of the work"
+      ],
+      "notes": "Invoice #20241016_01. Previous payments of $8,000 already made in addition to deposit of $1,700. Balance to be paid: $5,965.34. GST #7784757551RT0001. QST #1231045518. RBQ #5790-0045-01. Company: Ostéopeinture, #201-80 rue St-Viateur E., Montreal, QC H2T 1A6.",
+      "_sourceFile": "2024-10-22_Adjusted_Invoices_and_Time_breakdown_LANDO_EXTERIOR_ADJUSTED_.pdf"
+    }
+  ],
+  "parseErrors": [
+    {
+      "ok": false,
+      "file": "2024-03-25_Re_Ostéopeinture_Painting_Quote_DAHAN_01_revised.pdf",
+      "error": "Unexpected token '`', \"```json\n{\n\"... is not valid JSON",
+      "raw": "```json\n{\n  \"clientName\": \"Nathalie Dahan\",\n  \"projectId\": \"DAHAN_01\",\n  \"address\": \"507 Ave Querbes\",\n  \"date\": \"March 25, 2023\",\n  \"year\": 2024,\n  \"jobType\": \"exterior\",\n  \"projectType\": \"Exterior painting of house including front, side, back, and top surfaces — windows, balcony, porch, staircase, and roof elements\",\n  \"floors\": [\"Ground Floor\", \"2nd Floor\", \"Basement\", \"Top of house\"],\n  \"sections\": [\n    {\n      \"floor\": null,\n      \"name\": \"Front of house\",\n      \"items\": [\n        { \"description\": \"Small window above balcony door\", \"price\": 100 },\n        { \"description\": \"Balcony bannister and wooden boxes\", \"price\": 600 }\n      ],\n      \"total\": 700\n    },\n    {\n      \"floor\": null,\n      \"name\": \"Front of house — Common work\",\n      \"items\": [\n        { \"description\": \"Front porch (top & bottom fascias, columns, bannisters, wooden boxes, and white risers)\", \"price\": 1400 },\n        { \"description\": \"Front porch steps staining\", \"price\": 500 }\n      ],\n      \"total\": 1900\n    },\n    {\n      \"floor\": null,\n      \"name\": \"Side of house\",\n      \"items\": [\n        { \"description\": \"2nd floor windows\", \"price\": 350 },\n        { \"description\": \"Ground floor windows (4x large, 2x small)\", \"price\": 1100 },\n        { \"description\": \"Basement windows x4 [including back basement window]\", \"price\": 600 }\n      ],\n      \"total\": 2050\n    },\n    {\n      \"floor\": null,\n      \"name\": \"Back of house\",\n      \"items\": [\n        { \"description\": \"Balcony roof (fascia, soffit, and cornices) [Excluding potential repairs]\", \"price\": 750 },\n        { \"description\": \"Small window above door on 2nd floor\", \"price\": 100 },\n        { \"description\": \"Double window on 2nd floor\", \"price\": 300 },\n        { \"description\": \"Double window on ground floor\", \"price\": 350 }\n      ],\n      \"total\": 1500\n    },\n    {\n      \"floor\": null,\n      \"name\": \"Back of house — Common work\",\n      \"items\": [\n        { \"description\": \"Wrought iron staircase\", \"price\": 4250 }\n      ],\n      \"total\": 4250\n    },\n    {\n      \"floor\": null,\n      \"name\": \"Top of house — Common work\",\n      \"items\": [\n        { \"description\": \"[Option 1] Aluminum cover (caulking only)\", \"price\": 300 },\n        { \"description\": \"[Option 2] Aluminum cover (primer, 2 coats of paint & caulking)\", \"price\": 1200 }\n      ],\n      \"total\": null\n    }\n  ],\n  \"paints\": [\n    {\n      \"type\": \"Exterior\",\n      \"product\": \"Sherwin Williams Duration EXT\",\n      \"color\": \"White, red\",\n      \"finish\": null,\n      \"approxCost\": 0\n    },\n    {\n      \"type\": \"Exterior\",\n      \"product\": \"Sansin DEC\",\n      \"color\": \"Grey\",\n      \"finish\": null,\n      \"approxCost\": 0\n    },\n    {\n      \"type\": \"Wood primer\",\n      \"product\": \"Sherwin Williams Wood Oil Primer\",\n      \"color\": \"Standard white\",\n      \"finish\": null,\n      \"approxCost\": 0\n    },\n    {\n      \"type\": \"Metal\",\n      \"product\": \"Sherwin Williams B54 Industrial Enamel Paint for Metal\",\n      \"color\": \"Black\",\n      \"finish\": null,\n      \"approxCost\": 0\n    },\n    {\n      \"type\": \"Metal primer\",\n      \"product\": \"Sherwin Williams Kembond Metal Oil Primer\",\n      \"color\": \"Standard white\",\n      \"finish\": null,\n      \"approxCost\": 0\n    }\n  ],\n  \"laborTotal\": null,\n  \"materialsTotal\": null,\n  \"subtotal\": 10400,\n  \"tps\": 520.00,\n  \"tvq\": 1037.40,\n  \"grandTotal\": 11957,\n  \"deposit\": 3500,\n  \"depositPercent\": 33.65,\n  \"duration\": \"5-6 Days\",\n  \"startDate\": \"Summer 2024\",\n  \"paymentMethod\": \"The remaining balance is to be paid in cash, cheque or e-transfer, at the completion of the work.\",\n  \"specialConditions\": [\n    \"Proper preparation work, including primer where needed, and 2 coats of paint on all agreed upon surfaces\",\n    \"Outdoor preparation includes cleaning of surfaces, chipping, and scraping of loose paint, caulking, and puttying\",\n    \"Clean up at the end of each day, leaving the space clean\",\n    \"Protection of all plants and vegetation\",\n    \"A clean and respectful working environment to make the work period as smooth as possible for you\",\n    \"Major repairs are excluded from the quote and will be charged at 60 $/h plus taxes and materials\",\n    \"All additional work will be charged accordingly\",\n    \"This quote is valid for a period of 30 days\",\n    \"The client is responsible for ensuring that the work conforms to the specifications and permits required by the City\"\n  ],\n  \"notes\": \"Grand Total without options: 11,957$. Grand Total with Option 1 (caulking only): 12,303$. Grand Total with Option 2 (primer, 2 coats of paint & caulking): 13,337$. TPS# 778457551RT0001. TVQ# 1231045518. RBQ# 5790-0045-01. Company address: #201-80 rue Saint-Viateur E., Montréal, QC H2T1A6.\"\n}\n```"
+    }
+  ]
+}

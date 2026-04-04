@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Transcript Chat Assistant</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant:ital,wght@0,400;0,500;0,600;1,400&family=Plus+Jakarta+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:        #F7F5F2;
+      --surface:   #FFFFFF;
+      --surface-2: #F2EFE9;
+      --border:    #E4DDD4;
+      --border-2:  #D6CDC2;
+      --text:      #1C1713;
+      --muted:     #7A6E63;
+      --faint:     #AEA49A;
+      --accent:    #B85A22;
+      --accent-bg: rgba(184,90,34,0.08);
+      --accent-ring: rgba(184,90,34,0.18);
+      --ff-serif: 'Cormorant', Georgia, serif;
+      --ff-sans:  'Plus Jakarta Sans', system-ui, sans-serif;
+      --ff-mono:  'JetBrains Mono', monospace;
+      --r: 10px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: var(--ff-sans);
+      font-size: 15px;
+      color: var(--text);
+      background: var(--bg);
+      min-height: 100vh;
+    }
+
+    /* ── TOPBAR ─────────────────────────────────────────────── */
+    .topbar {
+      position: sticky; top: 0; z-index: 20;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 28px;
+      background: rgba(247,245,242,0.88);
+      backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--border);
+    }
+    .wordmark {
+      font-family: var(--ff-serif);
+      font-size: 22px;
+      font-weight: 500;
+      letter-spacing: 0.01em;
+      line-height: 1;
+    }
+    .submark {
+      font-size: 11px;
+      font-weight: 400;
+      letter-spacing: 0.13em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-top: 3px;
+    }
+
+    /* ── PAGE SHELL ─────────────────────────────────────────── */
+    .page {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 36px 24px 80px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* ── CARDS ──────────────────────────────────────────────── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      overflow: hidden;
+    }
+    .card-body { padding: 24px; }
+
+    /* ── SEGMENT CONTROL (tabs) ─────────────────────────────── */
+    .seg-wrap {
+      display: flex;
+      gap: 0;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 3px;
+      margin-bottom: 22px;
+    }
+    .seg {
+      flex: 1;
+      border: none;
+      background: transparent;
+      border-radius: 6px;
+      padding: 9px 10px;
+      font-family: var(--ff-sans);
+      font-size: 12.5px;
+      font-weight: 500;
+      letter-spacing: 0.02em;
+      color: var(--muted);
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+      line-height: 1.3;
+      text-align: center;
+    }
+    .seg.active {
+      background: var(--surface);
+      color: var(--text);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.09), 0 0 0 0.5px var(--border-2);
+    }
+
+    /* ── INGESTION SECTION ──────────────────────────────────── */
+    .source-heading {
+      font-family: var(--ff-serif);
+      font-size: 28px;
+      font-weight: 500;
+      line-height: 1.15;
+      margin: 0 0 6px;
+    }
+    .source-sub {
+      font-size: 14px;
+      color: var(--muted);
+      line-height: 1.6;
+      margin: 0 0 22px;
+    }
+
+    /* ── FORM ELEMENTS ──────────────────────────────────────── */
+    .field { margin-bottom: 16px; }
+    label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 7px;
+    }
+    input[type="text"] {
+      width: 100%;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 11px 14px;
+      font-family: var(--ff-sans);
+      font-size: 14.5px;
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    input[type="text"]:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-ring);
+      background: var(--surface);
+    }
+
+    /* Drop zone */
+    .drop-zone {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      border: 1.5px dashed var(--border-2);
+      border-radius: 8px;
+      background: var(--surface-2);
+      padding: 28px 20px;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+      text-align: center;
+    }
+    .drop-zone:hover, .drop-zone.drag-over {
+      border-color: var(--accent);
+      background: var(--accent-bg);
+    }
+    .drop-icon {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+    }
+    .drop-label { font-size: 13.5px; font-weight: 500; color: var(--text); }
+    .drop-hint  { font-size: 12px; color: var(--faint); }
+    .drop-filename { font-size: 12.5px; color: var(--accent); font-weight: 500; margin-top: 4px; }
+    #file-input { display: none; }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      border: none; border-radius: 8px;
+      padding: 10px 18px;
+      font-family: var(--ff-sans);
+      font-size: 13.5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { opacity: 0.88; }
+    .btn-ghost {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--border);
+    }
+    .btn-ghost:hover { background: var(--surface-2); color: var(--text); }
+    .btn-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+
+    /* Meta box */
+    .meta-box {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 16px;
+      font-size: 13.5px;
+      color: var(--muted);
+      line-height: 1.6;
+      margin-bottom: 16px;
+    }
+    .meta-box p { margin: 0; }
+    .meta-box p + p { margin-top: 6px; }
+
+    /* Status */
+    .status {
+      font-size: 13px;
+      color: var(--muted);
+      min-height: 20px;
+      margin-top: 12px;
+    }
+
+    /* ── SECTION DIVIDER ────────────────────────────────────── */
+    .section-label {
+      font-size: 10.5px;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--faint);
+      margin-bottom: 10px;
+    }
+
+    /* ── WORKSPACE ──────────────────────────────────────────── */
+    .workspace-meta {
+      padding: 20px 24px 0;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 16px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .workspace-title {
+      font-family: var(--ff-serif);
+      font-size: 24px;
+      font-weight: 500;
+      margin: 0 0 3px;
+      line-height: 1.2;
+    }
+    .workspace-source {
+      font-size: 13px;
+      color: var(--muted);
+      margin: 0;
+    }
+
+    /* Transcript */
+    .transcript-wrap { padding: 20px 24px; border-bottom: 1px solid var(--border); }
+    .transcript-box {
+      font-family: var(--ff-mono);
+      font-size: 13px;
+      line-height: 1.85;
+      white-space: pre-wrap;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      max-height: 380px;
+      overflow: auto;
+      color: var(--text);
+    }
+
+    /* Chat */
+    .chat-wrap { padding: 20px 24px; }
+    .chat-log {
+      min-height: 180px;
+      max-height: 400px;
+      overflow: auto;
+      margin-bottom: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .message {
+      padding: 11px 14px;
+      border-radius: 8px;
+      font-size: 14px;
+      line-height: 1.65;
+    }
+    .message.assistant {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+    }
+    .message.user {
+      background: var(--accent-bg);
+      border: 1px solid var(--accent-ring);
+    }
+    .message-role {
+      display: block;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.13em;
+      text-transform: uppercase;
+      color: var(--faint);
+      margin-bottom: 5px;
+    }
+    .chat-form textarea {
+      width: 100%;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 14px;
+      font-family: var(--ff-sans);
+      font-size: 14px;
+      color: var(--text);
+      resize: vertical;
+      min-height: 90px;
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      margin-bottom: 10px;
+    }
+    .chat-form textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-ring);
+      background: var(--surface);
+    }
+
+    /* Loading shimmer */
+    @keyframes shimmer {
+      0%   { background-position: -600px 0; }
+      100% { background-position: 600px 0; }
+    }
+    .loading-bar {
+      height: 3px;
+      width: 100%;
+      background: linear-gradient(90deg, var(--border) 25%, var(--accent) 50%, var(--border) 75%);
+      background-size: 600px 100%;
+      animation: shimmer 1.4s infinite linear;
+      border-radius: 3px;
+      margin-top: 12px;
+    }
+
+    /* Fade panels */
+    .panel-pane { display: none; }
+    .panel-pane.active { display: block; }
+
+    /* Workspace hidden until transcript loaded */
+    .workspace-section { transition: opacity 0.3s; }
+
+    @media (max-width: 600px) {
+      .topbar { padding: 12px 18px; }
+      .submark { display: none; }
+      .page { padding: 20px 14px 60px; gap: 14px; }
+      .card-body, .workspace-meta, .transcript-wrap, .chat-wrap { padding-left: 16px; padding-right: 16px; }
+
+      /* tabs: stack 3-across into a 3-row pill list */
+      .seg-wrap { flex-direction: column; gap: 2px; }
+      .seg { text-align: left; font-size: 13px; padding: 11px 14px; border-radius: 7px; }
+      .seg.active { box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 0 0 0.5px var(--border-2); }
+
+      .source-heading { font-size: 24px; }
+      .source-sub { font-size: 13px; margin-bottom: 18px; }
+
+      /* workspace top: stack title above buttons */
+      .workspace-meta { flex-direction: column; gap: 12px; }
+      .workspace-title { font-size: 20px; }
+
+      /* transcript and chat: tighter max-heights for short screens */
+      .transcript-box { max-height: 260px; font-size: 12.5px; }
+      .chat-log { max-height: 280px; min-height: 120px; }
+      .chat-form textarea { min-height: 70px; }
+
+      /* drop zone less tall on mobile */
+      .drop-zone { padding: 20px 16px; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="topbar">
+    <div>
+      <div class="wordmark">Transcript Chat</div>
+      <div class="submark">Source-grounded research</div>
+    </div>
+  </header>
+
+  <main class="page">
+
+    <!-- ── SOURCE PANEL ──────────────────────────────────────── -->
+    <section class="card">
+      <div class="card-body">
+        <h1 class="source-heading">Bring in a source.</h1>
+        <p class="source-sub">Upload a media file or pull from YouTube — get a clean transcript you can read, copy, and chat with.</p>
+
+        <div class="seg-wrap" role="tablist">
+          <button class="seg active" type="button" data-mode="file" role="tab">File Upload</button>
+          <button class="seg" type="button" data-mode="youtube-url" role="tab">YouTube URL</button>
+          <button class="seg" type="button" data-mode="youtube-account" role="tab">YouTube Account</button>
+        </div>
+
+        <!-- File -->
+        <div id="panel-file" class="panel-pane active">
+          <form id="file-form">
+            <div class="field">
+              <label>Video or audio file</label>
+              <div class="drop-zone" id="drop-zone" tabindex="0" role="button" aria-label="Upload file">
+                <div class="drop-icon">↑</div>
+                <div class="drop-label">Drop a file or click to browse</div>
+                <div class="drop-hint">.mp4 · .mov · .mxf · .avi · .mp3 · .m4a</div>
+                <div class="drop-filename hidden" id="chosen-filename"></div>
+              </div>
+              <input id="file-input" name="file" type="file" accept=".mp4,.mov,.mxf,.avi,.mp3,.m4a">
+            </div>
+            <div class="btn-row">
+              <button class="btn btn-primary" type="submit">Fetch Transcript</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- YouTube URL -->
+        <div id="panel-youtube-url" class="panel-pane">
+          <form id="youtube-url-form">
+            <div class="field">
+              <label>Public video URL</label>
+              <input id="youtube-url-input" type="text" placeholder="https://www.youtube.com/watch?v=…">
+            </div>
+            <div class="btn-row">
+              <button class="btn btn-primary" type="submit">Fetch Transcript</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- YouTube Account -->
+        <div id="panel-youtube-account" class="panel-pane">
+          <div class="meta-box">
+            <p>Connect your Google account, then paste a YouTube URL or video ID to pull captions from your own videos.</p>
+            <p id="youtube-account-status">Connect your Google account before fetching captions.</p>
+          </div>
+          <div class="btn-row" style="margin-bottom:18px;">
+            <a class="btn btn-primary" href="/auth/youtube" id="youtube-connect-btn">Connect Google account</a>
+            <button class="btn btn-ghost hidden" type="button" id="youtube-disconnect-btn">Disconnect</button>
+          </div>
+          <form id="youtube-account-form">
+            <div class="field">
+              <label>Video URL or ID</label>
+              <input id="youtube-account-input" type="text" placeholder="https://www.youtube.com/watch?v=…">
+            </div>
+            <div class="btn-row">
+              <button class="btn btn-primary" type="submit">Fetch Transcript</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="status" id="status-line"></div>
+        <div class="loading-bar hidden" id="loading-bar"></div>
+      </div>
+    </section>
+
+    <!-- ── WORKSPACE ─────────────────────────────────────────── -->
+    <section class="card workspace-section" id="workspace-card">
+
+      <div class="workspace-meta">
+        <div>
+          <h2 class="workspace-title" id="workspace-title">{{ state.title or "Waiting for a source" }}</h2>
+          <p class="workspace-source" id="workspace-source">{{ state.source_label or "Upload a file or paste a URL to create the active session." }}</p>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-ghost" type="button" id="copy-btn">Copy</button>
+          <a class="btn btn-ghost" href="/download/transcript.txt">.txt</a>
+          <a class="btn btn-ghost" href="/download/transcript.md">.md</a>
+        </div>
+      </div>
+
+      <div class="transcript-wrap">
+        <div class="section-label">Transcript</div>
+        <div class="transcript-box" id="transcript-box">{{ state.transcript_text or "No transcript loaded yet." }}</div>
+      </div>
+
+      <div class="chat-wrap">
+        <div class="section-label">Chat with the transcript</div>
+        <div class="chat-log" id="chat-log"></div>
+        <form class="chat-form" id="chat-form">
+          <textarea id="chat-input" placeholder="Ask for a summary, hook breakdown, objections, claims, structure, or anything else grounded on the transcript."></textarea>
+          <div class="btn-row">
+            <button class="btn btn-primary" type="submit">Send</button>
+          </div>
+        </form>
+      </div>
+
+    </section>
+
+  </main>
+
+  <script>
+    const initialState = {{ state|tojson }};
+    let activeState = initialState;
+
+    const statusLine   = document.getElementById("status-line");
+    const loadingBar   = document.getElementById("loading-bar");
+    const transcriptBox = document.getElementById("transcript-box");
+    const workspaceTitle  = document.getElementById("workspace-title");
+    const workspaceSource = document.getElementById("workspace-source");
+    const chatLog = document.getElementById("chat-log");
+
+    /* ── loading state ── */
+    function setLoading(yes, msg) {
+      statusLine.textContent = yes ? (msg || "Working…") : "";
+      loadingBar.classList.toggle("hidden", !yes);
+    }
+
+    /* ── tab segments ── */
+    function setMode(mode) {
+      document.querySelectorAll(".seg").forEach(s =>
+        s.classList.toggle("active", s.dataset.mode === mode));
+      ["file","youtube-url","youtube-account"].forEach(id => {
+        const el = document.getElementById("panel-" + id);
+        if (el) el.classList.toggle("active", id === mode);
+      });
+      statusLine.textContent = "";
+    }
+    document.querySelectorAll(".seg").forEach(s =>
+      s.addEventListener("click", () => setMode(s.dataset.mode)));
+
+    /* ── drop zone ── */
+    const dropZone  = document.getElementById("drop-zone");
+    const fileInput = document.getElementById("file-input");
+    const filename  = document.getElementById("chosen-filename");
+
+    function showFile(file) {
+      filename.textContent = file.name;
+      filename.classList.remove("hidden");
+    }
+    dropZone.addEventListener("click", () => fileInput.click());
+    dropZone.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") fileInput.click(); });
+    fileInput.addEventListener("change", () => { if (fileInput.files[0]) showFile(fileInput.files[0]); });
+    dropZone.addEventListener("dragover", e => { e.preventDefault(); dropZone.classList.add("drag-over"); });
+    dropZone.addEventListener("dragleave", () => dropZone.classList.remove("drag-over"));
+    dropZone.addEventListener("drop", e => {
+      e.preventDefault();
+      dropZone.classList.remove("drag-over");
+      const f = e.dataTransfer.files[0];
+      if (f) {
+        const dt = new DataTransfer();
+        dt.items.add(f);
+        fileInput.files = dt.files;
+        showFile(f);
+      }
+    });
+
+    /* ── render ── */
+    function escapeHtml(t) {
+      const d = document.createElement("div");
+      d.textContent = t || "";
+      return d.innerHTML;
+    }
+
+    function renderMessages(messages) {
+      chatLog.innerHTML = "";
+      if (!messages || !messages.length) {
+        chatLog.innerHTML = '<div class="message assistant"><span class="message-role">Assistant</span>Load a transcript, then ask for summaries, hooks, structure, or objections.</div>';
+        return;
+      }
+      messages.forEach(m => {
+        const el = document.createElement("div");
+        el.className = "message " + m.role;
+        el.innerHTML = `<span class="message-role">${m.role}</span>${escapeHtml(m.content).replace(/\n/g, "<br>")}`;
+        chatLog.appendChild(el);
+      });
+      chatLog.scrollTop = chatLog.scrollHeight;
+    }
+
+    function renderState(state) {
+      activeState = state;
+      workspaceTitle.textContent  = state.title        || "Waiting for a source";
+      workspaceSource.textContent = state.source_label || "Upload a file or paste a URL to create the active session.";
+      transcriptBox.textContent   = state.transcript_text || "No transcript loaded yet.";
+      renderMessages(state.messages || []);
+    }
+
+    /* ── API ── */
+    async function submitJson(url, payload) {
+      const r = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || "Request failed.");
+      return d;
+    }
+
+    /* ── auth status ── */
+    async function refreshAuthStatus() {
+      try {
+        const r = await fetch("/auth/status");
+        const d = await r.json();
+        document.getElementById("youtube-account-status").textContent = d.connected
+          ? "Google account connected. Paste a YouTube URL or ID to fetch captions."
+          : "Connect your Google account before fetching captions.";
+        document.getElementById("youtube-disconnect-btn").classList.toggle("hidden", !d.connected);
+      } catch (_) {
+        document.getElementById("youtube-account-status").textContent = "Google account status unavailable.";
+      }
+    }
+
+    /* ── forms ── */
+    document.getElementById("file-form").addEventListener("submit", async e => {
+      e.preventDefault();
+      if (!fileInput.files.length) { statusLine.textContent = "Choose a file first."; return; }
+      setLoading(true, "Transcribing…");
+      const fd = new FormData();
+      fd.append("file", fileInput.files[0]);
+      try {
+        const r = await fetch("/transcribe", { method: "POST", body: fd });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error || "Transcript fetch failed.");
+        renderState(d);
+        setLoading(false);
+        statusLine.textContent = "Transcript ready.";
+      } catch (err) {
+        setLoading(false);
+        statusLine.textContent = err.message;
+      }
+    });
+
+    document.getElementById("youtube-url-form").addEventListener("submit", async e => {
+      e.preventDefault();
+      const url = document.getElementById("youtube-url-input").value.trim();
+      setLoading(true, "Fetching transcript…");
+      try {
+        const d = await submitJson("/transcribe", { youtube_url: url });
+        renderState(d);
+        setLoading(false);
+        statusLine.textContent = "Transcript ready.";
+      } catch (err) {
+        setLoading(false);
+        statusLine.textContent = err.message;
+      }
+    });
+
+    document.getElementById("youtube-account-form").addEventListener("submit", async e => {
+      e.preventDefault();
+      const id = document.getElementById("youtube-account-input").value.trim();
+      setLoading(true, "Fetching captions…");
+      try {
+        const d = await submitJson("/transcript/youtube-oauth", { video_id: id });
+        renderState(d);
+        setLoading(false);
+        statusLine.textContent = "Transcript ready.";
+      } catch (err) {
+        setLoading(false);
+        statusLine.textContent = err.message;
+      }
+    });
+
+    document.getElementById("youtube-disconnect-btn").addEventListener("click", async () => {
+      await fetch("/auth/disconnect", { method: "POST" });
+      refreshAuthStatus();
+    });
+
+    document.getElementById("copy-btn").addEventListener("click", async () => {
+      if (!activeState.transcript_text) { statusLine.textContent = "No transcript to copy."; return; }
+      try {
+        await navigator.clipboard.writeText(activeState.transcript_text);
+        statusLine.textContent = "Copied.";
+      } catch (_) {
+        statusLine.textContent = "Clipboard copy failed in this browser.";
+      }
+    });
+
+    document.getElementById("chat-form").addEventListener("submit", async e => {
+      e.preventDefault();
+      const chatInput = document.getElementById("chat-input");
+      const msg = chatInput.value.trim();
+      if (!msg) { statusLine.textContent = "Enter a message first."; return; }
+      setLoading(true, "Thinking…");
+      try {
+        const d = await submitJson("/chat", { message: msg });
+        renderMessages(d.messages || []);
+        chatInput.value = "";
+        setLoading(false);
+        statusLine.textContent = "Reply ready.";
+      } catch (err) {
+        setLoading(false);
+        statusLine.textContent = err.message;
+      }
+    });
+
+    renderState(initialState);
+    refreshAuthStatus();
+  </script>
+</body>
+</html>
