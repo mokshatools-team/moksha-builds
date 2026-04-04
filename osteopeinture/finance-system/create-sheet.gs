@@ -750,7 +750,7 @@ function buildImport(ss) {
   // Duplicate check formula
   for (let row = 3; row <= 200; row++) {
     sh.getRange(row, 8).setFormula(
-      `=IF(A${row}="","",IF(COUNTIFS(Transactions!A$2:A$2000,A${row},Transactions!E$2:E$2000,C${row},Transactions!B$2:B$2000,B${row})>0,"⚠ DUPLICATE",""))`
+      `=IF(A${row}="","",IF(COUNTIFS(Transactions!A$2:A$2000,A${row},Transactions!E$2:E$2000,C${row},Transactions!C$2:C$2000,D${row})>0,"⚠ DUPLICATE",""))`
     ).setFontColor('#cc0000');
   }
 
