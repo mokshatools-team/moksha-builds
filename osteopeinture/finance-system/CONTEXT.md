@@ -320,6 +320,38 @@ Claude reads and writes to Google Sheet via Sheets API. User types or speaks nat
 
 Must work on mobile.
 
+### Architecture Decision (reviewed 2026-04-04)
+
+**Codex independent review recommended against using Google Sheets as the primary ledger store.** Summary of findings:
+
+**Recommended architecture (MVP):**
+Railway + Python (FastAPI) + service-account gspread for Sheets access + Claude API for NLP structured extraction. Acceptable for a first version.
+
+**Recommended architecture (durable finance tool):**
+Railway or Cloud Run + Python backend + **Postgres as the ledger system of record** + Google Sheets as a synced reporting/operational surface + Claude for structured extraction only + deterministic accounting rules before any write.
+
+**Why Postgres over Sheets-as-ledger:**
+- Immutable journal entry IDs
+- Explicit debit/credit lines with reversals instead of silent edits
+- Approval state, idempotency keys, audit metadata
+- Strong consistency around writes
+- Google Sheets has request quotas and no atomic multi-row transactions
+
+**Corrections to initial assessment:**
+- Apps Script CAN call external APIs via `UrlFetchApp` — rejection reason was inaccurate. Real issue is UI/observability limits.
+- MCP now supports remote HTTP servers — "only local" is outdated. Still not recommended as core architecture.
+- Cloud Run is a strong alternative to Railway for Google-centric stack (managed deployment, autoscaling, closer Google auth alignment).
+
+**Key risks to design around:**
+- Ambiguity in natural language ("Paid Lubo $800 cash" needs strict account/alias mapping rules)
+- LLM drift — model proposes structured intent, deterministic rules validate before write
+- Duplicate submissions from mobile retries — need idempotency
+- Sheets API quotas — retries/backoff required
+- French/Quebec context — accents, bilingual labels, GST/QST conventions
+- P&L and balance queries should run from normalized ledger data, not model summaries
+
+**Decision pending:** MVP (Sheets-direct) vs. durable (Postgres + Sheets sync). Feasibility assessment needed before committing.
+
 ---
 
 ## Invoice Generator (connected build — separate session)
