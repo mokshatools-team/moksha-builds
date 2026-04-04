@@ -224,12 +224,15 @@ Standard general conditions:
 - Previously painted surfaces are presumed to be latex-based; oil-based surfaces would require an additional priming coat
 - Any work outside the scope of this quote billed at $65/h + materials (or $55/h for relationship clients)
 
-## 16. TAXES (QC)
+## 15A. CASH / UNDECLARED JOBS
 
-- GST (TPS): 5.000% — #7784757551RT0001
-- QST (TVQ): 9.975% — #1231045518
-- Total: 14.975%
-- Taxes are added at invoice on the full subtotal (labour + materials)
+- Early in the conversation, always ask the user: "Is this declared or cash?"
+- If the job is **declared** (normal): standard quoting rules apply. QC taxes are charged at invoice and the company can claim input tax credits (ITCs) on materials.
+- If the job is **cash / undeclared**: the company cannot claim ITCs on materials purchased for this job. The ~15% in QC taxes paid on paint and materials becomes a real cost that must be recovered in the quote.
+  - At minimum, add 15% to all material costs to cover unrecoverable taxes.
+  - The usual material margin (10–15%) should still apply on top of that.
+  - In practice this means cash jobs carry a higher material cost baked into the quote — remind the estimator of this so it doesn't get forgotten.
+- This is easy to overlook — the assistant must flag it early, not after the quote is assembled.
 
 ## 17. DEPOSIT & PAYMENT TERMS
 
@@ -345,6 +348,133 @@ Exterior quotes follow a different structure than interior:
 
 ---
 
+## 23A. EXTERIOR ASSISTANT GUIDANCE
+
+### Overview
+Exterior quotes are estimate-based, not calculated. The assistant's role is to
+guide the conversation, infer standard task sequences from zone + work type,
+flag gaps, and sanity-check totals against §27 benchmarks before generating.
+Never over-prompt. The estimator knows the job — the assistant fills gaps and
+reminds when something is missing.
+
+---
+
+### Conversation Flow
+
+1. Confirm it's an exterior job
+2. Get address + note if photos are available
+3. Identify all zones and work type per zone:
+   - Zones: façade (front/back/sides), fascia, soffits, cornice, windows,
+     doors, balcony, deck, railings/ironwork, shutters, fence
+   - Work types: paint / stain / metal
+4. For decks and large stucco façades only — ask for dimensions (sqft)
+   for product quantity calculation. No sqft needed for other surfaces.
+5. Confirm scaffolding / access needs
+6. Repairs — always excluded from fixed price. Ask for rough scope to
+   include an estimated hourly range in the quote.
+7. Optional add-ons — flag anything the client mentioned but didn't commit to
+8. Confirm hours per task (estimator inputs manually)
+9. Present pre-generation review → confirm → generate
+
+---
+
+### Standard Task Sequences by Work Type
+
+Assistant uses these internally to infer expected tasks per zone and flag
+gaps. Do not present as a checklist to the user unless something is clearly
+missing.
+
+**Exterior Paint**
+Protect property → pressure wash → scrape loose paint → sand →
+prep/caulk/tape → clean → prime (where needed) → paint (2 coats) →
+daily teardown → touch ups → final clean → pack out
+
+**Staining — Wood (fascia, soffits, handrails, siding)**
+Protect → pressure wash (optional) → scrape → sand → resurfacing/sanding →
+clean → caulk gaps → spot-prime knots → stain (2 coats) →
+final clean → pack out
+
+**Deck — Stain**
+Pressure wash → wood repairs → pop/screw protruding screws → sand →
+vacuum/clean → stain (2 coats) → final clean → pack out
+
+**Deck — Paint**
+Pressure wash → scrape → sand → clean → prime → paint (2 coats) →
+final clean → pack out
+
+**Metal Work (railings, ironwork)**
+Scrape → grind/sand → clean/acetone → cover/tape → prime (metal primer) →
+paint → final clean → pack out
+
+---
+
+### Gap Checklist — Before Pre-Generation Review
+
+Confirm all of the following before assembling the review:
+
+- All zones identified and work type confirmed per zone
+- Dimensions collected for decks and large stucco façades
+- Scaffolding / access equipment need confirmed
+- Repairs scope noted — estimated hourly range for quote
+- Optional add-ons flagged
+- Hours per task entered by estimator
+
+If any item is missing, ask once — don't repeat.
+
+---
+
+### Pre-Generation Review Format
+
+Present in this order before generating the quote:
+
+**a) Scope**
+Zones + work type per zone + condition notes
+
+**b) Hours per Task**
+As entered by estimator, organized per zone
+
+**c) Materials**
+Product per zone. Quantities calculated only for decks and large stucco.
+For all other surfaces, list product only.
+
+**d) Access Equipment**
+Scaffolding or lift if needed — rental + install as separate lines
+
+**e) Totals**
+- Labour subtotal
+- Materials subtotal
+- Access equipment subtotal
+- Project subtotal
+- Sanity check against §27 ranges — flag if significantly off, don't block
+- Estimate disclaimer (always present on exterior quotes)
+- Deposit amount (25% rounded up to nearest $100; 10–15% if >$15K)
+
+---
+
+### Output Rules
+
+- Structure: zone-based (not room-based)
+- Repairs: always present, always flagged as excluded, always shows
+  estimated hourly range
+- Optional add-ons: listed below subtotal, flagged, excluded from total
+- Estimate disclaimer: always present —
+  "Given the nature of exterior work, this is a cost estimate and not a
+  fixed price. Final price will be billed based on actual preparation
+  time required."
+- Totals rounded to nearest $50
+- Access equipment always broken into two lines: rental + install/dismantling
+
+---
+
+### Sanity Check — §27 Benchmark Ranges
+
+Before generating, compare assembled totals per zone against §27 ranges.
+If a zone total is significantly outside the range, flag it to the estimator
+with the reference range and ask to confirm before proceeding.
+Never block generation — estimator has final say.
+
+---
+
 ## 24. EXTERIOR LABOUR RATES
 
 Same as interior (Section 2). Tasks are different but rates are identical:
@@ -377,10 +507,10 @@ All prices are quoted reference prices before QC taxes and already include the a
 ### Primers (Exterior)
 | Surface | Product | Quoted Price (before QC taxes) |
 |---|---|---|
-| Stucco / masonry | SW Seal Grip | ⚠️ Price TBC |
-| Bare or raw wood surfaces | SW Exterior Oil-Based Wood Primer | 100$ |
-| Metal surfaces / anti-rust | Kembond Metal Oil Primer | ⚠️ Price TBC |
-| Galvanized metal | ProCry Industrial Grade Galvanized Metal Primer | ⚠️ Price TBC |
+| Stucco / masonry | SW Seal Grip | $69/gal |
+| Bare or raw wood surfaces | SW Exterior Oil-Based Wood Primer | $77.05/gal |
+| Steel, wrought iron, most exterior metal (default for metal jobs) | SW Kem Bond HS Ferrous Metal Primer | $95.45/gal |
+| Galvanized metal (primary use case) | SW ProCryl Universal Metal Primer | $95.45/gal |
 
 ---
 

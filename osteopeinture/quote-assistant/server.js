@@ -607,10 +607,12 @@ function fmt(n) {
 
 function renderQuoteHTML(data) {
   const sections = data.sections || [];
+  const isExterior = (data.projectType || '').toLowerCase().includes('exterior');
 
-  // Calculate subtotal
+  // Calculate subtotal — skip excluded and optional sections
   let subtotal = 0;
   for (const sec of sections) {
+    if (sec.excluded || sec.optional) continue;
     if (sec.total) {
       subtotal += sec.total;
     } else if (sec.items) {
@@ -670,16 +672,33 @@ function renderQuoteHTML(data) {
       }
     }
   } else {
-    // Category-based (Bunding/renovation style)
+    // Category/zone-based (renovation or exterior style)
+    let addedOptionalDivider = false;
     for (let si = 0; si < sections.length; si++) {
       const sec = sections[si];
+
+      // Insert divider before first optional section
+      if (sec.optional && !addedOptionalDivider) {
+        addedOptionalDivider = true;
+        tableHtml += `<tr class="row-spacer"><td colspan="2"></td></tr>`;
+        tableHtml += `<tr class="row-floor"><td colspan="2">OPTIONAL ADD-ONS (not included in total)</td></tr>`;
+      }
+
+      // Insert divider before excluded section (repairs)
+      if (sec.excluded && !sec.optional) {
+        tableHtml += `<tr class="row-spacer"><td colspan="2"></td></tr>`;
+      }
+
       const secTotal = sec.total != null ? sec.total : (sec.items || []).reduce((s, i) => s + (i.price || 0), 0);
       const rangeLabel = sec.range ? ` <span style="font-size:7.5px;font-weight:400;color:#888;">${esc(sec.range)}</span>` : '';
-      tableHtml += `<tr class="row-section"><td class="col-desc">${esc(sec.title || sec.name || '')}${rangeLabel}</td><td class="col-price">${secTotal ? fmt(secTotal) : ''}</td></tr>`;
+      const excludedLabel = sec.excluded ? ' <span style="font-size:7px;font-weight:400;color:#999;font-style:italic;">(excluded from total)</span>' : '';
+      const priceDisplay = sec.excluded ? '' : (secTotal ? fmt(secTotal) : '');
+      tableHtml += `<tr class="row-section"><td class="col-desc">${esc(sec.title || sec.name || '')}${rangeLabel}${excludedLabel}</td><td class="col-price">${priceDisplay}</td></tr>`;
       for (const item of (sec.items || [])) {
-        tableHtml += `<tr class="row-item"><td class="col-desc"><span class="arrow">➛</span>${esc(item.description || '')}</td><td class="col-price">${item.price ? fmt(item.price) : ''}</td></tr>`;
+        const itemPrice = (sec.excluded || !item.price) ? '' : fmt(item.price);
+        tableHtml += `<tr class="row-item"><td class="col-desc"><span class="arrow">➛</span>${esc(item.description || '')}</td><td class="col-price">${itemPrice}</td></tr>`;
       }
-      if (si < sections.length - 1) {
+      if (si < sections.length - 1 && !sections[si + 1].optional && !sections[si + 1].excluded) {
         tableHtml += `<tr class="row-spacer"><td colspan="2"></td></tr>`;
       }
     }
@@ -820,6 +839,9 @@ body { background:#e8e8e8; font-family:'Montserrat',sans-serif; padding:40px 20p
     <div class="mod-cell"><div class="mod-label">Deposit Amount</div><div class="mod-value">${esc(depositStr)}</div></div>
     <div class="mod-cell"><div class="mod-label">Payment Method</div><div class="mod-value small">${esc(mod.paymentMethod || '')}</div></div>
   </div>
+  ${data.estimateDisclaimer ? `<div class="legal-block" style="background:#f9f6f2;border-top:1.5px solid #1a1a1a;">
+    <strong style="color:#7B3A10;">${esc(data.estimateDisclaimer)}</strong>
+  </div>` : ''}
   <div class="legal-block">
     <strong>All additional work will be charged accordingly.</strong><br>
     This quote is valid for a period of 30 days.<br>
@@ -874,6 +896,7 @@ You run two estimating modes: a quick ballpark mode for fast room-average guidan
 Ask for the basics first, one or two questions at a time. Collect:
 - Client name and address
 - Project type: interior, exterior, or both
+- **Declared or cash?** — ask this early. If cash/undeclared, the company can't claim ITCs on materials, so ~15% in QC taxes becomes a real cost. Add at least 15% to material costs to cover unrecoverable taxes, plus the usual margin. Flag this clearly so the estimator doesn't forget. See §15A in the business rules.
 - A basic description of the scope
 - Any immediately relevant special conditions, only if already mentioned
 - After the overview, ask: "Do you want a quick ballpark or a full quote?"
@@ -889,7 +912,7 @@ Use standards and room-average logic by room.
 - Do not recommend getting dimensions first
 - When you have enough information for a ballpark, say: "Here's your quick ballpark summary before I generate the JSON — please confirm or correct anything."
 
-**Phase 2B — Full quote:**
+**Phase 2B — Full quote (INTERIOR):**
 Ask for room-by-room and floor-by-floor scope.
 - Ask whether the user has paintable sqft, floor plans, or room dimensions
 - If available, prefer measured-surface logic
@@ -897,8 +920,25 @@ Ask for room-by-room and floor-by-floor scope.
 - Ask for door-face count, window count, window type, and closet inclusion when relevant
 - Ask special-condition questions only when triggered by scope
 
+**Phase 2C — Exterior quote:**
+Follow the exterior conversation flow from §23A of the business rules exactly:
+1. Confirm it's an exterior job
+2. Get address + note if photos are available
+3. Identify all zones and work type per zone (paint / stain / metal)
+4. For decks and large stucco façades only — ask for dimensions (sqft)
+5. Confirm scaffolding / access needs
+6. Repairs — always excluded from fixed price; ask for rough scope to include estimated hourly range
+7. Optional add-ons — flag anything mentioned but not committed to
+8. Confirm hours per task (estimator inputs manually — do NOT calculate hours for exterior)
+9. Present pre-generation review → confirm → generate
+
+IMPORTANT: Exterior quotes are estimate-based. The estimator provides hours per task manually.
+Do NOT calculate labour hours from benchmarks for exterior — only the estimator sets hours.
+Only calculate product quantities for decks and large stucco façades where sqft was collected.
+
 **Phase 3 — Pre-generation review:**
-Quick ballpark path:
+
+**Interior ballpark path:**
 - Show a brief ballpark estimate summary before generating the JSON.
 - State clearly that this is a ballpark estimate.
 - State that it is based on standards / room averages.
@@ -908,7 +948,7 @@ Quick ballpark path:
 - Keep the JSON structure intact, but only surface the fields that matter for the ballpark estimate.
 - Keep the clean markdown summary pattern with short headers and bullet points, and make assumptions explicit before JSON generation.
 
-Full quote path:
+**Interior full quote path:**
 - Say: "Here's my full quote summary before I generate the JSON — please confirm or correct anything."
 - Use clean readable markdown (### headers, bullet points — NO markdown tables).
 - Show ALL FIVE sections in this exact order:
@@ -964,6 +1004,38 @@ Do NOT split materials per room. Show one project-level summary:
 - State which parts were measured vs estimated
 - Day count assumption (e.g. "~X work days at 6h/day × 3 painters")
 
+**Exterior quote path:**
+- Say: "Here's the exterior quote review before I generate — confirm or correct anything."
+- Use clean readable markdown (### headers, bullet points — NO markdown tables).
+- Show ALL FIVE sections in this exact order:
+
+### a) Scope
+List every zone + work type + condition notes. Example:
+- Front façade — paint (stucco, fair condition)
+- Back deck — stain (wood, needs pressure wash)
+- Balcony railings — metal work (rusted, needs full prep)
+
+### b) Hours per Task
+As provided by estimator, organized per zone. Example:
+- Front façade: pressure wash 4h, scrape/sand 6h, prime 3h, paint 8h → 21h total
+- Back deck: pressure wash 2h, sand 3h, stain 5h → 10h total
+
+### c) Materials
+Product per zone. Quantities only for decks and large stucco (where sqft was collected).
+For all other surfaces, list product only (no quantity calculation).
+
+### d) Access Equipment
+Scaffolding or lift — rental + install/dismantling as separate lines.
+
+### e) Totals
+- Labour subtotal (total hours × rate)
+- Materials subtotal
+- Access equipment subtotal
+- Project subtotal (rounded to nearest $50)
+- Sanity check: compare zone totals against §27 benchmarks, flag if significantly off
+- Estimate disclaimer: "Given the nature of exterior work, this is a cost estimate and not a fixed price."
+- Deposit (25% rounded up to nearest $100; 10–15% if subtotal >$15K)
+
 **Phase 4 — Generate JSON:**
 Once the user confirms, output ONLY the raw JSON with no explanation, no markdown fences. The JSON must be valid and parseable.
 
@@ -1016,7 +1088,7 @@ Output this exact structure:
   }
 }
 
-RULES:
+INTERIOR JSON RULES:
 - projectId: always LASTNAME_01 (or _02 if second job for this client)
 - date: today's date formatted as "Month Day, Year"
 - sections: use floor grouping for room-by-room quotes; omit floor field if not applicable
@@ -1027,6 +1099,89 @@ RULES:
 - Item descriptions in sections must NEVER include paint product names or finishes — only describe the work (e.g. "Walls and ceiling — 2 coats", NOT "Walls and ceiling — 2 coats, SW Duration Home Low Sheen")
 - deposit: always 25% of subtotal, rounded UP to nearest 100
 - modalities.paymentMethod: "The remaining balance is to be paid by cheque or e-transfer, with weekly installments throughout the work." for jobs over 1 week; "The remaining balance is due at completion." for jobs of 1 week or less
+
+---
+
+## EXTERIOR QUOTE JSON FORMAT
+
+For exterior jobs, output this structure instead. Key differences: sections use "title" (not "name"/"floor"), repairs have "excluded": true, optional add-ons have "optional": true, and an estimateDisclaimer field is always present.
+
+{
+  "clientName": "Full Name",
+  "projectId": "LASTNAME_01",
+  "address": "Street Address, Montréal",
+  "date": "April 4, 2026",
+  "projectType": "Exterior Painting Work",
+  "estimateDisclaimer": "Given the nature of exterior work, this is a cost estimate and not a fixed price. Final price will be billed based on actual preparation time required.",
+  "terms": {
+    "includes": [
+      "Thorough preparation: scraping, sanding, caulking, priming on all designated surfaces",
+      "2 coats of finish on all designated surfaces",
+      "Daily protection of property and final cleanup"
+    ],
+    "conditions": [
+      "Repairs excluded from fixed price — billed at $65/h + materials",
+      "Quote valid for 30 days"
+    ],
+    "hourlyRate": 65
+  },
+  "sections": [
+    {
+      "title": "Front Façade — Stucco",
+      "total": 2200,
+      "items": [
+        { "description": "Pressure wash, scrape, sand, prep", "price": 800 },
+        { "description": "Prime and paint — 2 coats", "price": 1400 }
+      ]
+    },
+    {
+      "title": "Scaffolding",
+      "total": 2500,
+      "items": [
+        { "description": "Scaffolding rental", "price": 1200 },
+        { "description": "Installation and dismantling", "price": 1300 }
+      ]
+    },
+    {
+      "title": "Repairs",
+      "excluded": true,
+      "range": "$500 – $800",
+      "total": 0,
+      "items": [
+        { "description": "Stucco patching and wood repairs — estimated 8–12h at $65/h + materials", "price": 0 }
+      ]
+    },
+    {
+      "title": "Optional: Full anti-rust treatment, all metal railings",
+      "optional": true,
+      "total": 500,
+      "items": [
+        { "description": "Scrape, grind, prime, paint — all metal surfaces", "price": 500 }
+      ]
+    }
+  ],
+  "paints": [
+    { "type": "Façade", "product": "SW Duration Ext", "color": "TBD", "finish": "Satin", "approxCost": 450 },
+    { "type": "Deck", "product": "STEINA Enduradeck", "color": "TBD", "finish": "Opaque", "approxCost": 220 }
+  ],
+  "modalities": {
+    "startDate": "May 12, 2026",
+    "duration": "~ 1.5 weeks",
+    "deposit": 2000,
+    "paymentMethod": "The remaining balance is to be paid by cheque or e-transfer, with weekly installments throughout the work."
+  }
+}
+
+EXTERIOR JSON RULES:
+- projectType: always "Exterior Painting Work"
+- estimateDisclaimer: always present, always this exact text
+- sections use "title" (not "name" or "floor") — zone-based, not room-based
+- Repairs section: "excluded": true, "total": 0, "range": "$X – $Y" showing estimated hourly range. Items have price: 0.
+- Optional add-ons: "optional": true — listed at the end, excluded from subtotal calculation
+- Scaffolding/access: always its own section with rental + install as separate items
+- All regular section totals rounded to nearest $50
+- deposit: 25% of subtotal rounded UP to nearest $100; use 10–15% if subtotal > $15,000
+- Same paint, modalities, and projectId rules as interior
 
 ---
 
@@ -1051,6 +1206,9 @@ ${rules}
 - When the user mentions glossy surfaces, recommend Extreme Bond (not Extreme Block)
 - When the user mentions oil-based paint history or heavy stains, recommend Extreme Block (not Extreme Bond)
 - After confirmation, output ONLY the raw JSON — no text before or after, no markdown code fences
+- For EXTERIOR jobs: never calculate labour hours from benchmarks — the estimator provides hours manually. Only calculate product quantities for decks and large stucco where sqft was collected.
+- For EXTERIOR jobs: always include the estimateDisclaimer field. Always include a Repairs section with excluded: true. Always round section totals to nearest $50.
+- For EXTERIOR jobs: before generating, sanity-check zone totals against §27 benchmark ranges. Flag anything significantly off but never block — estimator has final say.
 - Today's date is ${new Date().toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' })}`;
 }
 
