@@ -1,0 +1,5 @@
+flask
+anthropic
+yt-dlp
+youtube-transcript-api
+python-dotenv

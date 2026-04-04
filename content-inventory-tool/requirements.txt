@@ -1,0 +1,7 @@
+flask
+yt-dlp
+gspread
+google-auth
+rapidfuzz
+python-dotenv
+openai

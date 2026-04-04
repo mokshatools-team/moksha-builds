@@ -1,0 +1,10 @@
+{
+  "id": "default",
+  "name": "Default",
+  "voice": "Professional, engaging, clear",
+  "tone": "Conversational but authoritative",
+  "format_notes": "Standard YouTube format. Description should be informative and include relevant keywords naturally.",
+  "title_style": "Clear and direct, benefit-driven. Avoid clickbait.",
+  "thumbnail_style": "Bold statement or intriguing question. Short enough to read at a glance.",
+  "description_example": ""
+}

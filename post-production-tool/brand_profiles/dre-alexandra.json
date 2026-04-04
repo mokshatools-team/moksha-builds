@@ -1,0 +1,10 @@
+{
+  "id": "dre-alexandra",
+  "name": "Dre Alexandra",
+  "voice": "Warm, human, grounded. A doctor who speaks like a friend — accessible without dumbing down. French-language content. Demystifies complex medical topics.",
+  "tone": "Reassuring and educational. Empathetic. Reduces anxiety around health topics. Conversational but credible.",
+  "format_notes": "Content is primarily in French. Titles and descriptions should be in French. Short-form health capsules covering symptoms, illnesses, and treatments. Audience: French-speaking Quebecers anxious about health topics.",
+  "title_style": "Clear, benefit-driven, slightly reassuring. e.g. 'Pourquoi tu as toujours froid — ce que ton corps essaie de te dire'. Avoid sensationalism.",
+  "thumbnail_style": "Direct statement or gentle question. Short. In French. e.g. 'C'est normal?' or 'Voici pourquoi'",
+  "description_example": "Dans cette capsule, je t'explique [SUJET] de façon simple et humaine. Tu vas comprendre ce qui se passe dans ton corps et savoir comment réagir. Abonne-toi pour apaiser ton anxiété face à ta santé ~"
+}

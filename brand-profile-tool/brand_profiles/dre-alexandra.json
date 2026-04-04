@@ -1,0 +1,44 @@
+{
+  "id": "dre-alexandra",
+  "name": "Dre Alexandra",
+  "website_url": "https://drealexandra.com",
+  "youtube_url": "https://www.youtube.com/@DreAlexandra",
+  "instagram_handle": "@drealexandra",
+  "voice": "Warm, human, grounded. A doctor who speaks like a friend — accessible without dumbing down. French-language content. Demystifies complex medical topics.",
+  "tone": "Reassuring and educational. Empathetic. Reduces anxiety around health topics. Conversational but credible.",
+  "format_notes": "Content is primarily in French. Titles and descriptions should be in French. Short-form health capsules covering symptoms, illnesses, and treatments. Audience: French-speaking Quebecers anxious about health topics.",
+  "title_style": "Clear, benefit-driven, slightly reassuring. e.g. 'Pourquoi tu as toujours froid — ce que ton corps essaie de te dire'. Avoid sensationalism.",
+  "thumbnail_style": "Direct statement or gentle question. Short. In French. e.g. 'C’est normal?' or 'Voici pourquoi'",
+  "description_example": "Dans cette capsule, je t’explique [SUJET] de façon simple et humaine. Tu vas comprendre ce qui se passe dans ton corps et savoir comment réagir. Abonne-toi pour apaiser ton anxiété face à ta santé ~",
+  "mission": "",
+  "bio": "",
+  "copy_style_notes": "",
+  "manually_edited": [],
+  "style_refs_dir": "style_refs/dre-alexandra",
+  "styles": [
+    {
+      "id": "yt_podcast",
+      "label": "YT Podcast",
+      "image": "yt_podcast.jpg",
+      "aspect": "16:9"
+    },
+    {
+      "id": "ig_reel",
+      "label": "IG / Reel",
+      "image": "ig_reel.jpg",
+      "aspect": "4:5"
+    },
+    {
+      "id": "stock_image",
+      "label": "Stock / Auto",
+      "image": null,
+      "aspect": "1:1",
+      "type": "stock"
+    }
+  ],
+  "overlay_prompt": "Use the SECOND image as the full background. Exactly match the visual text style from the FIRST image — same font weight, text color, placement, and overall aesthetic. Place this text prominently and clearly: \"{thumbnail_copy}\". The text must be bold, clearly readable, and styled exactly like the first image. French-language medical podcast content.",
+  "restyle_prompt": "Create a brand new thumbnail image that looks EXACTLY like this reference image in every visual way — same background color and texture, same layout and composition, same color palette, same bold white condensed text treatment with the exact same font style and stroke. This must look like it belongs to the same series. The ONLY thing that changes is the text, which should read: \"{thumbnail_copy}\". Keep all the same design elements: the colors, the graphic style, the text placement, the font weight and style, the overall vibe. French-language medical podcast thumbnail.",
+  "composite_prompt": "You have THREE reference images. IMAGE 1 is the style reference — a pink YouTube podcast thumbnail showing the brand aesthetic, layout, colors, and bold white condensed text style. IMAGE 2 is a photo of the podcast host. IMAGE 3 is a photo of the podcast guest. Create a brand new YouTube thumbnail: place the host (from image 2) on the LEFT side and the guest (from image 3) on the RIGHT side, both against the same hot pink background from image 1, both with microphones visible, both facing center. Use the EXACT same bold white condensed font and text style from image 1 to display this text prominently: \"{thumbnail_copy}\". The result must look like it belongs to the same series as image 1 — identical colors, composition, energy, and text style. French-language medical podcast.",
+  "stock_bg_prompt": "Create a clean, professional medical stock photo background related to: {topic}. No text, no people, no watermarks, no overlays. High quality, suitable as a social media cover image background. Medical and health aesthetic.",
+  "tiktok_handle": ""
+}
