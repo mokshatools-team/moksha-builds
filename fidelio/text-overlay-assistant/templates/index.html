@@ -728,16 +728,18 @@
       <h1 class="pick-heading">Analyze a video</h1>
       <p class="pick-sub">Choose one ingestion path, set your project name, and let Claude build the highlight plan.</p>
 
-      <div class="ingestion-tabs">
+      <!-- Tab bar hidden while only File tab is active (YouTube blocked by Railway 429) -->
+      <div class="ingestion-tabs" style="display:none;">
         <button type="button" class="ingestion-tab active" id="tab-file" onclick="setIngestionMode('file')">
           <span class="ingestion-tab-title">File</span>
           <span class="ingestion-tab-sub">Upload on Railway or pick from your local watch folder.</span>
         </button>
-        <button type="button" class="ingestion-tab" id="tab-youtube-url" onclick="setIngestionMode('youtube-url')">
+        <!-- YouTube tabs hidden — Railway IPs are blocked by YouTube (429). Re-enable when resolved. -->
+        <button type="button" class="ingestion-tab" id="tab-youtube-url" onclick="setIngestionMode('youtube-url')" style="display:none;">
           <span class="ingestion-tab-title">YouTube URL</span>
           <span class="ingestion-tab-sub">Paste a public video URL and transcribe it with the existing flow.</span>
         </button>
-        <button type="button" class="ingestion-tab" id="tab-youtube-account" onclick="setIngestionMode('youtube-account')">
+        <button type="button" class="ingestion-tab" id="tab-youtube-account" onclick="setIngestionMode('youtube-account')" style="display:none;">
           <span class="ingestion-tab-title">YouTube Account</span>
           <span class="ingestion-tab-sub">Connect your Google account and pull captions by video ID or URL.</span>
         </button>
@@ -839,22 +841,9 @@
           </div>
           <div class="accordion-body">
 
-            <h4>1 — Install ffmpeg</h4>
-            <p>Required for audio extraction. On Mac (requires Homebrew):</p>
-            <p style="margin-top:6px;"><code>brew install ffmpeg</code></p>
+            <p style="margin-bottom:12px;">Upload a video above and TOA will handle transcription and analysis. To place the overlays in DaVinci Resolve, set up the script and templates below.</p>
 
-            <h4>2 — Set your watch folder</h4>
-            <p>In your <code>.env</code> file, add:</p>
-            <p style="margin-top:6px;"><code>WATCH_FOLDER_PATH=/path/to/your/folder</code></p>
-            <p style="margin-top:6px;">Drop your video files there — they'll appear in the dropdown above. Without this variable, you'll see a file upload button instead.</p>
-
-            <h4>3 — Add your API keys to .env</h4>
-            <p style="margin-top:4px;">
-              <code>OPENAI_API_KEY=sk-...</code>&nbsp; ← from <a href="https://platform.openai.com/api-keys" target="_blank">platform.openai.com</a><br>
-              <code>ANTHROPIC_API_KEY=sk-ant-...</code>&nbsp; ← from <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a>
-            </p>
-
-            <h4>4 — Install the DaVinci Resolve script</h4>
+            <h4>1 — Install the DaVinci Resolve script</h4>
             <p><a href="/download/script">⬇ Download place_overlays.py</a></p>
             <p style="margin-top:6px;">Copy to:</p>
             <ul style="margin-top:4px;">
@@ -863,7 +852,7 @@
             </ul>
             <p style="margin-top:6px;">Restart Resolve. Script appears under <strong>Workspace → Scripts → place_overlays</strong>.</p>
 
-            <h4>5 — Create Fusion Title templates</h4>
+            <h4>2 — Create Fusion Title templates</h4>
             <p>Create three templates with <strong>exactly</strong> these names (case-sensitive):</p>
             <ul style="margin-top:4px;">
               <li><code>TOA_Chapter</code></li>
