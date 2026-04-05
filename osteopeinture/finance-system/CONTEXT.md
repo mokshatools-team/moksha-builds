@@ -466,9 +466,10 @@ This affects Account Balances (Cash, RBC, BMO MC, AR) but NOT the P&L, job profi
 1. **Fix opening balances** — when Loric confirms 2025 ledger is final
 2. **Enter remaining cash transactions** — Jan/Feb cash that hasn't been entered yet, plus DUFRESNE_01 revenue
 3. **Fix GST/QST ITC formula** — minor, expenses showing 0
-4. **Build conversational interface** — Session 1: scaffold + deploy (see `docs/OP-FINANCE-CHAT-SPEC.md`)
-5. **Scope Jibble integration** — API check, job tagging, sync design
-6. **Invoice generator** — after core system is live
+4. **Scope + build Jibble integration** — API check, project-to-job mapping, auto-pull hours into Wages tab
+5. **Invoice generator connection to quote-assistant** — when invoice marked paid, auto-create Revenue entry in finance sheet
+6. **Reconcile supplies/consumables gap** — quantify the ~$22K gap (tax, inventory, underestimation), design proper handling in 2026 system
+7. **Build conversational interface** — Session 1: scaffold + deploy (see `docs/OP-FINANCE-CHAT-SPEC.md`)
 
 ---
 
