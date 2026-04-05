@@ -467,10 +467,12 @@ This affects Account Balances (Cash, RBC, BMO MC, AR) but NOT the P&L, job profi
 2. **Enter remaining cash transactions** — Jan/Feb cash that hasn't been entered yet, plus DUFRESNE_01 revenue
 3. **Fix GST/QST ITC formula** — minor, expenses showing 0
 4. **Scope + build Jibble integration** — API check, project-to-job mapping, auto-pull hours into Wages tab
-5. **Invoice generator connection to quote-assistant** — when invoice marked paid, auto-create Revenue entry in finance sheet
-6. **Rebuild GST/QST Tracker** — fix ITC formula, add quarterly instalment schedule, payment tracking, due dates, balance owing, prior year carryover (replicate old SALES TAX tab functionality)
-7. **Reconcile supplies/consumables gap** — quantify the ~$22K gap (tax, inventory, underestimation), design proper handling in 2026 system
-8. **Build conversational interface** — Session 1: scaffold + deploy (see `docs/OP-FINANCE-CHAT-SPEC.md`)
+5. **Invoice generator** (quote-assistant build — NOT YET SCOPED) — quote → invoice conversion with GST/QST, deposits, balance to pay. Must be built before finance connection.
+6. **Invoice → finance connection** — when invoice marked paid, auto-create Revenue entry in finance sheet. Depends on #5.
+7. **Rebuild GST/QST Tracker** — fix ITC formula, add quarterly instalment schedule, payment tracking, due dates, balance owing, prior year carryover. Pull archive data from old SALES TAX tab.
+8. **Reconcile supplies/consumables gap** — quantify the ~$22K gap (tax, inventory, underestimation), design proper handling in 2026 system
+9. **Build conversational interface** — Session 1: scaffold + deploy (see `docs/OP-FINANCE-CHAT-SPEC.md`)
+10. **Cash Movement on Dashboard** — monthly cash in/out breakdown (starting balance → revenue → expenses → owner advances → ending balance)
 
 ---
 
