@@ -35,7 +35,7 @@ The full workflow: upload or paste URL → transcribe → Claude analysis → re
 
 **https://toa.up.railway.app**
 
-Service name in Railway: `fidelio - text overlay assistant` (project: `moksha-tools`)
+Service name in Railway: `text-overlay-assistant` (project: `fidelio`, service ID: `68a4db2d-46d0-4828-8cbb-52e6c88f6b05`)
 
 ---
 
@@ -100,12 +100,19 @@ Status: ON HOLD. Do not work on YouTube ingestion until dedicated cross-build se
 
 ## Next Planned Feature or Fix
 
-Not formally documented. Based on the `docs/superpowers/plans/2026-03-31-transcript-module.md` plan, the transcript fetching module was a recent addition. No follow-up work has been scoped yet.
-
 Suggested priorities for next session:
-1. End-to-end test the live URL https://toa.up.railway.app (upload a file or YouTube URL → analyze → download JSON)
+1. End-to-end test the live URL https://toa.up.railway.app (upload a file → analyze → download JSON)
 2. Fix the README template name discrepancy (`OA_` vs `TOA_`)
 3. Remove the dead `youtube_transcript_api` import path or add it to requirements.txt
+4. Delete old services from moksha-tools project via Railway dashboard (deployments already taken down)
+
+## Session Log — 2026-04-04
+
+- Migrated service from `moksha-tools` project to new `fidelio` project on Railway
+- New service ID: `68a4db2d-46d0-4828-8cbb-52e6c88f6b05`
+- Removed server setup instructions (API keys, ffmpeg, .env) from editor-facing UI — editors just use the URL
+- Hidden YouTube URL and YouTube Account tabs — Railway IPs blocked by YouTube (429), tabs were confusing editors
+- Domain `toa.up.railway.app` reclaimed on new service (Loric did this from dashboard)
 
 ---
 
