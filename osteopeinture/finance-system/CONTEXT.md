@@ -429,12 +429,16 @@ The 5 opening balance rows (rows 2–6) use **Dec 31, 2024** figures, not Dec 31
 This affects Account Balances (Cash, RBC, BMO MC, AR) but NOT the P&L, job profitability, or owner advance tracking.
 
 ### What's Built
-- All 12 tabs live with correct formulas
-- `create-sheet.gs` — tab builder + `addBossOwner()` fixup (in repo)
+- All 12 tabs live with correct formulas (ITC fixed — was SUMPRODUCT(…,0) bug)
+- **Write contract columns** (K–N) on Transactions: entry_id, source_system, source_id, created_at — all 155 rows backfilled, columns hidden
+- **Cash Movement section** on Dashboard: starting balance → revenue → expenses by category → ending balance (auto-updates monthly)
+- **GST/QST archive** on Tracker tab: 2023-2025 history, 2026 quarterly instalment schedule ($3,008/quarter), unpaid 2025 balances flagged, payment log
+- **Supplies gap analysis completed**: $35,819 gap = ~$8.4K tax (23%) + ~$3.5K inventory (10%) + ~$5-8K non-job purchases (15-22%) + ~$16-19K underestimation (45-53%). Policy: overestimate consumables per job going forward.
+- `create-sheet.gs` — tab builder + `addBossOwner()` fixup (in repo + pushed to Apps Script)
 - `import-csv.gs` — bank CSV importer with French header support, BOM stripping, YYYYMMDD dates, pre-2026 filter, dedup on date+amount+account (in repo + pushed to Apps Script via clasp)
 - `mirror-entries.py` — double-entry mirror generator for all Transfer-category rows (in repo)
 - `autocat-rules.json` — keyword-to-category lookup from Tiller AutoCat (in repo)
-- `cash-entry-sidebar.gs` + `sidebar.html` — in original folder, untested
+- `cash-entry-sidebar.gs` + `sidebar.html` — in original folder + pushed to Apps Script
 - Custom OstéoPeinture menu in Apps Script
 - Script properties set, hourly trigger installed
 - Clasp authenticated (can push .gs files to Apps Script)
@@ -484,6 +488,16 @@ This affects Account Balances (Cash, RBC, BMO MC, AR) but NOT the P&L, job profi
 6. Get confirmation before each step
 7. Small changes, verified before moving on
 8. Update this CONTEXT.md at end of session and push
+
+---
+
+## Spec Files
+
+| Spec | Location |
+|------|----------|
+| Master Build Plan (v3) | `docs/OP-FINANCE-MASTER-PLAN.md` |
+| Job Management (Jibble + Invoice) | `docs/OP-JOB-MANAGEMENT-SPEC.md` |
+| Finance Chat Interface | `docs/OP-FINANCE-CHAT-SPEC.md` |
 
 ---
 
