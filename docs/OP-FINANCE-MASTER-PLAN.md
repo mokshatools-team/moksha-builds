@@ -417,36 +417,54 @@ This is simpler, matches how the system already works (bank imports are cash-bas
 
 ---
 
-## Summary: Effort and Sequencing (revised per Codex review)
+## Summary: Effort and Sequencing (v3 — consolidated)
 
-| Item | Effort | Blocked By | Can Parallel? |
-|------|--------|-----------|--------------|
-| 0. Write contract | 30 min | Nothing | Do first |
-| 1. Opening balances | 15 min | Loric (2025 ledger) | — |
-| 2. Cash transactions | 30–60 min | Loric (Jan/Feb data) | — |
-| 3. ITC formula fix | 30 min | Nothing | Yes |
-| 4. Jibble CSV import | 1 session | Loric (sample CSV) | Yes with 5 |
-| 5. Invoice generator | 4–6 sessions | Nothing | Yes with 4 |
-| 6. Invoice → finance | 1 session | Item 5 | No |
-| 7. GST/QST rebuild | 2–3 sessions | Item 3 | Yes with 4/5 |
-| 8a. Supplies gap analysis | 1 session | Items 3, 7 | No |
-| 8b. Reporting policy change | 30 min | Item 8a | No |
-| 9. Chat interface | 6 sessions | Item 0 | Yes (after 1–3) |
-| 10. Cash movement | 30 min | Nothing | Yes |
+Items 4, 5, and 6 from v2 have been replaced by the unified **Job Management build** (see `docs/OP-JOB-MANAGEMENT-SPEC.md`). This consolidates Jibble import, invoice generation, and finance sync into one 8-session build inside the quote-assistant.
 
-**Total estimated: ~19–23 sessions (Jibble reduced from 2–3 to 1)**
+| Item | Effort | Blocked By |
+|------|--------|-----------|
+| 0. Write contract (shared transaction schema) | 30 min | Nothing |
+| 1. Opening balances | 15 min | Loric (2025 ledger) |
+| 2. Cash transactions (Jan/Feb) | 30–60 min | Loric (dictation) |
+| 3. ITC formula fix | 30 min | Nothing |
+| 4–6. **Job Management build** | **8 sessions** | Nothing |
+| — Session 1: Schema + job conversion | | |
+| — Session 2: Mobile job dashboard UI | | |
+| — Session 3: Jibble CSV import backend | | Loric (sample CSV) |
+| — Session 4: Activity mapping UI | | |
+| — Session 5: Client update generator + PDF + email | | |
+| — Session 6: Change orders + final invoice generator | | |
+| — Session 7: Payments + finance sheet sync | | |
+| — Session 8: Hardening + edge cases + testing | | |
+| 7. GST/QST rebuild | 2–3 sessions | Item 3 |
+| 8a. Supplies gap analysis | 1 session | Items 3, 7 |
+| 8b. Reporting policy change | 30 min | Item 8a |
+| 9. Chat interface | 6 sessions | Item 0 |
+| 10. Cash movement on Dashboard | 30 min | Nothing |
 
-**Optimal sequencing (revised per Codex — stabilize first, then build outward):**
+**Total estimated: ~20–24 sessions**
+
+**Optimal sequencing:**
 - **Session A:** Items 0 + 3 + 10 (foundation + ITC fix + dashboard — not blocked)
 - **Session A.5:** Items 1 + 2 (opening balances + cash transactions — when Loric unblocks)
-- **Sessions B–C:** Item 7 (GST/QST rebuild — stabilize tax tracking before building integrations)
-- **Sessions D–F:** Item 5 (Invoice generator — largest build)
-- **Session G:** Item 6 (Invoice → finance connection)
-- **Sessions H–J:** Item 4 (Jibble integration)
-- **Session K:** Item 8a + 8b (Supplies gap analysis + reporting fix)
-- **Sessions L–Q:** Item 9 (Chat interface — 6 sessions)
+- **Sessions B–C:** Item 7 (GST/QST rebuild — stabilize tax tracking)
+- **Sessions D–K:** Items 4–6 (Job Management — 8 sessions, the core build)
+- **Session L:** Item 8a + 8b (Supplies gap analysis + reporting fix)
+- **Sessions M–R:** Item 9 (Chat interface — 6 sessions)
 
-**Rationale for reorder:** Stabilize baseline data and tax logic first. Then build invoicing (the most complex integration). Then Jibble (operational automation). Chat interface last — it's a UX improvement, not a data gap.
+**Rationale:** Stabilize baseline data and tax logic first. Then build the unified job management pipeline (the biggest value delivery — replaces most manual work). Then diagnostic work (supplies gap). Chat interface last — it's a UX improvement, not a data gap.
+
+---
+
+## Apple Notes Integration
+
+Loric uses Apple Notes as the primary quick-capture tool for job data (client info, activity mapping, payment tracking, materials, to-dos). Three options for bridging Apple Notes to the system:
+
+1. **Export as Markdown (MVP)** — tap "Export as Markdown" from the share menu, drop the .md file in Drive or Downloads. Claude Code reads it on demand. ~5 seconds per note.
+2. **Apple Shortcuts automation** — create a Shortcut that auto-exports a note to a file on demand. One-tap from phone.
+3. **Direct database access** — grant Full Disk Access to Terminal, read NoteStore.sqlite directly. Truly dynamic but privacy trade-off.
+
+**Current approach:** Option 1. The Job Management app will eventually replace most Apple Notes usage for structured job data (time entries, payments, activity mappings). Apple Notes stays for quick capture (materials lists, to-dos, on-site notes).
 
 ---
 
@@ -459,7 +477,20 @@ These are real needs but not urgent for MVP:
 3. **Sheet backup/export** — periodic backup of the finance sheet. Railway cron job or Apps Script trigger.
 4. **Error/audit log for imports** — track what was imported, when, by which system, any errors. Currently only Logger.log in Apps Script.
 5. **Receipt/document linkage** — associate receipts (photos, PDFs) with transactions. Future phase.
+6. **Fixed-price invoice conversion** — simple quote → invoice for non-hourly jobs. Lower priority because it's a straightforward adaptation of the hourly invoice flow. Add after Job Management MVP is working.
 
 ---
 
-*OstéoPeinture Finance System — Master Build Plan v2.1. Written 2026-04-05. Two Codex review passes — approved with minor fixes applied.*
+## Spec Files Reference
+
+| Spec | Location | Status |
+|------|----------|--------|
+| Master Build Plan | `docs/OP-FINANCE-MASTER-PLAN.md` | v3 — this file |
+| Finance Chat Interface | `docs/OP-FINANCE-CHAT-SPEC.md` | v1 — ready to build |
+| Job Management (Jibble + Invoice + Finance) | `docs/OP-JOB-MANAGEMENT-SPEC.md` | v1 — Codex-designed, ready to build |
+| Finance System CONTEXT | `osteopeinture/finance-system/CONTEXT.md` | Live — updated each session |
+| Quote Assistant CONTEXT | `osteopeinture/quote-assistant/CONTEXT.md` | Live — updated each session |
+
+---
+
+*OstéoPeinture Finance System — Master Build Plan v3. Written 2026-04-05. Three Codex review passes. Consolidated Job Management build.*
