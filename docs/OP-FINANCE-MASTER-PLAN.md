@@ -80,29 +80,18 @@
 Jibble API → Python script (or Apps Script) → Wages tab in Google Sheet
 ```
 
-**Pre-build checklist (Loric to confirm):**
-- [ ] Jibble plan includes API access
-- [ ] Jibble project names listed (and mapped to job codes)
-- [ ] Worker names in Jibble match Wages tab names
-- [ ] Hourly rates — stored in Jibble or in the sheet?
+**Jibble plan:** Free (no API access). API requires Ultimate ($4.99/user/month). Decision: use CSV export for now, upgrade to API later if manual export becomes a burden.
 
-**Design:**
+**Design: CSV export + import pipeline**
 
-Option A — Python script run manually or on schedule from Railway:
-- FastAPI endpoint: GET /sync/jibble
-- Reads Jibble API for time entries since last sync
-- Maps project → job code via alias table
-- Maps worker → rate via rate table in Accounts or Wages tab
-- Writes new rows to Wages tab via gspread
-- Dedup: check if entry already exists (worker + date + job + hours)
-
-Option B — Apps Script triggered hourly (same as bank import):
-- Runs inside the Google Sheet
-- Calls Jibble API via UrlFetchApp
-- Writes directly to Wages tab
-- Simpler, no separate deployment
-
-**Recommended:** Option B if Jibble API is simple (REST + API key). Option A if OAuth is required (Apps Script can't handle OAuth well).
+Same flow as bank CSVs:
+1. Loric exports timesheet CSV from Jibble web UI (weekly, ~2 minutes)
+2. Drops file in OP Bank Imports Drive folder
+3. Import pipeline detects Jibble CSV (new parser alongside RBC/BMO/CIBC)
+4. Maps project names → job codes via alias table
+5. Maps worker → hourly rate via rate table
+6. Writes to Wages tab with dedup (Jibble entry date + worker + project)
+7. Flags entries with unknown project names or workers for review
 
 **Data flow:**
 ```
@@ -146,9 +135,9 @@ Jibble time entry:
 }
 ```
 
-**Effort:** 2–3 sessions (1 to check API + build sync, 1 to test with real data, 1 to polish).
-**Dependencies:** Loric confirms Jibble API access.
-**Risk:** Jibble may not have a public API on their plan. Need to verify first.
+**Effort:** 1 session (build CSV parser + test with real export).
+**Dependencies:** Loric provides one sample Jibble CSV export so we can see the column format.
+**Future upgrade path:** If manual export gets old, upgrade to Jibble Ultimate ($20/month for 4 users) and swap CSV parser for API integration. Wages tab schema stays the same — only the data source changes.
 
 ---
 
@@ -436,7 +425,7 @@ This is simpler, matches how the system already works (bank imports are cash-bas
 | 1. Opening balances | 15 min | Loric (2025 ledger) | — |
 | 2. Cash transactions | 30–60 min | Loric (Jan/Feb data) | — |
 | 3. ITC formula fix | 30 min | Nothing | Yes |
-| 4. Jibble integration | 2–3 sessions | Loric (API check) | Yes with 5 |
+| 4. Jibble CSV import | 1 session | Loric (sample CSV) | Yes with 5 |
 | 5. Invoice generator | 4–6 sessions | Nothing | Yes with 4 |
 | 6. Invoice → finance | 1 session | Item 5 | No |
 | 7. GST/QST rebuild | 2–3 sessions | Item 3 | Yes with 4/5 |
@@ -445,7 +434,7 @@ This is simpler, matches how the system already works (bank imports are cash-bas
 | 9. Chat interface | 6 sessions | Item 0 | Yes (after 1–3) |
 | 10. Cash movement | 30 min | Nothing | Yes |
 
-**Total estimated: ~20–25 sessions (revised from 16–19)**
+**Total estimated: ~19–23 sessions (Jibble reduced from 2–3 to 1)**
 
 **Optimal sequencing (revised per Codex — stabilize first, then build outward):**
 - **Session A:** Items 0 + 3 + 10 (foundation + ITC fix + dashboard — not blocked)
