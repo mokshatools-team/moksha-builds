@@ -238,6 +238,41 @@ db.exec(`
 `);
 
 db.exec(`
+  CREATE TABLE IF NOT EXISTS job_change_orders (
+    id TEXT PRIMARY KEY,
+    job_id TEXT NOT NULL,
+    title_en TEXT NOT NULL,
+    title_fr TEXT NOT NULL,
+    description TEXT,
+    amount_cents INTEGER NOT NULL DEFAULT 0,
+    taxable INTEGER NOT NULL DEFAULT 1,
+    status TEXT NOT NULL DEFAULT 'draft',
+    approved_at TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS client_updates (
+    id TEXT PRIMARY KEY,
+    job_id TEXT NOT NULL,
+    sequence_no INTEGER NOT NULL,
+    language TEXT NOT NULL,
+    period_start TEXT NOT NULL,
+    period_end TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'draft',
+    summary_json TEXT NOT NULL,
+    html_snapshot TEXT NOT NULL DEFAULT '',
+    sent_to TEXT,
+    sent_at TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    UNIQUE(job_id, sequence_no)
+  )
+`);
+
+db.exec(`
   CREATE TABLE IF NOT EXISTS invoices (
     id TEXT PRIMARY KEY,
     job_id TEXT NOT NULL,
