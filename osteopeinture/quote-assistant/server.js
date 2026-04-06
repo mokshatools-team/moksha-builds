@@ -413,6 +413,66 @@ function getJobActivityMappings(jobId) {
   return db.prepare('SELECT * FROM job_activity_mappings WHERE job_id = ? ORDER BY sort_order').all(jobId);
 }
 
+// ── FINANCE SHEET SYNC ─────────────────────────────────────────────────────
+
+async function syncPaymentToSheet(paymentId, job, payment) {
+  const sheetId = process.env.GOOGLE_SHEET_ID;
+  const credJson = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+  if (!sheetId || !credJson) {
+    console.log('[finance-sync] No GOOGLE_SHEET_ID or credentials — skipping');
+    db.prepare("UPDATE payments SET finance_sync_status = 'skipped' WHERE id = ?").run(paymentId);
+    return;
+  }
+
+  try {
+    const { google } = require('googleapis');
+    const creds = JSON.parse(credJson);
+    const auth = new google.auth.GoogleAuth({
+      credentials: creds,
+      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+    });
+    const sheets = google.sheets({ version: 'v4', auth });
+
+    const account = payment.method === 'cash' ? 'Cash' : 'RBC';
+    const month = payment.date.slice(0, 7);
+    const amountDollars = payment.amountCents / 100;
+    const entryId = uuidv4();
+
+    // Write Contract Revenue row to Transactions tab
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: sheetId,
+      range: 'Transactions!A:N',
+      valueInputOption: 'RAW',
+      requestBody: {
+        values: [[
+          payment.date,                                    // Date
+          `Invoice paid — ${job.client_name} — ${job.job_number}`, // Description
+          account,                                         // Account
+          '',                                              // Counterpart
+          amountDollars,                                   // Amount
+          'Contract Revenue',                              // Category
+          '',                                              // Transfer Type
+          month,                                           // Month
+          job.job_number,                                  // Job
+          'Invoice',                                       // Source
+          entryId,                                         // entry_id
+          'quote-assistant',                               // source_system
+          paymentId,                                       // source_id
+          new Date().toISOString(),                        // created_at
+        ]],
+      },
+    });
+
+    db.prepare("UPDATE payments SET finance_sync_status = 'synced', finance_synced_at = ? WHERE id = ?")
+      .run(new Date().toISOString(), paymentId);
+
+    console.log(`[finance-sync] Payment ${paymentId} synced to sheet — $${amountDollars} for ${job.job_number}`);
+  } catch (err) {
+    console.error('[finance-sync] Error:', err.message);
+    db.prepare("UPDATE payments SET finance_sync_status = 'failed' WHERE id = ?").run(paymentId);
+  }
+}
+
 function detectDefaultEmailLanguage(session) {
   const userText = (session.messages || [])
     .filter((message) => message && message.role === 'user')
@@ -1929,10 +1989,18 @@ app.post('/api/jobs/:id/payments', express.json(), (req, res) => {
     if (!amount || !date) return res.status(400).json({ error: 'amount and date are required' });
     const now = new Date().toISOString();
     const paymentId = uuidv4();
+    const amountCents = Math.round(amount * 100);
     db.prepare(`
       INSERT INTO payments (id, job_id, payment_date, amount_cents, method, reference, notes, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(paymentId, job.id, date, Math.round(amount * 100), method || 'e_transfer', reference || null, notes || null, now);
+    `).run(paymentId, job.id, date, amountCents, method || 'e_transfer', reference || null, notes || null, now);
+
+    // Sync to finance Google Sheet (background, non-blocking)
+    syncPaymentToSheet(paymentId, job, { date, amountCents, method: method || 'e_transfer', reference }).catch(err => {
+      console.error('[finance-sync] Failed:', err.message);
+    });
+
+    scheduleBackup(DB_PATH);
     res.json({ id: paymentId, message: 'Payment recorded' });
   } catch (err) {
     res.status(500).json({ error: err.message });
