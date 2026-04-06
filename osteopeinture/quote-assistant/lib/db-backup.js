@@ -61,6 +61,8 @@ async function findLatestBackup() {
       orderBy: 'modifiedTime desc',
       pageSize: 1,
       fields: 'files(id,name,modifiedTime,size)',
+      supportsAllDrives: true,
+      includeItemsFromAllDrives: true,
     });
     return res.data.files && res.data.files.length > 0 ? res.data.files[0] : null;
   } catch (err) {
@@ -131,16 +133,18 @@ async function backupToDrive(localDbPath) {
       await drive.files.update({
         fileId: existing.id,
         media,
+        supportsAllDrives: true,
       });
       console.log(`[db-backup] Updated backup on Drive (${existing.id})`);
     } else {
-      // Create new file
+      // Create new file in the shared folder
       await drive.files.create({
         requestBody: {
           name: BACKUP_FILENAME,
           parents: [backupFolderId],
         },
         media,
+        supportsAllDrives: true,
       });
       console.log('[db-backup] Created new backup on Drive');
     }
