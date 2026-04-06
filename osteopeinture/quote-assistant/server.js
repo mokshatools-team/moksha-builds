@@ -2326,6 +2326,163 @@ app.post('/api/updates/:id/pdf', async (req, res) => {
 });
 
 // ============================================================
+// CHANGE ORDERS
+// ============================================================
+
+// Create a change order for a job
+app.post('/api/jobs/:id/change-orders', express.json(), (req, res) => {
+  try {
+    const job = getJob(req.params.id);
+    if (!job) return res.status(404).json({ error: 'Job not found' });
+
+    const { titleEn, titleFr, description, items } = req.body;
+    if (!titleEn) return res.status(400).json({ error: 'titleEn is required' });
+
+    const now = new Date().toISOString();
+    const id = uuidv4();
+    const amountCents = (items || []).reduce((sum, i) => sum + (i.amountCents || 0), 0);
+
+    db.prepare(`
+      INSERT INTO job_change_orders (id, job_id, title_en, title_fr, description, amount_cents, status, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, 'draft', ?, ?)
+    `).run(id, job.id, titleEn, titleFr || titleEn, description || '', amountCents, now, now);
+
+    // Store items as JSON in description if provided
+    if (items && items.length > 0) {
+      const itemsJson = JSON.stringify(items);
+      db.prepare('UPDATE job_change_orders SET description = ? WHERE id = ?').run(itemsJson, id);
+    }
+
+    res.json({ id, amountCents, status: 'draft' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// List change orders for a job
+app.get('/api/jobs/:id/change-orders', (req, res) => {
+  try {
+    const orders = db.prepare('SELECT * FROM job_change_orders WHERE job_id = ? ORDER BY created_at').all(req.params.id);
+    res.json(orders.map(o => {
+      let items = [];
+      try { items = JSON.parse(o.description); } catch(e) { items = o.description ? [{ description: o.description, amountCents: o.amount_cents }] : []; }
+      return { ...o, items: Array.isArray(items) ? items : [items] };
+    }));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Update change order status (approve/reject)
+app.patch('/api/change-orders/:id', express.json(), (req, res) => {
+  try {
+    const { status } = req.body;
+    if (!['draft', 'approved', 'rejected'].includes(status)) {
+      return res.status(400).json({ error: 'Status must be draft, approved, or rejected' });
+    }
+    const now = new Date().toISOString();
+    const approvedAt = status === 'approved' ? now : null;
+    db.prepare('UPDATE job_change_orders SET status = ?, approved_at = ?, updated_at = ? WHERE id = ?')
+      .run(status, approvedAt, now, req.params.id);
+    res.json({ ok: true, status });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Preview change order as HTML (mini-quote format)
+app.get('/preview/change-order/:id', (req, res) => {
+  try {
+    const co = db.prepare('SELECT co.*, j.client_name, j.address, j.job_number, j.language FROM job_change_orders co JOIN jobs j ON j.id = co.job_id WHERE co.id = ?').get(req.params.id);
+    if (!co) return res.status(404).send('Change order not found');
+
+    const isFr = co.language === 'french';
+    let items = [];
+    try { items = JSON.parse(co.description); } catch(e) { items = []; }
+    if (!Array.isArray(items)) items = [];
+
+    const subtotal = co.amount_cents;
+    const gst = Math.round(subtotal * 0.05);
+    const qst = Math.round(subtotal * 0.09975);
+    const total = subtotal + gst + qst;
+
+    const html = `<!DOCTYPE html>
+<html lang="${isFr ? 'fr' : 'en'}">
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #1a1a2e; padding: 40px; max-width: 800px; margin: 0 auto; font-size: 13px; }
+  .logo { text-align: center; margin-bottom: 24px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.2em; color: #666; }
+  .title { text-align: center; font-size: 10px; text-transform: uppercase; letter-spacing: 0.15em; color: #666; margin-bottom: 20px; }
+  .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid #1a1a2e; margin-bottom: 24px; }
+  .info-cell { padding: 8px 12px; border-bottom: 1px solid #ddd; }
+  .info-cell:nth-child(even) { border-left: 1px solid #ddd; }
+  .info-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: #666; }
+  .info-value { font-weight: 600; }
+  .section-title { font-weight: 700; padding: 8px 0; border-bottom: 1px solid #1a1a2e; margin-top: 12px; }
+  .line-item { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #f0f0f0; }
+  .total-section { margin-top: 16px; border-top: 2px solid #1a1a2e; padding-top: 8px; }
+  .total-row { display: flex; justify-content: flex-end; padding: 4px 0; }
+  .total-row span:first-child { margin-right: 40px; }
+  .total-row.grand { font-size: 15px; font-weight: 700; background: #1a1a2e; color: white; padding: 8px 12px; margin-top: 4px; }
+  .approval { margin-top: 30px; border: 1px solid #ddd; padding: 16px; border-radius: 4px; }
+  .approval h3 { font-size: 12px; text-transform: uppercase; margin-bottom: 10px; }
+  .sig-line { border-bottom: 1px solid #999; height: 30px; margin-top: 20px; }
+  .sig-label { font-size: 10px; color: #666; margin-top: 4px; }
+  .footer { margin-top: 30px; text-align: center; font-size: 11px; color: #999; }
+</style>
+</head>
+<body>
+  <div class="logo">OSTÉOPEINTURE</div>
+  <div class="title">${isFr ? 'AVENANT AU CONTRAT' : 'CHANGE ORDER'}</div>
+
+  <div class="info-grid">
+    <div class="info-cell"><span class="info-label">CLIENT</span><br><span class="info-value">${esc(co.client_name)}</span><br>${esc(co.address)}</div>
+    <div class="info-cell"><span class="info-label">${isFr ? 'PROJET' : 'PROJECT'}</span><br><span class="info-value">${esc(co.job_number)}</span></div>
+    <div class="info-cell"><span class="info-label">${isFr ? 'OBJET' : 'SUBJECT'}</span><br><span class="info-value">${esc(isFr ? co.title_fr : co.title_en)}</span></div>
+    <div class="info-cell"><span class="info-label">DATE</span><br><span class="info-value">${co.created_at.slice(0, 10)}</span></div>
+  </div>
+
+  <div class="section-title">${isFr ? 'TRAVAUX ADDITIONNELS' : 'ADDITIONAL WORK'}</div>
+  ${items.map(item => `
+    <div class="line-item">
+      <span>${esc(item.description || item.desc || '')}</span>
+      <span style="font-weight:500">${((item.amountCents || 0) / 100).toLocaleString('fr-CA')} $</span>
+    </div>
+  `).join('')}
+
+  <div class="total-section">
+    <div class="total-row"><span>${isFr ? 'SOUS-TOTAL' : 'SUBTOTAL'}</span><span>${(subtotal / 100).toLocaleString('fr-CA')} $</span></div>
+    <div class="total-row"><span>TPS (5%)</span><span>${(gst / 100).toLocaleString('fr-CA')} $</span></div>
+    <div class="total-row"><span>TVQ (9.975%)</span><span>${(qst / 100).toLocaleString('fr-CA')} $</span></div>
+    <div class="total-row grand"><span>TOTAL</span><span>${(total / 100).toLocaleString('fr-CA')} $</span></div>
+  </div>
+
+  <div class="approval">
+    <h3>${isFr ? 'APPROBATION DU CLIENT' : 'CLIENT APPROVAL'}</h3>
+    <p style="font-size:12px;color:#666">${isFr
+      ? 'En signant ci-dessous, vous confirmez votre accord pour les travaux additionnels décrits ci-dessus et les coûts associés.'
+      : 'By signing below, you confirm your agreement to the additional work described above and the associated costs.'}</p>
+    <div class="sig-line"></div>
+    <div class="sig-label">${isFr ? 'Signature du client' : 'Client Signature'} — Date: _______________</div>
+  </div>
+
+  <div class="footer">
+    OstéoPeinture — 4201-80 rue Saint-Viateur E., Montréal, QC H2T 1A6<br>
+    438-870-8087 | info@osteopeinture.com | www.osteopeinture.com
+  </div>
+</body>
+</html>`;
+
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  } catch (err) {
+    res.status(500).send('Error: ' + err.message);
+  }
+});
+
+// ============================================================
 // INVOICE GENERATION
 // ============================================================
 
