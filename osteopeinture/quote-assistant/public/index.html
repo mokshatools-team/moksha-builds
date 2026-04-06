@@ -2951,6 +2951,10 @@ async function openJobDetail(jobId) {
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18"/><path d="M3 12h18"/><circle cx="12" cy="12" r="3"/></svg>
           Map Activities ${job.unmappedCount > 0 ? '<span style="color:var(--accent);font-size:12px">(' + job.unmappedCount + ' unmapped)</span>' : ''}
         </button>
+        <button class="job-action-btn" onclick="generateClientUpdate('${job.id}')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          Generate Client Update
+        </button>
         <button class="job-action-btn" onclick="recordPayment('${job.id}')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
           Record Payment
@@ -3162,6 +3166,54 @@ async function saveMappings() {
     alert('Error: ' + err.message);
     btn.textContent = 'Save All Mappings';
     btn.disabled = false;
+  }
+}
+
+// ── CLIENT UPDATE GENERATION ────────────────────────
+
+async function generateClientUpdate(jobId) {
+  const periodStart = prompt('Period start date (YYYY-MM-DD):', '');
+  const periodEnd = prompt('Period end date (YYYY-MM-DD, blank for all):', '');
+  const notes = prompt('Notes for client (optional):');
+
+  try {
+    const res = await fetch('/api/jobs/' + jobId + '/updates/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        periodStart: periodStart || undefined,
+        periodEnd: periodEnd || undefined,
+        notes: notes || '',
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      alert(data.error || 'Failed to generate update');
+      return;
+    }
+
+    // Open preview in new tab
+    const previewUrl = '/preview/update/' + data.updateId;
+    window.open(previewUrl, '_blank');
+
+    // Offer PDF download
+    const downloadPdf = confirm('Update generated and previewing.\n\nDownload as PDF?');
+    if (downloadPdf) {
+      const pdfRes = await fetch('/api/updates/' + data.updateId + '/pdf', { method: 'POST' });
+      if (pdfRes.ok) {
+        const blob = await pdfRes.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = data.summary.jobNumber + '_update_' + data.summary.sequenceNo + '.pdf';
+        a.click();
+        URL.revokeObjectURL(url);
+      } else {
+        alert('PDF generation failed');
+      }
+    }
+  } catch (err) {
+    alert('Error: ' + err.message);
   }
 }
 

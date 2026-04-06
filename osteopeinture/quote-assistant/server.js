@@ -797,11 +797,16 @@ function formatEmailPaymentTerms(language, paymentTerms) {
 // ============================================================
 
 let LOGO_HOUSE_B64 = '';
+let LOGO_WORD_B64 = '';
 const TEMPLATE_PATH = path.join(__dirname, 'public', 'quote_template.html');
 if (fs.existsSync(TEMPLATE_PATH)) {
   const tmpl = fs.readFileSync(TEMPLATE_PATH, 'utf8');
   const m = tmpl.match(/class="logo-house" src="data:image\/png;base64,([^"]{20,})"/);
   if (m) LOGO_HOUSE_B64 = m[1];
+}
+const WORD_LOGO_PATH = path.join(__dirname, 'public', 'logo-word-brown.jpg');
+if (fs.existsSync(WORD_LOGO_PATH)) {
+  LOGO_WORD_B64 = fs.readFileSync(WORD_LOGO_PATH).toString('base64');
 }
 
 // ============================================================
@@ -1002,7 +1007,8 @@ body { background:#e8e8e8; font-family:'Montserrat',sans-serif; padding:40px 20p
 .sig-grid { display:grid; grid-template-columns:1fr 1fr; }
 .sig-cell { padding:10px 14px; font-size:8px; font-weight:600; min-height:70px; display:flex; flex-direction:column; align-items:flex-start; }
 .footer { text-align:center; margin-top:36px; }
-.footer-logo { font-family:'Montserrat',sans-serif; font-size:10px; font-weight:600; letter-spacing:5px; color:#7B3A10; text-transform:uppercase; margin-bottom:5px; }
+.footer-logo { text-align:center; margin-bottom:5px; }
+.footer-logo img { height:14px; }
 .footer-info { font-size:7.5px; color:#666; line-height:1.9; }
 @media print { body { background:white; padding:0; } .page { box-shadow:none; width:100%; padding:32px 40px; } }
 </style>
@@ -1060,7 +1066,7 @@ body { background:#e8e8e8; font-family:'Montserrat',sans-serif; padding:40px 20p
     <div class="sig-cell">OstéoPeinture Representative</div>
   </div>
   <div class="footer">
-    <div class="footer-logo">Ostéopeinture</div>
+    <div class="footer-logo">${LOGO_WORD_B64 ? `<img src="data:image/jpeg;base64,${LOGO_WORD_B64}" alt="Ostéopeinture">` : 'Ostéopeinture'}</div>
     <div class="footer-info">
       #201 - 80 rue Saint-Viateur E., Montréal, QC H2T 1A6<br>
       438-870-8087 | info@osteopeinture.com | www.osteopeinture.com<br>
@@ -2090,6 +2096,230 @@ app.put('/api/jobs/:id/activity-mappings', express.json(), (req, res) => {
 app.get('/api/jobs/:id/time-entries', (req, res) => {
   try {
     res.json(getJobTimeEntries(req.params.id));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ============================================================
+// CLIENT UPDATE GENERATION
+// ============================================================
+
+// Generate a client update summary from mapped time entries
+app.post('/api/jobs/:id/updates/generate', express.json(), (req, res) => {
+  try {
+    const job = getJob(req.params.id);
+    if (!job) return res.status(404).json({ error: 'Job not found' });
+
+    const { periodStart, periodEnd, language, notes } = req.body || {};
+    const lang = language || job.language || 'french';
+
+    // Get mapped time entries for this period
+    let query = `SELECT * FROM time_entries WHERE job_id = ? AND mapping_status = 'mapped'`;
+    const params = [job.id];
+    if (periodStart) { query += ' AND work_date >= ?'; params.push(periodStart); }
+    if (periodEnd) { query += ' AND work_date <= ?'; params.push(periodEnd); }
+    query += ' ORDER BY mapped_phase_code, source_activity_name, employee_name';
+
+    const entries = db.prepare(query).all(...params);
+
+    if (entries.length === 0) {
+      return res.status(400).json({ error: 'No mapped time entries found for this period' });
+    }
+
+    // Aggregate by activity label
+    const activities = {};
+    let totalMinutes = 0;
+    let totalBillableMinutes = 0;
+
+    for (const e of entries) {
+      const label = lang === 'french' ? (e.mapped_label_fr || e.source_activity_name) : (e.mapped_label_en || e.source_activity_name);
+      if (!activities[label]) {
+        activities[label] = { label, phase: e.mapped_phase_code, totalMinutes: 0, billableMinutes: 0, workers: {} };
+      }
+      activities[label].totalMinutes += e.duration_minutes;
+      activities[label].billableMinutes += e.billable_minutes;
+      totalMinutes += e.duration_minutes;
+      totalBillableMinutes += e.billable_minutes;
+
+      // Track per worker
+      if (!activities[label].workers[e.employee_name]) {
+        activities[label].workers[e.employee_name] = 0;
+      }
+      activities[label].workers[e.employee_name] += e.duration_minutes;
+    }
+
+    // Build summary
+    const sections = Object.values(activities).map(a => ({
+      label: a.label,
+      phase: a.phase,
+      hours: Math.round(a.totalMinutes / 60 * 10) / 10,
+      billableHours: Math.round(a.billableMinutes / 60 * 10) / 10,
+      workers: Object.entries(a.workers).map(([name, mins]) => ({
+        name, hours: Math.round(mins / 60 * 10) / 10
+      })),
+    }));
+
+    // Get payments for context
+    const payments = getJobPayments(job.id);
+    const totalPaidCents = payments.reduce((sum, p) => sum + p.amount_cents, 0);
+
+    const now = new Date().toISOString();
+    const sequenceNo = db.prepare('SELECT COUNT(*) as count FROM client_updates WHERE job_id = ?').get(job.id).count + 1;
+    const updateId = uuidv4();
+
+    const summary = {
+      jobNumber: job.job_number,
+      clientName: job.client_name,
+      address: job.address,
+      language: lang,
+      periodStart: periodStart || entries[0].work_date,
+      periodEnd: periodEnd || entries[entries.length - 1].work_date,
+      sequenceNo,
+      sections,
+      totalHours: Math.round(totalMinutes / 60 * 10) / 10,
+      totalBillableHours: Math.round(totalBillableMinutes / 60 * 10) / 10,
+      quoteTotalCents: job.quote_total_cents,
+      totalPaidCents,
+      balanceRemainingCents: job.quote_total_cents - totalPaidCents,
+      notes: notes || '',
+      generatedAt: now,
+    };
+
+    // Save the update record
+    db.prepare(`
+      INSERT INTO client_updates (id, job_id, sequence_no, language, period_start, period_end, status, summary_json, html_snapshot, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, 'draft', ?, '', ?, ?)
+    `).run(updateId, job.id, sequenceNo, lang, summary.periodStart, summary.periodEnd, JSON.stringify(summary), now, now);
+
+    res.json({ updateId, summary });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get all updates for a job
+app.get('/api/jobs/:id/updates', (req, res) => {
+  try {
+    const updates = db.prepare('SELECT * FROM client_updates WHERE job_id = ? ORDER BY sequence_no DESC').all(req.params.id);
+    res.json(updates.map(u => ({
+      ...u,
+      summaryJson: u.summary_json ? JSON.parse(u.summary_json) : null,
+    })));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Preview a client update as HTML
+app.get('/preview/update/:id', (req, res) => {
+  try {
+    const update = db.prepare('SELECT * FROM client_updates WHERE id = ?').get(req.params.id);
+    if (!update) return res.status(404).send('Update not found');
+
+    const summary = JSON.parse(update.summary_json);
+    const isFr = summary.language === 'french';
+
+    const html = `<!DOCTYPE html>
+<html lang="${isFr ? 'fr' : 'en'}">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #1a1a2e; padding: 40px; max-width: 800px; margin: 0 auto; }
+  .header { border-bottom: 2px solid #1a1a2e; padding-bottom: 16px; margin-bottom: 24px; }
+  .header h1 { font-size: 14px; text-transform: uppercase; letter-spacing: 0.15em; color: #666; margin-bottom: 4px; }
+  .header h2 { font-size: 22px; margin-bottom: 8px; }
+  .meta { display: flex; gap: 24px; font-size: 12px; color: #666; }
+  .section { margin-bottom: 20px; }
+  .section h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.1em; color: #666; border-bottom: 1px solid #ddd; padding-bottom: 6px; margin-bottom: 10px; }
+  .activity-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #f0f0f0; font-size: 14px; }
+  .activity-label { flex: 1; }
+  .activity-hours { font-weight: 600; text-align: right; width: 80px; }
+  .total-row { display: flex; justify-content: space-between; padding: 10px 0; font-weight: 700; font-size: 15px; border-top: 2px solid #1a1a2e; margin-top: 8px; }
+  .notes { margin-top: 20px; padding: 12px; background: #f8f8f8; border-radius: 4px; font-size: 13px; line-height: 1.5; white-space: pre-wrap; }
+  .financial { margin-top: 20px; font-size: 13px; color: #666; }
+  .financial-row { display: flex; justify-content: space-between; padding: 4px 0; }
+  .footer { margin-top: 40px; text-align: center; font-size: 11px; color: #999; }
+</style>
+</head>
+<body>
+  <div class="header">
+    <h1>OSTÉOPEINTURE</h1>
+    <h2>${isFr ? 'MISE À JOUR — ' : 'PROJECT UPDATE — '}${esc(summary.clientName)}</h2>
+    <div class="meta">
+      <span>${isFr ? 'Projet' : 'Project'}: ${esc(summary.jobNumber)}</span>
+      <span>${isFr ? 'Période' : 'Period'}: ${summary.periodStart} — ${summary.periodEnd}</span>
+      <span>${isFr ? 'Mise à jour' : 'Update'} #${summary.sequenceNo}</span>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3>${isFr ? 'TRAVAUX EFFECTUÉS' : 'WORK COMPLETED'}</h3>
+    ${summary.sections.map(s => `
+      <div class="activity-row">
+        <span class="activity-label">${esc(s.label)}</span>
+        <span class="activity-hours">${s.billableHours}h</span>
+      </div>
+    `).join('')}
+    <div class="total-row">
+      <span>${isFr ? 'TOTAL HEURES' : 'TOTAL HOURS'}</span>
+      <span>${summary.totalBillableHours}h</span>
+    </div>
+  </div>
+
+  ${summary.notes ? `<div class="notes"><strong>${isFr ? 'Notes :' : 'Notes:'}</strong>\n${esc(summary.notes)}</div>` : ''}
+
+  <div class="financial">
+    <div class="financial-row"><span>${isFr ? 'Total soumission' : 'Quote total'}</span><span>$${(summary.quoteTotalCents / 100).toLocaleString('fr-CA')}</span></div>
+    <div class="financial-row"><span>${isFr ? 'Payé à ce jour' : 'Paid to date'}</span><span>$${(summary.totalPaidCents / 100).toLocaleString('fr-CA')}</span></div>
+    <div class="financial-row" style="font-weight:600"><span>${isFr ? 'Solde restant' : 'Balance remaining'}</span><span>$${(summary.balanceRemainingCents / 100).toLocaleString('fr-CA')}</span></div>
+  </div>
+
+  <div class="footer">
+    OstéoPeinture — 4201-80 rue Saint-Viateur E., Montréal, QC H2T 1A6<br>
+    438-870-8087 | info@osteopeinture.com | www.osteopeinture.com
+  </div>
+</body>
+</html>`;
+
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  } catch (err) {
+    res.status(500).send('Error: ' + err.message);
+  }
+});
+
+// Generate PDF from client update
+app.post('/api/updates/:id/pdf', async (req, res) => {
+  try {
+    const update = db.prepare('SELECT * FROM client_updates WHERE id = ?').get(req.params.id);
+    if (!update) return res.status(404).json({ error: 'Update not found' });
+
+    const { chromium } = require('playwright');
+    const browser = await chromium.launch({ args: ['--no-sandbox'] });
+    const page = await browser.newPage();
+
+    // Render the preview HTML
+    const protocol = req.protocol;
+    const host = req.get('host');
+    await page.goto(`${protocol}://${host}/preview/update/${req.params.id}`, { waitUntil: 'networkidle' });
+
+    const pdfBuffer = await page.pdf({
+      format: 'Letter',
+      margin: { top: '0.5in', bottom: '0.5in', left: '0.5in', right: '0.5in' },
+      printBackground: true,
+    });
+
+    await browser.close();
+
+    const summary = JSON.parse(update.summary_json);
+    const filename = `${summary.jobNumber}_update_${summary.sequenceNo}.pdf`;
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(pdfBuffer);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
