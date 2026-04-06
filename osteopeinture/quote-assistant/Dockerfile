@@ -10,5 +10,6 @@ RUN npx playwright install chromium --with-deps
 
 COPY . .
 
+# v2026-04-06: added googleapis, db-backup, jobs
 EXPOSE 3000
 CMD ["node", "server.js"]
