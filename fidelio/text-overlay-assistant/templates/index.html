@@ -729,18 +729,16 @@
       <h1 class="pick-heading">Analyze a video</h1>
       <p class="pick-sub">Choose one ingestion path, set your project name, and let Claude build the highlight plan.</p>
 
-      <!-- Tab bar hidden while only File tab is active (YouTube blocked by Railway 429) -->
-      <div class="ingestion-tabs" style="display:none;">
+      <div class="ingestion-tabs">
         <button type="button" class="ingestion-tab active" id="tab-file" onclick="setIngestionMode('file')">
           <span class="ingestion-tab-title">File</span>
-          <span class="ingestion-tab-sub">Upload on Railway or pick from your local watch folder.</span>
+          <span class="ingestion-tab-sub">Upload a video file directly.</span>
         </button>
-        <!-- YouTube tabs hidden — Railway IPs are blocked by YouTube (429). Re-enable when resolved. -->
-        <button type="button" class="ingestion-tab" id="tab-youtube-url" onclick="setIngestionMode('youtube-url')" style="display:none;">
+        <button type="button" class="ingestion-tab" id="tab-youtube-url" onclick="setIngestionMode('youtube-url')">
           <span class="ingestion-tab-title">YouTube URL</span>
           <span class="ingestion-tab-sub">Paste a public video URL and transcribe it with the existing flow.</span>
         </button>
-        <button type="button" class="ingestion-tab" id="tab-youtube-account" onclick="setIngestionMode('youtube-account')" style="display:none;">
+        <button type="button" class="ingestion-tab" id="tab-youtube-account" onclick="setIngestionMode('youtube-account')">
           <span class="ingestion-tab-title">YouTube Account</span>
           <span class="ingestion-tab-sub">Connect your Google account and pull captions by video ID or URL.</span>
         </button>
