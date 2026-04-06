@@ -2326,6 +2326,310 @@ app.post('/api/updates/:id/pdf', async (req, res) => {
 });
 
 // ============================================================
+// INVOICE GENERATION
+// ============================================================
+
+// Generate invoice draft combining quote + time entries + change orders
+// Returns an editable draft — user restructures sections before finalizing
+app.post('/api/jobs/:id/invoices/generate', express.json(), (req, res) => {
+  try {
+    const job = getJob(req.params.id);
+    if (!job) return res.status(404).json({ error: 'Job not found' });
+
+    const { language, issueDate, notes, sections: customSections } = req.body || {};
+    const lang = language || job.language || 'french';
+    const isFr = lang === 'french';
+    const now = new Date().toISOString();
+    const invoiceId = uuidv4();
+
+    const dateStr = (issueDate || now.slice(0, 10)).replace(/-/g, '');
+    const existingCount = db.prepare('SELECT COUNT(*) as c FROM invoices WHERE job_id = ?').get(job.id).c;
+    const invoiceNumber = dateStr + '_' + String(existingCount + 1).padStart(2, '0');
+
+    // === Build draft sections from all sources ===
+    let draftSections = [];
+
+    if (customSections) {
+      // User provided pre-edited sections — use as-is
+      draftSections = customSections;
+    } else {
+      // Auto-generate from quote + time entries
+
+      // Source 1: Fixed-price items from accepted quote
+      const quote = job.acceptedQuoteJson;
+      if (quote && quote.sections) {
+        for (const s of quote.sections) {
+          draftSections.push({
+            title: s.title,
+            source: 'quote',
+            items: (s.items || []).map(item => ({
+              description: item.description,
+              amount: item.price * 100,
+              type: 'fixed',
+            })),
+            subtotalCents: (s.subtotal || 0) * 100,
+          });
+        }
+      }
+
+      // Source 2: Hourly work from mapped time entries (not in quote)
+      const timeEntries = db.prepare(`
+        SELECT mapped_label_en, mapped_label_fr, mapped_phase_code,
+          SUM(billable_minutes) as total_minutes, employee_name
+        FROM time_entries WHERE job_id = ? AND mapping_status = 'mapped' AND billable_minutes > 0
+        GROUP BY mapped_label_en, mapped_label_fr, mapped_phase_code
+        ORDER BY mapped_phase_code
+      `).all(job.id);
+
+      if (timeEntries.length > 0) {
+        // Group time entries into one "Hourly Work" section
+        // User can restructure this into multiple sections later
+        const hourlyItems = [];
+        for (const e of timeEntries) {
+          const label = isFr ? (e.mapped_label_fr || e.mapped_label_en) : e.mapped_label_en;
+          const hours = Math.round(e.total_minutes / 60 * 10) / 10;
+          const rate = 55; // default billable rate — should come from job config
+          const amount = Math.round(hours * rate * 100);
+          hourlyItems.push({
+            description: `${label} — ${hours}h @ $${rate}/h`,
+            amount,
+            type: 'hourly',
+            hours,
+            rate,
+          });
+        }
+        if (hourlyItems.length > 0) {
+          draftSections.push({
+            title: isFr ? 'Travaux horaires' : 'Hourly Work',
+            source: 'time_entries',
+            items: hourlyItems,
+            subtotalCents: hourlyItems.reduce((sum, i) => sum + i.amount, 0),
+          });
+        }
+      }
+    }
+
+    // Calculate totals
+    const subtotalCents = draftSections.reduce((sum, s) => sum + s.subtotalCents, 0);
+    const gstCents = Math.round(subtotalCents * 0.05);
+    const qstCents = Math.round(subtotalCents * 0.09975);
+    const taxCents = gstCents + qstCents;
+    const totalCents = subtotalCents + taxCents;
+
+    // Get payments
+    const payments = getJobPayments(job.id);
+    const totalPaidCents = payments.reduce((sum, p) => sum + p.amount_cents, 0);
+    const balanceDueCents = totalCents - totalPaidCents;
+
+    const invoiceJson = {
+      invoiceNumber,
+      jobNumber: job.job_number,
+      clientName: job.client_name,
+      address: job.address,
+      language: lang,
+      issueDate: issueDate || now.slice(0, 10),
+      sections: draftSections,
+      subtotalCents,
+      gstCents,
+      qstCents,
+      taxCents,
+      totalCents,
+      payments: payments.map(p => ({
+        date: p.payment_date,
+        amount: p.amount_cents,
+        method: p.method,
+      })),
+      totalPaidCents,
+      balanceDueCents,
+      notes: notes || '',
+      isDraft: true,
+    };
+
+    db.prepare(`
+      INSERT INTO invoices (id, job_id, invoice_number, invoice_type, language, issue_date, status,
+        subtotal_cents, tax_cents, total_cents, balance_due_cents, invoice_json, created_at, updated_at)
+      VALUES (?, ?, ?, 'final', ?, ?, 'draft', ?, ?, ?, ?, ?, ?, ?)
+    `).run(invoiceId, job.id, invoiceNumber, lang, invoiceJson.issueDate, subtotalCents, taxCents, totalCents, balanceDueCents, JSON.stringify(invoiceJson), now, now);
+
+    res.json({ invoiceId, invoiceNumber, invoiceJson });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Update invoice sections (user edited the draft)
+app.put('/api/invoices/:id', express.json(), (req, res) => {
+  try {
+    const invoice = db.prepare('SELECT * FROM invoices WHERE id = ?').get(req.params.id);
+    if (!invoice) return res.status(404).json({ error: 'Invoice not found' });
+
+    const existing = JSON.parse(invoice.invoice_json);
+    const { sections, notes } = req.body;
+
+    if (sections) {
+      existing.sections = sections;
+      existing.subtotalCents = sections.reduce((sum, s) => sum + (s.subtotalCents || 0), 0);
+      existing.gstCents = Math.round(existing.subtotalCents * 0.05);
+      existing.qstCents = Math.round(existing.subtotalCents * 0.09975);
+      existing.taxCents = existing.gstCents + existing.qstCents;
+      existing.totalCents = existing.subtotalCents + existing.taxCents;
+      existing.balanceDueCents = existing.totalCents - existing.totalPaidCents;
+    }
+    if (notes !== undefined) existing.notes = notes;
+
+    const now = new Date().toISOString();
+    db.prepare(`
+      UPDATE invoices SET invoice_json = ?, subtotal_cents = ?, tax_cents = ?, total_cents = ?, balance_due_cents = ?, updated_at = ?
+      WHERE id = ?
+    `).run(JSON.stringify(existing), existing.subtotalCents, existing.taxCents, existing.totalCents, existing.balanceDueCents, now, req.params.id);
+
+    res.json({ ok: true, invoiceJson: existing });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get invoices for a job
+app.get('/api/jobs/:id/invoices', (req, res) => {
+  try {
+    res.json(db.prepare('SELECT * FROM invoices WHERE job_id = ? ORDER BY created_at DESC').all(req.params.id));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Preview invoice as HTML
+app.get('/preview/invoice/:id', (req, res) => {
+  try {
+    const invoice = db.prepare('SELECT * FROM invoices WHERE id = ?').get(req.params.id);
+    if (!invoice) return res.status(404).send('Invoice not found');
+
+    const inv = JSON.parse(invoice.invoice_json);
+    const isFr = inv.language === 'french';
+
+    // Use the editable sections (which may include quote + hourly + change orders)
+    const sections = inv.sections || [];
+
+    const html = `<!DOCTYPE html>
+<html lang="${isFr ? 'fr' : 'en'}">
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #1a1a2e; padding: 40px; max-width: 800px; margin: 0 auto; font-size: 13px; }
+  .logo { text-align: center; margin-bottom: 30px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.2em; color: #666; }
+  .title { text-align: center; font-size: 10px; text-transform: uppercase; letter-spacing: 0.15em; color: #666; margin-bottom: 20px; }
+  .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid #1a1a2e; margin-bottom: 24px; }
+  .info-cell { padding: 8px 12px; border-bottom: 1px solid #ddd; }
+  .info-cell:nth-child(even) { border-left: 1px solid #ddd; }
+  .info-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: #666; }
+  .info-value { font-weight: 600; }
+  .section-title { font-weight: 700; padding: 8px 0 4px; border-bottom: 1px solid #1a1a2e; margin-top: 16px; }
+  .line-item { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid #f0f0f0; }
+  .line-item-desc { flex: 1; padding-left: 12px; }
+  .line-item-price { font-weight: 500; text-align: right; width: 80px; }
+  .subtotal-row { display: flex; justify-content: flex-end; padding: 6px 0; font-weight: 600; }
+  .subtotal-row span:first-child { margin-right: 40px; }
+  .total-section { margin-top: 20px; border-top: 2px solid #1a1a2e; padding-top: 8px; }
+  .total-row { display: flex; justify-content: flex-end; padding: 4px 0; }
+  .total-row span:first-child { margin-right: 40px; }
+  .total-row.grand { font-size: 16px; font-weight: 700; background: #1a1a2e; color: white; padding: 10px 12px; margin-top: 4px; }
+  .payment-section { margin-top: 16px; }
+  .payment-row { display: flex; justify-content: flex-end; padding: 3px 0; color: #666; }
+  .payment-row span:first-child { margin-right: 40px; }
+  .balance-row { display: flex; justify-content: flex-end; padding: 10px 0; font-size: 15px; font-weight: 700; border-top: 2px solid #1a1a2e; }
+  .balance-row span:first-child { margin-right: 40px; }
+  .footer { margin-top: 40px; text-align: center; font-size: 11px; color: #999; }
+  .payment-terms { margin-top: 20px; text-align: center; font-size: 11px; color: #666; font-style: italic; }
+</style>
+</head>
+<body>
+  <div class="logo">OSTÉOPEINTURE</div>
+  <div class="title">${quote && quote.title ? esc(quote.title) : (isFr ? 'FACTURE' : 'INVOICE')}</div>
+
+  <div class="info-grid">
+    <div class="info-cell"><span class="info-label">${isFr ? 'FACTURÉ À' : 'BILLED TO'}</span><br><span class="info-value">${esc(inv.clientName)}</span><br>${esc(inv.address)}</div>
+    <div class="info-cell"><span class="info-label">${isFr ? 'FACTURE #' : 'INVOICE #'}</span><br><span class="info-value">${esc(inv.invoiceNumber)}</span></div>
+    <div class="info-cell"><span class="info-label">${isFr ? 'PROJET' : 'PROJECT'}</span><br><span class="info-value">${esc(inv.jobNumber)}</span></div>
+    <div class="info-cell"><span class="info-label">DATE</span><br><span class="info-value">${esc(inv.issueDate)}</span></div>
+  </div>
+
+  ${sections.map(s => `
+    <div class="section-title">${esc(s.title)}<span style="float:right">${((s.subtotalCents || 0) / 100).toLocaleString('fr-CA')} $</span></div>
+    ${(s.items || []).map(item => `
+      <div class="line-item">
+        <span class="line-item-desc">➛ ${esc(item.description)}</span>
+        <span class="line-item-price">${((item.amount || item.price * 100 || 0) / 100).toLocaleString('fr-CA')} $</span>
+      </div>
+    `).join('')}
+  `).join('')}
+
+  <div class="total-section">
+    <div class="subtotal-row"><span>TOTAL</span><span>${(inv.subtotalCents / 100).toLocaleString('fr-CA')} $</span></div>
+    <div class="total-row"><span>TPS #7784757551RT0001</span><span>${(inv.gstCents / 100).toLocaleString('fr-CA')} $</span></div>
+    <div class="total-row"><span>TVQ #1231045518</span><span>${(inv.qstCents / 100).toLocaleString('fr-CA')} $</span></div>
+    <div class="total-row grand"><span>GRAND TOTAL</span><span>${(inv.totalCents / 100).toLocaleString('fr-CA')} $</span></div>
+  </div>
+
+  ${inv.payments.length > 0 ? `
+  <div class="payment-section">
+    ${inv.payments.map(p => `
+      <div class="payment-row"><span>${isFr ? 'Paiement' : 'Payment'} ${p.date} (${p.method})</span><span>-${(p.amount / 100).toLocaleString('fr-CA')} $</span></div>
+    `).join('')}
+    <div class="balance-row"><span>${isFr ? 'SOLDE À PAYER' : 'BALANCE TO PAY'}</span><span>${(inv.balanceDueCents / 100).toLocaleString('fr-CA')} $</span></div>
+  </div>` : ''}
+
+  <div class="payment-terms">${isFr ? 'Le solde restant est payable par chèque, dépôt direct, virement Interac ou comptant.' : 'The remaining balance is to be paid by cheque, direct deposit, e-transfer or cash.'}</div>
+
+  <div class="footer">
+    OstéoPeinture — 4201-80 rue Saint-Viateur E., Montréal, QC H2T 1A6<br>
+    438-870-8087 | info@osteopeinture.com | www.osteopeinture.com<br>
+    RBQ# 5790-0045-01
+  </div>
+</body>
+</html>`;
+
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  } catch (err) {
+    res.status(500).send('Error: ' + err.message);
+  }
+});
+
+// Generate invoice PDF
+app.post('/api/invoices/:id/pdf', async (req, res) => {
+  try {
+    const invoice = db.prepare('SELECT * FROM invoices WHERE id = ?').get(req.params.id);
+    if (!invoice) return res.status(404).json({ error: 'Invoice not found' });
+
+    const { chromium } = require('playwright');
+    const browser = await chromium.launch({ args: ['--no-sandbox'] });
+    const page = await browser.newPage();
+
+    const protocol = req.protocol;
+    const host = req.get('host');
+    await page.goto(`${protocol}://${host}/preview/invoice/${req.params.id}`, { waitUntil: 'networkidle' });
+
+    const pdfBuffer = await page.pdf({
+      format: 'Letter',
+      margin: { top: '0.4in', bottom: '0.4in', left: '0.5in', right: '0.5in' },
+      printBackground: true,
+    });
+
+    await browser.close();
+
+    const inv = JSON.parse(invoice.invoice_json);
+    const filename = `${inv.jobNumber}_invoice_${inv.invoiceNumber}.pdf`;
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(pdfBuffer);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ============================================================
 // START SERVER
 // ============================================================
 

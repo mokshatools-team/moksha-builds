@@ -2951,6 +2951,10 @@ async function openJobDetail(jobId) {
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18"/><path d="M3 12h18"/><circle cx="12" cy="12" r="3"/></svg>
           Map Activities ${job.unmappedCount > 0 ? '<span style="color:var(--accent);font-size:12px">(' + job.unmappedCount + ' unmapped)</span>' : ''}
         </button>
+        <button class="job-action-btn" onclick="generateInvoice('${job.id}')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+          Create Invoice
+        </button>
         <button class="job-action-btn" onclick="generateClientUpdate('${job.id}')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
           Generate Client Update
@@ -3212,6 +3216,59 @@ async function generateClientUpdate(jobId) {
         alert('PDF generation failed');
       }
     }
+  } catch (err) {
+    alert('Error: ' + err.message);
+  }
+}
+
+// ── INVOICE GENERATION ──────────────────────────────
+
+async function generateInvoice(jobId) {
+  const issueDate = prompt('Invoice date (YYYY-MM-DD):', new Date().toISOString().slice(0,10));
+  if (!issueDate) return;
+
+  try {
+    // Generate draft
+    const res = await fetch('/api/jobs/' + jobId + '/invoices/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ issueDate }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      alert(data.error || 'Failed to generate invoice');
+      return;
+    }
+
+    // Open preview
+    const previewUrl = '/preview/invoice/' + data.invoiceId;
+    window.open(previewUrl, '_blank');
+
+    // Offer actions
+    const action = prompt(
+      'Invoice draft generated and previewing.\n\n' +
+      'Type:\n' +
+      '  pdf — download as PDF\n' +
+      '  edit — go back and adjust sections\n' +
+      '  (blank) — done for now'
+    );
+
+    if (action === 'pdf') {
+      const pdfRes = await fetch('/api/invoices/' + data.invoiceId + '/pdf', { method: 'POST' });
+      if (pdfRes.ok) {
+        const blob = await pdfRes.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = data.invoiceJson.jobNumber + '_invoice_' + data.invoiceNumber + '.pdf';
+        a.click();
+        URL.revokeObjectURL(url);
+      } else {
+        alert('PDF generation failed');
+      }
+    }
+
+    openJobDetail(jobId);
   } catch (err) {
     alert('Error: ' + err.message);
   }
