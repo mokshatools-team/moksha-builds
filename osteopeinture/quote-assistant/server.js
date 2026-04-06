@@ -15,6 +15,7 @@ const {
   normalizeImages,
   summarizeImageUpload,
 } = require('./lib/image-upload');
+const { ensureDatabase, scheduleBackup, backupToDrive } = require('./lib/db-backup');
 
 // ============================================================
 // DATABASE SETUP
@@ -22,6 +23,7 @@ const {
 
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+const DB_PATH = path.join(DATA_DIR, 'sessions.db');
 
 // Seed QUOTING_LOGIC.md to DATA_DIR on first run so it persists on the volume
 const QUOTING_LOGIC_PATH = path.join(DATA_DIR, 'QUOTING_LOGIC.md');
@@ -314,6 +316,7 @@ function saveSession(session) {
     email_recipient: session.emailRecipient || null,
     email_meta: JSON.stringify(session.emailMeta || {}),
   });
+  scheduleBackup(DB_PATH);
 }
 
 function listSessions() {
@@ -2096,10 +2099,30 @@ app.get('/api/jobs/:id/time-entries', (req, res) => {
 // START SERVER
 // ============================================================
 
+// Manual backup route
+app.post('/api/backup', async (req, res) => {
+  try {
+    const result = await backupToDrive(DB_PATH);
+    res.json({ ok: result, message: result ? 'Backup complete' : 'Backup failed or not configured' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 if (require.main === module) {
   const PORT = process.env.PORT || 3000;
-  app.listen(PORT, () => {
-    console.log(`Ostéopeinture Quote Assistant running on http://localhost:${PORT}`);
+  // Restore DB from Drive if needed, then start server
+  ensureDatabase(DB_PATH).then((status) => {
+    console.log(`[db-backup] DB status: ${status}`);
+    app.listen(PORT, () => {
+      console.log(`OP Hub running on http://localhost:${PORT}`);
+    });
+  }).catch((err) => {
+    console.error('[db-backup] Startup restore failed:', err.message);
+    // Start anyway — fallback DB will be used
+    app.listen(PORT, () => {
+      console.log(`OP Hub running on http://localhost:${PORT} (backup restore failed)`);
+    });
   });
 }
 
