@@ -155,6 +155,124 @@ try {
   // Column already exists in persistent databases; ignore migration failure.
 }
 
+// ── Job Management Tables (added 2026-04-05) ─────────────────────────────
+try { db.exec('ALTER TABLE sessions ADD COLUMN converted_job_id TEXT'); } catch(e) {}
+try { db.exec('ALTER TABLE sessions ADD COLUMN accepted_at TEXT'); } catch(e) {}
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS jobs (
+    id TEXT PRIMARY KEY,
+    quote_session_id TEXT UNIQUE,
+    job_number TEXT NOT NULL UNIQUE,
+    client_name TEXT NOT NULL,
+    client_email TEXT,
+    client_phone TEXT,
+    language TEXT NOT NULL DEFAULT 'english',
+    address TEXT NOT NULL,
+    project_title TEXT,
+    project_type TEXT DEFAULT 'hourly',
+    status TEXT NOT NULL DEFAULT 'active',
+    quote_subtotal_cents INTEGER NOT NULL DEFAULT 0,
+    quote_tax_cents INTEGER NOT NULL DEFAULT 0,
+    quote_total_cents INTEGER NOT NULL DEFAULT 0,
+    accepted_quote_json TEXT,
+    payment_terms_text TEXT,
+    start_date TEXT,
+    target_end_date TEXT,
+    completion_date TEXT,
+    internal_notes TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS job_activity_mappings (
+    id TEXT PRIMARY KEY,
+    job_id TEXT NOT NULL,
+    source_activity_name TEXT NOT NULL,
+    phase_code TEXT NOT NULL DEFAULT 'other',
+    client_label_en TEXT NOT NULL,
+    client_label_fr TEXT NOT NULL,
+    billable INTEGER NOT NULL DEFAULT 1,
+    show_on_update INTEGER NOT NULL DEFAULT 1,
+    sort_order INTEGER NOT NULL DEFAULT 100,
+    UNIQUE(job_id, source_activity_name)
+  )
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS time_import_batches (
+    id TEXT PRIMARY KEY,
+    job_id TEXT NOT NULL,
+    file_name TEXT NOT NULL,
+    imported_at TEXT NOT NULL,
+    row_count INTEGER NOT NULL DEFAULT 0,
+    inserted_count INTEGER NOT NULL DEFAULT 0,
+    duplicate_count INTEGER NOT NULL DEFAULT 0,
+    unmapped_count INTEGER NOT NULL DEFAULT 0
+  )
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS time_entries (
+    id TEXT PRIMARY KEY,
+    batch_id TEXT NOT NULL,
+    job_id TEXT NOT NULL,
+    external_row_key TEXT NOT NULL UNIQUE,
+    work_date TEXT,
+    employee_name TEXT NOT NULL,
+    source_activity_name TEXT NOT NULL,
+    mapped_phase_code TEXT,
+    mapped_label_en TEXT,
+    mapped_label_fr TEXT,
+    mapping_status TEXT NOT NULL DEFAULT 'unmapped',
+    duration_minutes INTEGER NOT NULL,
+    billable_minutes INTEGER NOT NULL DEFAULT 0,
+    notes TEXT,
+    raw_row_json TEXT NOT NULL,
+    created_at TEXT NOT NULL
+  )
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS invoices (
+    id TEXT PRIMARY KEY,
+    job_id TEXT NOT NULL,
+    invoice_number TEXT NOT NULL UNIQUE,
+    invoice_type TEXT NOT NULL DEFAULT 'final',
+    language TEXT NOT NULL DEFAULT 'french',
+    issue_date TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'draft',
+    subtotal_cents INTEGER NOT NULL DEFAULT 0,
+    tax_cents INTEGER NOT NULL DEFAULT 0,
+    total_cents INTEGER NOT NULL DEFAULT 0,
+    balance_due_cents INTEGER NOT NULL DEFAULT 0,
+    invoice_json TEXT,
+    sent_to TEXT,
+    sent_at TEXT,
+    paid_at TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS payments (
+    id TEXT PRIMARY KEY,
+    job_id TEXT NOT NULL,
+    invoice_id TEXT,
+    payment_date TEXT NOT NULL,
+    amount_cents INTEGER NOT NULL,
+    method TEXT NOT NULL DEFAULT 'e_transfer',
+    reference TEXT,
+    notes TEXT,
+    finance_sync_status TEXT NOT NULL DEFAULT 'pending',
+    finance_synced_at TEXT,
+    created_at TEXT NOT NULL
+  )
+`);
+
 function getSession(id) {
   const row = db.prepare('SELECT * FROM sessions WHERE id = ?').get(id);
   if (!row) return null;
@@ -203,6 +321,93 @@ function listSessions() {
     SELECT id, created_at, updated_at, client_name, project_id, address, total_amount, status, email_recipient
     FROM sessions ORDER BY updated_at DESC LIMIT 50
   `).all();
+}
+
+// ============================================================
+// JOB MANAGEMENT HELPERS
+// ============================================================
+
+function getJob(id) {
+  const row = db.prepare('SELECT * FROM jobs WHERE id = ?').get(id);
+  if (!row) return null;
+  return {
+    ...row,
+    acceptedQuoteJson: row.accepted_quote_json ? JSON.parse(row.accepted_quote_json) : null,
+  };
+}
+
+function listJobs() {
+  return db.prepare(`
+    SELECT j.*,
+      (SELECT COALESCE(SUM(amount_cents), 0) FROM payments WHERE job_id = j.id) as total_paid_cents
+    FROM jobs j ORDER BY j.updated_at DESC LIMIT 50
+  `).all();
+}
+
+function generateJobNumber(clientName) {
+  const prefix = (clientName || 'JOB').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 10);
+  const existing = db.prepare("SELECT job_number FROM jobs WHERE job_number LIKE ? ORDER BY job_number DESC LIMIT 1")
+    .get(`${prefix}_%`);
+  if (existing) {
+    const match = existing.job_number.match(/_(\d+)$/);
+    const next = match ? parseInt(match[1]) + 1 : 1;
+    return `${prefix}_${String(next).padStart(2, '0')}`;
+  }
+  return `${prefix}_01`;
+}
+
+function convertSessionToJob(sessionId, overrides = {}) {
+  const session = getSession(sessionId);
+  if (!session) throw new Error('Session not found');
+  if (session.converted_job_id) throw new Error('Session already converted to a job');
+
+  const now = new Date().toISOString();
+  const jobId = uuidv4();
+  const jobNumber = overrides.jobNumber || generateJobNumber(session.clientName);
+  const subtotalCents = Math.round((session.totalAmount || 0) * 100);
+  const taxCents = Math.round(subtotalCents * 0.14975);
+  const totalCents = subtotalCents + taxCents;
+
+  db.prepare(`
+    INSERT INTO jobs (id, quote_session_id, job_number, client_name, client_email, client_phone,
+      language, address, project_title, project_type, status,
+      quote_subtotal_cents, quote_tax_cents, quote_total_cents, accepted_quote_json,
+      payment_terms_text, start_date, internal_notes, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    jobId, sessionId, jobNumber,
+    overrides.clientName || session.clientName || 'Unknown',
+    overrides.clientEmail || session.emailRecipient || null,
+    overrides.clientPhone || null,
+    overrides.language || 'french',
+    overrides.address || session.address || '',
+    overrides.projectTitle || session.projectId || null,
+    overrides.projectType || 'hourly',
+    subtotalCents, taxCents, totalCents,
+    session.quoteJson ? JSON.stringify(session.quoteJson) : null,
+    overrides.paymentTerms || null,
+    overrides.startDate || null,
+    overrides.internalNotes || null,
+    now, now
+  );
+
+  // Mark session as converted
+  db.prepare('UPDATE sessions SET converted_job_id = ?, accepted_at = ? WHERE id = ?')
+    .run(jobId, now, sessionId);
+
+  return getJob(jobId);
+}
+
+function getJobPayments(jobId) {
+  return db.prepare('SELECT * FROM payments WHERE job_id = ? ORDER BY payment_date DESC').all(jobId);
+}
+
+function getJobTimeEntries(jobId) {
+  return db.prepare('SELECT * FROM time_entries WHERE job_id = ? ORDER BY work_date DESC, employee_name').all(jobId);
+}
+
+function getJobActivityMappings(jobId) {
+  return db.prepare('SELECT * FROM job_activity_mappings WHERE job_id = ? ORDER BY sort_order').all(jobId);
 }
 
 function detectDefaultEmailLanguage(session) {
@@ -1628,6 +1833,262 @@ app.post('/api/sessions/:id/email/refine', express.json(), async (req, res) => {
   } catch (err) {
     console.error('Email refine error:', err);
     res.status(500).json({ error: err.message || 'Failed to refine email' });
+  }
+});
+
+// ============================================================
+// JOB MANAGEMENT ROUTES
+// ============================================================
+
+// List all jobs
+app.get('/api/jobs', (req, res) => {
+  try {
+    const jobs = listJobs();
+    res.json(jobs);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get single job with summary
+app.get('/api/jobs/:id', (req, res) => {
+  try {
+    const job = getJob(req.params.id);
+    if (!job) return res.status(404).json({ error: 'Job not found' });
+    const payments = getJobPayments(job.id);
+    const totalPaidCents = payments.reduce((sum, p) => sum + p.amount_cents, 0);
+    const timeEntries = getJobTimeEntries(job.id);
+    const mappings = getJobActivityMappings(job.id);
+    res.json({
+      ...job,
+      payments,
+      totalPaidCents,
+      balanceRemainingCents: job.quote_total_cents - totalPaidCents,
+      timeEntryCount: timeEntries.length,
+      unmappedCount: timeEntries.filter(e => e.mapping_status === 'unmapped').length,
+      activityMappings: mappings,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Convert quote session to job
+app.post('/api/sessions/:id/convert-to-job', express.json(), (req, res) => {
+  try {
+    const job = convertSessionToJob(req.params.id, req.body || {});
+    res.json(job);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Update job details
+app.patch('/api/jobs/:id', express.json(), (req, res) => {
+  try {
+    const job = getJob(req.params.id);
+    if (!job) return res.status(404).json({ error: 'Job not found' });
+    const now = new Date().toISOString();
+    const fields = req.body;
+    const updates = [];
+    const params = [];
+    for (const [key, value] of Object.entries(fields)) {
+      const col = key.replace(/([A-Z])/g, '_$1').toLowerCase();
+      if (['client_name','client_email','client_phone','language','address','project_title',
+           'project_type','status','payment_terms_text','start_date','target_end_date',
+           'completion_date','internal_notes'].includes(col)) {
+        updates.push(`${col} = ?`);
+        params.push(value);
+      }
+    }
+    if (updates.length === 0) return res.status(400).json({ error: 'No valid fields to update' });
+    updates.push('updated_at = ?');
+    params.push(now, req.params.id);
+    db.prepare(`UPDATE jobs SET ${updates.join(', ')} WHERE id = ?`).run(...params);
+    res.json(getJob(req.params.id));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Record a payment
+app.post('/api/jobs/:id/payments', express.json(), (req, res) => {
+  try {
+    const job = getJob(req.params.id);
+    if (!job) return res.status(404).json({ error: 'Job not found' });
+    const { amount, date, method, reference, notes } = req.body;
+    if (!amount || !date) return res.status(400).json({ error: 'amount and date are required' });
+    const now = new Date().toISOString();
+    const paymentId = uuidv4();
+    db.prepare(`
+      INSERT INTO payments (id, job_id, payment_date, amount_cents, method, reference, notes, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(paymentId, job.id, date, Math.round(amount * 100), method || 'e_transfer', reference || null, notes || null, now);
+    res.json({ id: paymentId, message: 'Payment recorded' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get job payments
+app.get('/api/jobs/:id/payments', (req, res) => {
+  try {
+    res.json(getJobPayments(req.params.id));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Import Jibble CSV
+app.post('/api/jobs/:id/imports/jibble', multer({ storage: multer.memoryStorage() }).single('file'), (req, res) => {
+  try {
+    const job = getJob(req.params.id);
+    if (!job) return res.status(404).json({ error: 'Job not found' });
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+    const now = new Date().toISOString();
+    const batchId = uuidv4();
+    const content = req.file.buffer.toString('utf-8').replace(/^\uFEFF/, '');
+    const lines = content.split('\n').map(l => l.trim()).filter(Boolean);
+    if (lines.length < 2) return res.status(400).json({ error: 'CSV has no data rows' });
+
+    // Parse headers
+    const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+    const activityIdx = headers.findIndex(h => h === 'activity');
+    const memberIdx = headers.findIndex(h => h === 'member');
+    const timeIdx = headers.findIndex(h => h.includes('tracked time') || h.includes('duration'));
+    const dateIdx = headers.findIndex(h => h === 'date' || h.includes('work date'));
+
+    if (activityIdx === -1 || memberIdx === -1 || timeIdx === -1) {
+      return res.status(400).json({ error: 'CSV must have Activity, Member, and Tracked Time columns' });
+    }
+
+    // Get existing mappings for this job
+    const mappings = {};
+    getJobActivityMappings(job.id).forEach(m => { mappings[m.source_activity_name] = m; });
+
+    let inserted = 0, duplicates = 0, unmapped = 0;
+    const dataLines = lines.slice(1);
+
+    for (const line of dataLines) {
+      const cols = line.split(',').map(c => c.trim());
+      const activity = cols[activityIdx] || '';
+      const member = cols[memberIdx] || '';
+      const timeStr = cols[timeIdx] || '';
+      const workDate = dateIdx >= 0 ? cols[dateIdx] : null;
+
+      if (!activity || !member) continue;
+
+      // Parse "Xh Ym" to minutes
+      const match = timeStr.match(/(\d+)h\s*(\d+)m/);
+      const minutes = match ? parseInt(match[1]) * 60 + parseInt(match[2]) : 0;
+      if (minutes === 0) continue;
+
+      // Generate dedup key
+      const crypto = require('crypto');
+      const rowKey = crypto.createHash('sha1')
+        .update(`${job.id}|${workDate || ''}|${member}|${activity}|${minutes}`)
+        .digest('hex');
+
+      // Check for duplicate
+      const existing = db.prepare('SELECT id FROM time_entries WHERE external_row_key = ?').get(rowKey);
+      if (existing) { duplicates++; continue; }
+
+      // Check mapping
+      const mapping = mappings[activity];
+      const mappingStatus = mapping ? 'mapped' : 'unmapped';
+      if (!mapping) unmapped++;
+
+      const entryId = uuidv4();
+      db.prepare(`
+        INSERT INTO time_entries (id, batch_id, job_id, external_row_key, work_date, employee_name,
+          source_activity_name, mapped_phase_code, mapped_label_en, mapped_label_fr,
+          mapping_status, duration_minutes, billable_minutes, raw_row_json, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        entryId, batchId, job.id, rowKey, workDate, member, activity,
+        mapping ? mapping.phase_code : null,
+        mapping ? mapping.client_label_en : null,
+        mapping ? mapping.client_label_fr : null,
+        mappingStatus, minutes,
+        mapping && mapping.billable ? minutes : 0,
+        JSON.stringify(cols), now
+      );
+      inserted++;
+    }
+
+    // Save batch record
+    db.prepare(`
+      INSERT INTO time_import_batches (id, job_id, file_name, imported_at, row_count, inserted_count, duplicate_count, unmapped_count)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(batchId, job.id, req.file.originalname || 'jibble.csv', now, dataLines.length, inserted, duplicates, unmapped);
+
+    res.json({ batchId, inserted, duplicates, unmapped, total: dataLines.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get/set activity mappings for a job
+app.get('/api/jobs/:id/activity-mappings', (req, res) => {
+  try {
+    const mappings = getJobActivityMappings(req.params.id);
+    // Also get unmapped activities
+    const unmapped = db.prepare(`
+      SELECT DISTINCT source_activity_name FROM time_entries
+      WHERE job_id = ? AND mapping_status = 'unmapped'
+    `).all(req.params.id);
+    res.json({ mappings, unmappedActivities: unmapped.map(r => r.source_activity_name) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/jobs/:id/activity-mappings', express.json(), (req, res) => {
+  try {
+    const jobId = req.params.id;
+    const { mappings } = req.body; // array of { sourceActivityName, phaseCode, clientLabelEn, clientLabelFr, billable, showOnUpdate, sortOrder }
+    if (!Array.isArray(mappings)) return res.status(400).json({ error: 'mappings must be an array' });
+
+    for (const m of mappings) {
+      const id = uuidv4();
+      db.prepare(`
+        INSERT INTO job_activity_mappings (id, job_id, source_activity_name, phase_code, client_label_en, client_label_fr, billable, show_on_update, sort_order)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(job_id, source_activity_name) DO UPDATE SET
+          phase_code = excluded.phase_code,
+          client_label_en = excluded.client_label_en,
+          client_label_fr = excluded.client_label_fr,
+          billable = excluded.billable,
+          show_on_update = excluded.show_on_update,
+          sort_order = excluded.sort_order
+      `).run(id, jobId, m.sourceActivityName, m.phaseCode || 'other',
+        m.clientLabelEn || m.sourceActivityName, m.clientLabelFr || m.sourceActivityName,
+        m.billable !== false ? 1 : 0, m.showOnUpdate !== false ? 1 : 0, m.sortOrder || 100);
+
+      // Retro-apply mapping to existing unmapped entries
+      db.prepare(`
+        UPDATE time_entries SET mapping_status = 'mapped',
+          mapped_phase_code = ?, mapped_label_en = ?, mapped_label_fr = ?,
+          billable_minutes = CASE WHEN ? = 1 THEN duration_minutes ELSE 0 END
+        WHERE job_id = ? AND source_activity_name = ? AND mapping_status = 'unmapped'
+      `).run(m.phaseCode || 'other', m.clientLabelEn || m.sourceActivityName,
+        m.clientLabelFr || m.sourceActivityName, m.billable !== false ? 1 : 0,
+        jobId, m.sourceActivityName);
+    }
+
+    res.json({ updated: mappings.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get time entries for a job
+app.get('/api/jobs/:id/time-entries', (req, res) => {
+  try {
+    res.json(getJobTimeEntries(req.params.id));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
