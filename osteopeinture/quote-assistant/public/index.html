@@ -1347,6 +1347,104 @@
     color: var(--text-2);
   }
 
+  /* ─── ACTIVITY MAPPING SCREEN ─── */
+  #mapping-screen {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 180;
+    background: var(--bg);
+    flex-direction: column;
+    overflow: hidden;
+  }
+  #mapping-screen.visible { display: flex; }
+  #mapping-header {
+    padding: 14px 16px 10px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  #mapping-content {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 12px 16px 80px;
+  }
+  .mapping-card {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    margin-bottom: 12px;
+  }
+  .mapping-card-activity {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--accent);
+    margin-bottom: 10px;
+    padding: 6px 8px;
+    background: var(--surface-2);
+    border-radius: 4px;
+  }
+  .mapping-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .mapping-field {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .mapping-field label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-3);
+  }
+  .mapping-field input, .mapping-field select {
+    padding: 7px 8px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: 13px;
+  }
+  .mapping-field-full {
+    grid-column: 1 / -1;
+  }
+  .mapping-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text-2);
+    margin-top: 4px;
+  }
+  .mapping-toggle input[type="checkbox"] {
+    accent-color: var(--accent);
+  }
+  .mapping-save-btn {
+    display: block;
+    width: 100%;
+    padding: 12px;
+    margin-top: 8px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-family: var(--font-sans);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .mapping-save-btn:disabled {
+    opacity: 0.5;
+  }
+
   /* ─── MOBILE ─── */
   @media (max-width: 768px) {
     html, body {
@@ -1421,6 +1519,7 @@
     #jobs-panel { padding-top: env(safe-area-inset-top); }
     #jobs-header { padding-top: max(14px, env(safe-area-inset-top)); }
     #job-detail-header { padding-top: max(14px, env(safe-area-inset-top)); }
+    #mapping-header { padding-top: max(14px, env(safe-area-inset-top)); }
 
     /* Scale quote preview to fit mobile screen */
     #quote-frame-container {
@@ -1745,6 +1844,20 @@
     <h2 id="job-detail-title" style="font-family:var(--font-serif);font-size:18px;color:var(--text);margin:0"></h2>
   </div>
   <div id="job-detail-content"></div>
+</div>
+
+<!-- ACTIVITY MAPPING SCREEN -->
+<div id="mapping-screen">
+  <div id="mapping-header">
+    <button onclick="closeMappingScreen()" style="background:transparent;border:none;color:var(--text-2);cursor:pointer;padding:4px">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+    <div>
+      <h2 style="font-family:var(--font-serif);font-size:18px;color:var(--text);margin:0">Map Activities</h2>
+      <div id="mapping-subtitle" style="font-size:11px;color:var(--text-3)"></div>
+    </div>
+  </div>
+  <div id="mapping-content"></div>
 </div>
 
 <!-- CONVERT TO JOB MODAL -->
@@ -2834,6 +2947,10 @@ async function openJobDetail(jobId) {
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
           Import Jibble CSV
         </button>
+        <button class="job-action-btn" onclick="openMappingScreen('${job.id}')" ${job.unmappedCount > 0 ? 'style="border-color:var(--accent)"' : ''}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18"/><path d="M3 12h18"/><circle cx="12" cy="12" r="3"/></svg>
+          Map Activities ${job.unmappedCount > 0 ? '<span style="color:var(--accent);font-size:12px">(' + job.unmappedCount + ' unmapped)</span>' : ''}
+        </button>
         <button class="job-action-btn" onclick="recordPayment('${job.id}')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
           Record Payment
@@ -2908,6 +3025,148 @@ async function confirmConvertToJob() {
   }
 }
 
+// ── ACTIVITY MAPPING ────────────────────────────────
+
+let mappingJobId = null;
+
+async function openMappingScreen(jobId) {
+  mappingJobId = jobId;
+  const screen = document.getElementById('mapping-screen');
+  const content = document.getElementById('mapping-content');
+  const subtitle = document.getElementById('mapping-subtitle');
+  screen.classList.add('visible');
+  content.innerHTML = '<div style="text-align:center;color:var(--text-3);padding:20px">Loading...</div>';
+
+  try {
+    const res = await fetch('/api/jobs/' + jobId + '/activity-mappings');
+    const data = await res.json();
+    const { mappings, unmappedActivities } = data;
+
+    // Combine: show unmapped first, then existing mappings
+    const allActivities = [
+      ...unmappedActivities.map(name => ({ sourceActivityName: name, isNew: true })),
+      ...mappings.map(m => ({ ...m, isNew: false }))
+    ];
+
+    if (allActivities.length === 0) {
+      content.innerHTML = '<div style="text-align:center;color:var(--text-3);padding:40px 20px"><p>No activities to map yet.</p><p style="font-size:12px;margin-top:8px">Import a Jibble CSV first.</p></div>';
+      subtitle.textContent = '';
+      return;
+    }
+
+    subtitle.textContent = unmappedActivities.length > 0
+      ? unmappedActivities.length + ' unmapped — set labels before generating updates'
+      : mappings.length + ' mapped activities';
+
+    const phases = ['prep', 'prime', 'paint', 'stain', 'repair', 'cleanup', 'travel', 'admin', 'other'];
+
+    content.innerHTML = allActivities.map((a, i) => {
+      const name = a.sourceActivityName || a.source_activity_name;
+      const phase = a.phase_code || 'other';
+      const labelEn = a.client_label_en || name;
+      const labelFr = a.client_label_fr || name;
+      const billable = a.billable !== undefined ? a.billable : 1;
+      const showOnUpdate = a.show_on_update !== undefined ? a.show_on_update : 1;
+
+      return '<div class="mapping-card' + (a.isNew ? '" style="border-color:var(--accent)"' : '"') + '>' +
+        '<div class="mapping-card-activity">' + (a.isNew ? '⚠ NEW: ' : '') + esc(name) + '</div>' +
+        '<div class="mapping-row">' +
+          '<div class="mapping-field">' +
+            '<label>Phase</label>' +
+            '<select data-idx="' + i + '" data-field="phase">' +
+              phases.map(p => '<option value="' + p + '"' + (p === phase ? ' selected' : '') + '>' + p + '</option>').join('') +
+            '</select>' +
+          '</div>' +
+          '<div class="mapping-field">' +
+            '<label>Billable</label>' +
+            '<select data-idx="' + i + '" data-field="billable">' +
+              '<option value="1"' + (billable ? ' selected' : '') + '>Yes</option>' +
+              '<option value="0"' + (!billable ? ' selected' : '') + '>No</option>' +
+            '</select>' +
+          '</div>' +
+        '</div>' +
+        '<div class="mapping-row">' +
+          '<div class="mapping-field">' +
+            '<label>Client Label (EN)</label>' +
+            '<input type="text" data-idx="' + i + '" data-field="labelEn" value="' + esc(labelEn) + '">' +
+          '</div>' +
+          '<div class="mapping-field">' +
+            '<label>Client Label (FR)</label>' +
+            '<input type="text" data-idx="' + i + '" data-field="labelFr" value="' + esc(labelFr) + '">' +
+          '</div>' +
+        '</div>' +
+        '<div class="mapping-toggle">' +
+          '<input type="checkbox" data-idx="' + i + '" data-field="showOnUpdate"' + (showOnUpdate ? ' checked' : '') + '>' +
+          '<span>Show on client updates</span>' +
+        '</div>' +
+      '</div>';
+    }).join('') +
+    '<button class="mapping-save-btn" onclick="saveMappings()">Save All Mappings</button>';
+
+    // Store activity names for save
+    window._mappingActivities = allActivities.map(a => a.sourceActivityName || a.source_activity_name);
+
+  } catch (err) {
+    content.innerHTML = '<div style="color:var(--accent);padding:20px">Error: ' + esc(err.message) + '</div>';
+  }
+}
+
+function closeMappingScreen() {
+  document.getElementById('mapping-screen').classList.remove('visible');
+  // Refresh job detail if we came from there
+  if (mappingJobId && currentJobId === mappingJobId) {
+    openJobDetail(mappingJobId);
+  }
+  mappingJobId = null;
+}
+
+async function saveMappings() {
+  if (!mappingJobId || !window._mappingActivities) return;
+  const btn = document.querySelector('.mapping-save-btn');
+  btn.textContent = 'Saving...';
+  btn.disabled = true;
+
+  try {
+    const mappings = window._mappingActivities.map((name, i) => {
+      const getVal = (field) => {
+        const el = document.querySelector('[data-idx="' + i + '"][data-field="' + field + '"]');
+        if (!el) return null;
+        if (el.type === 'checkbox') return el.checked;
+        return el.value;
+      };
+      return {
+        sourceActivityName: name,
+        phaseCode: getVal('phase') || 'other',
+        clientLabelEn: getVal('labelEn') || name,
+        clientLabelFr: getVal('labelFr') || name,
+        billable: getVal('billable') === '1',
+        showOnUpdate: getVal('showOnUpdate'),
+      };
+    });
+
+    const res = await fetch('/api/jobs/' + mappingJobId + '/activity-mappings', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mappings }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      btn.textContent = 'Saved!';
+      setTimeout(() => closeMappingScreen(), 800);
+    } else {
+      alert(data.error || 'Save failed');
+      btn.textContent = 'Save All Mappings';
+      btn.disabled = false;
+    }
+  } catch (err) {
+    alert('Error: ' + err.message);
+    btn.textContent = 'Save All Mappings';
+    btn.disabled = false;
+  }
+}
+
+// ── CONVERT TO JOB ──────────────────────────────────
+
 function openConvertFromCurrentSession() {
   if (!currentSessionId) return;
   // Fetch session data to prefill modal
@@ -2943,7 +3202,15 @@ function importJibbleCSV(jobId) {
       const res = await fetch('/api/jobs/' + jobId + '/imports/jibble', { method: 'POST', body: formData });
       const data = await res.json();
       if (res.ok) {
-        alert(`Imported: ${data.inserted} rows\nDuplicates skipped: ${data.duplicates}\nUnmapped activities: ${data.unmapped}`);
+        if (data.unmapped > 0) {
+          const mapNow = confirm(`Imported: ${data.inserted} rows\nDuplicates skipped: ${data.duplicates}\n\n${data.unmapped} activities need mapping.\n\nMap them now?`);
+          if (mapNow) {
+            openMappingScreen(jobId);
+            return;
+          }
+        } else {
+          alert(`Imported: ${data.inserted} rows\nDuplicates skipped: ${data.duplicates}\nAll activities mapped!`);
+        }
         openJobDetail(jobId);
       } else {
         alert(data.error || 'Import failed');
