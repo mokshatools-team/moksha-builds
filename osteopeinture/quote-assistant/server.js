@@ -2099,7 +2099,15 @@ app.get('/api/jobs/:id/time-entries', (req, res) => {
 // START SERVER
 // ============================================================
 
-// Manual backup route
+// Download DB file for manual backup
+app.get('/api/backup/download', (req, res) => {
+  if (!fs.existsSync(DB_PATH)) return res.status(404).json({ error: 'No database found' });
+  res.setHeader('Content-Type', 'application/x-sqlite3');
+  res.setHeader('Content-Disposition', 'attachment; filename=op-hub-sessions.db');
+  fs.createReadStream(DB_PATH).pipe(res);
+});
+
+// Manual backup route (Drive — may not work on consumer accounts)
 app.post('/api/backup', async (req, res) => {
   try {
     const result = await backupToDrive(DB_PATH);
