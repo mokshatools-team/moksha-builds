@@ -2529,7 +2529,27 @@ app.post('/api/jobs/:id/invoices/generate', express.json(), (req, res) => {
         }
       }
 
-      // Source 2: Hourly work from mapped time entries (not in quote)
+      // Source 2: Approved change orders
+      const changeOrders = db.prepare("SELECT * FROM job_change_orders WHERE job_id = ? AND status = 'approved' ORDER BY created_at").all(job.id);
+      for (const co of changeOrders) {
+        let coItems = [];
+        try { coItems = JSON.parse(co.description); } catch(e) {}
+        if (!Array.isArray(coItems)) coItems = [];
+        const coTitle = isFr ? co.title_fr : co.title_en;
+        draftSections.push({
+          title: coTitle,
+          source: 'change_order',
+          changeOrderId: co.id,
+          items: coItems.map(i => ({
+            description: i.description || i.desc || coTitle,
+            amount: i.amountCents || 0,
+            type: 'change_order',
+          })),
+          subtotalCents: co.amount_cents,
+        });
+      }
+
+      // Source 3: Hourly work from mapped time entries (not in quote)
       const timeEntries = db.prepare(`
         SELECT mapped_label_en, mapped_label_fr, mapped_phase_code,
           SUM(billable_minutes) as total_minutes, employee_name
