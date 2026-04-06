@@ -1108,13 +1108,19 @@
   #jobs-panel {
     display: none;
     position: fixed;
-    inset: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 220px;
     z-index: 160;
     background: var(--bg);
     flex-direction: column;
     overflow: hidden;
   }
   #jobs-panel.visible { display: flex; }
+  @media (max-width: 768px) {
+    #jobs-panel { left: 0; }
+  }
   #jobs-header {
     padding: 14px 16px 10px;
     border-bottom: 1px solid var(--border);
@@ -1190,13 +1196,19 @@
   #job-detail {
     display: none;
     position: fixed;
-    inset: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 220px;
     z-index: 170;
     background: var(--bg);
     flex-direction: column;
     overflow: hidden;
   }
   #job-detail.visible { display: flex; }
+  @media (max-width: 768px) {
+    #job-detail { left: 0; }
+  }
   #job-detail-header {
     padding: 14px 16px 10px;
     border-bottom: 1px solid var(--border);
@@ -1351,13 +1363,19 @@
   #mapping-screen {
     display: none;
     position: fixed;
-    inset: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 220px;
     z-index: 180;
     background: var(--bg);
     flex-direction: column;
     overflow: hidden;
   }
   #mapping-screen.visible { display: flex; }
+  @media (max-width: 768px) {
+    #mapping-screen { left: 0; }
+  }
   #mapping-header {
     padding: 14px 16px 10px;
     border-bottom: 1px solid var(--border);
@@ -1667,11 +1685,15 @@
 <div id="sidebar">
   <div id="sidebar-brand">
     <div class="brand-wordmark">Ostéopeinture</div>
-    <div class="brand-sub">Quote Assistant</div>
+    <div class="brand-sub">OP Hub</div>
   </div>
   <div id="sidebar-controls">
     <button id="new-quote-btn" onclick="startNewSession()">
       <span class="new-btn-icon">+</span> New Quote
+    </button>
+    <button id="jobs-btn" onclick="toggleJobsView()" style="width:100%;padding:8px 14px;margin-top:6px;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;color:var(--text-2);font-family:var(--font-sans);font-size:12px;font-weight:500;cursor:pointer;text-align:left;display:flex;align-items:center;gap:8px">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
+      Jobs
     </button>
   </div>
   <div id="sidebar-section-label">Past Quotes</div>
@@ -2792,8 +2814,21 @@ document.getElementById('email-detail-level').addEventListener('change', () => r
 // ── MOBILE BOTTOM NAV ───────────────────────────────
 let mobileCurrentView = 'chat';
 
+function toggleJobsView() {
+  const jobsPanel = document.getElementById('jobs-panel');
+  const isVisible = jobsPanel.classList.contains('visible');
+  if (isVisible) {
+    jobsPanel.classList.remove('visible');
+    document.getElementById('job-detail').classList.remove('visible');
+  } else {
+    jobsPanel.classList.add('visible');
+    loadJobs();
+  }
+}
+
 function mobileNavTo(view) {
   const isMobile = window.innerWidth <= 768;
+  if (!isMobile && view === 'jobs') { toggleJobsView(); return; }
   if (!isMobile) return;
 
   mobileCurrentView = view;
