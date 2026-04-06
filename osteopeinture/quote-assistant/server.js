@@ -2109,19 +2109,21 @@ app.post('/api/backup', async (req, res) => {
   }
 });
 
+// Version endpoint for deploy verification
+app.get('/api/version', (req, res) => {
+  res.json({ version: '2026-04-06', features: ['jobs', 'jibble-import', 'db-backup'] });
+});
+
 if (require.main === module) {
   const PORT = process.env.PORT || 3000;
-  // Restore DB from Drive if needed, then start server
-  ensureDatabase(DB_PATH).then((status) => {
-    console.log(`[db-backup] DB status: ${status}`);
-    app.listen(PORT, () => {
-      console.log(`OP Hub running on http://localhost:${PORT}`);
-    });
-  }).catch((err) => {
-    console.error('[db-backup] Startup restore failed:', err.message);
-    // Start anyway — fallback DB will be used
-    app.listen(PORT, () => {
-      console.log(`OP Hub running on http://localhost:${PORT} (backup restore failed)`);
+  // Start server immediately — never block on backup
+  app.listen(PORT, () => {
+    console.log(`OP Hub running on http://localhost:${PORT}`);
+    // Restore/backup in background after server is up
+    ensureDatabase(DB_PATH).then((status) => {
+      console.log(`[db-backup] DB status: ${status}`);
+    }).catch((err) => {
+      console.error('[db-backup] Startup backup error:', err.message);
     });
   });
 }
