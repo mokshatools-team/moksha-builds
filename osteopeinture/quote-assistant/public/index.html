@@ -1104,6 +1104,249 @@
   .mobile-nav-tab.active { color: var(--accent); }
   .mobile-nav-tab svg { width: 18px; height: 18px; }
 
+  /* ─── JOBS PANEL ─── */
+  #jobs-panel {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 160;
+    background: var(--bg);
+    flex-direction: column;
+    overflow: hidden;
+  }
+  #jobs-panel.visible { display: flex; }
+  #jobs-header {
+    padding: 14px 16px 10px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  #jobs-header h2 {
+    font-family: var(--font-serif);
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--text);
+    margin: 0;
+  }
+  #jobs-list {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 8px 12px 80px;
+  }
+  .job-card {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+  .job-card:active { border-color: var(--accent-dim); }
+  .job-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 6px;
+  }
+  .job-card-client {
+    font-family: var(--font-serif);
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .job-card-status {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 2px 8px;
+    border-radius: 4px;
+    color: var(--text);
+  }
+  .job-card-status.active { background: var(--sage-dim); color: var(--sage); }
+  .job-card-status.invoiced { background: var(--blue-dim); color: var(--blue); }
+  .job-card-status.paid { background: var(--surface-3); color: var(--text-2); }
+  .job-card-address {
+    font-size: 12px;
+    color: var(--text-2);
+    margin-bottom: 8px;
+  }
+  .job-card-footer {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--text-3);
+  }
+  .job-card-amount {
+    font-family: var(--font-mono);
+    color: var(--accent);
+    font-weight: 500;
+  }
+
+  /* Job detail view */
+  #job-detail {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 170;
+    background: var(--bg);
+    flex-direction: column;
+    overflow: hidden;
+  }
+  #job-detail.visible { display: flex; }
+  #job-detail-header {
+    padding: 14px 16px 10px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  #job-detail-back {
+    background: transparent;
+    border: none;
+    color: var(--text-2);
+    cursor: pointer;
+    padding: 4px;
+  }
+  #job-detail-content {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 16px;
+    padding-bottom: 80px;
+  }
+  .job-detail-section {
+    margin-bottom: 20px;
+  }
+  .job-detail-section h3 {
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-3);
+    margin: 0 0 8px;
+  }
+  .job-stat-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .job-stat {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px;
+  }
+  .job-stat-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-3);
+    margin-bottom: 4px;
+  }
+  .job-stat-value {
+    font-family: var(--font-mono);
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--text);
+  }
+  .job-action-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 12px 14px;
+    margin-bottom: 6px;
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+  .job-action-btn:active { border-color: var(--accent); }
+  .job-action-btn svg { width: 18px; height: 18px; color: var(--text-2); }
+
+  /* Convert-to-job modal */
+  #convert-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 500;
+    background: rgba(0,0,0,0.7);
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  #convert-modal.visible { display: flex; }
+  #convert-modal-inner {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    width: 100%;
+    max-width: 400px;
+    max-height: 80vh;
+    overflow-y: auto;
+  }
+  #convert-modal-inner h3 {
+    font-family: var(--font-serif);
+    font-size: 18px;
+    color: var(--text);
+    margin: 0 0 14px;
+  }
+  .convert-field {
+    margin-bottom: 12px;
+  }
+  .convert-field label {
+    display: block;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-3);
+    margin-bottom: 4px;
+  }
+  .convert-field input, .convert-field select {
+    width: 100%;
+    padding: 8px 10px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: 14px;
+  }
+  .convert-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+  }
+  .convert-actions button {
+    flex: 1;
+    padding: 10px;
+    border-radius: 6px;
+    font-family: var(--font-sans);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1px solid var(--border);
+  }
+  .btn-convert-confirm {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent) !important;
+  }
+  .btn-convert-cancel {
+    background: var(--surface-2);
+    color: var(--text-2);
+  }
+
   /* ─── MOBILE ─── */
   @media (max-width: 768px) {
     html, body {
@@ -1174,6 +1417,10 @@
       transition: transform 0.25s ease;
     }
     #quote-panel.mobile-open { transform: translateX(0); }
+
+    #jobs-panel { padding-top: env(safe-area-inset-top); }
+    #jobs-header { padding-top: max(14px, env(safe-area-inset-top)); }
+    #job-detail-header { padding-top: max(14px, env(safe-area-inset-top)); }
 
     /* Scale quote preview to fit mobile screen */
     #quote-frame-container {
@@ -1368,6 +1615,7 @@
       <div id="chat-header-title">New Quote</div>
       <div id="session-badge" style="display:none"></div>
       <button id="mobile-quote-btn" onclick="openQuotePanel()">Quote ›</button>
+      <button id="convert-to-job-btn" onclick="openConvertFromCurrentSession()" style="display:none;background:var(--sage-dim);color:var(--sage);border:none;padding:4px 10px;border-radius:4px;font-size:11px;font-weight:600;cursor:pointer">→ Job</button>
     </div>
     <div id="messages">
       <div class="msg system">Select a past quote or start a new one.</div>
@@ -1480,6 +1728,66 @@
 
 </div>
 
+<!-- JOBS PANEL -->
+<div id="jobs-panel">
+  <div id="jobs-header">
+    <h2>Jobs</h2>
+  </div>
+  <div id="jobs-list"></div>
+</div>
+
+<!-- JOB DETAIL PANEL -->
+<div id="job-detail">
+  <div id="job-detail-header">
+    <button id="job-detail-back" onclick="closeJobDetail()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+    <h2 id="job-detail-title" style="font-family:var(--font-serif);font-size:18px;color:var(--text);margin:0"></h2>
+  </div>
+  <div id="job-detail-content"></div>
+</div>
+
+<!-- CONVERT TO JOB MODAL -->
+<div id="convert-modal">
+  <div id="convert-modal-inner">
+    <h3>Convert to Job</h3>
+    <div class="convert-field">
+      <label>Job Number</label>
+      <input type="text" id="convert-job-number" placeholder="e.g. CHAUT_01">
+    </div>
+    <div class="convert-field">
+      <label>Client Name</label>
+      <input type="text" id="convert-client-name">
+    </div>
+    <div class="convert-field">
+      <label>Address</label>
+      <input type="text" id="convert-address">
+    </div>
+    <div class="convert-field">
+      <label>Client Email</label>
+      <input type="email" id="convert-client-email">
+    </div>
+    <div class="convert-field">
+      <label>Language</label>
+      <select id="convert-language">
+        <option value="french">French</option>
+        <option value="english">English</option>
+      </select>
+    </div>
+    <div class="convert-field">
+      <label>Project Type</label>
+      <select id="convert-project-type">
+        <option value="hourly">Hourly / Budget</option>
+        <option value="fixed">Fixed Price</option>
+      </select>
+    </div>
+    <div class="convert-actions">
+      <button class="btn-convert-cancel" onclick="closeConvertModal()">Cancel</button>
+      <button class="btn-convert-confirm" onclick="confirmConvertToJob()">Create Job</button>
+    </div>
+  </div>
+</div>
+
 <!-- MOBILE BOTTOM NAV -->
 <div id="mobile-nav">
   <button class="mobile-nav-tab active" id="nav-chat" onclick="mobileNavTo('chat')">
@@ -1489,6 +1797,10 @@
   <button class="mobile-nav-tab" id="nav-quote" onclick="mobileNavTo('quote')">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="7" y1="8" x2="17" y2="8"/><line x1="7" y1="12" x2="14" y2="12"/><line x1="7" y1="16" x2="11" y2="16"/></svg>
     Quote
+  </button>
+  <button class="mobile-nav-tab" id="nav-jobs" onclick="mobileNavTo('jobs')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
+    Jobs
   </button>
   <button class="mobile-nav-tab" id="nav-email" onclick="mobileNavTo('email')">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="4" width="20" height="16" rx="2"/><polyline points="22,7 12,13 2,7"/></svg>
@@ -1664,6 +1976,7 @@ async function loadSession(id) {
   }
 
   document.getElementById('chat-header-title').textContent = session.project_id || session.client_name || 'New Quote';
+  updateConvertButton(session);
   loadSidebar();
 }
 
@@ -2379,19 +2692,35 @@ function mobileNavTo(view) {
   const tab = document.getElementById('nav-' + view);
   if (tab) tab.classList.add('active');
 
+  const jobsPanel = document.getElementById('jobs-panel');
+  const jobDetail = document.getElementById('job-detail');
+
   if (view === 'chat') {
     quotePanel.classList.remove('mobile-open');
     emailForm.classList.remove('open');
     emailForm.classList.remove('minimized');
+    jobsPanel.classList.remove('visible');
+    jobDetail.classList.remove('visible');
   } else if (view === 'quote') {
     quotePanel.classList.add('mobile-open');
     emailForm.classList.remove('open');
     emailForm.classList.remove('minimized');
+    jobsPanel.classList.remove('visible');
+    jobDetail.classList.remove('visible');
     setTimeout(updateQuoteScale, 50);
+  } else if (view === 'jobs') {
+    quotePanel.classList.remove('mobile-open');
+    emailForm.classList.remove('open');
+    emailForm.classList.remove('minimized');
+    jobsPanel.classList.add('visible');
+    jobDetail.classList.remove('visible');
+    loadJobs();
   } else if (view === 'email') {
     quotePanel.classList.add('mobile-open');
     emailForm.classList.add('open');
     emailForm.classList.remove('minimized');
+    jobsPanel.classList.remove('visible');
+    jobDetail.classList.remove('visible');
   }
 }
 
@@ -2425,6 +2754,234 @@ function mobileNavTo(view) {
     }
   }, { passive: true });
 })();
+
+// ── JOB MANAGEMENT ──────────────────────────────────
+
+let currentJobId = null;
+let convertingSessionId = null;
+
+async function loadJobs() {
+  const list = document.getElementById('jobs-list');
+  list.innerHTML = '<div style="text-align:center;color:var(--text-3);padding:20px">Loading jobs...</div>';
+  try {
+    const res = await fetch('/api/jobs');
+    const jobs = await res.json();
+    if (jobs.length === 0) {
+      list.innerHTML = '<div style="text-align:center;color:var(--text-3);padding:40px 20px"><p>No jobs yet.</p><p style="font-size:12px;margin-top:8px">Convert a quote to a job to get started.</p></div>';
+      return;
+    }
+    list.innerHTML = jobs.map(j => {
+      const total = (j.quote_total_cents / 100).toLocaleString('fr-CA', {maximumFractionDigits:0});
+      const paid = ((j.total_paid_cents || 0) / 100).toLocaleString('fr-CA', {maximumFractionDigits:0});
+      const balance = ((j.quote_total_cents - (j.total_paid_cents || 0)) / 100).toLocaleString('fr-CA', {maximumFractionDigits:0});
+      return `<div class="job-card" onclick="openJobDetail('${j.id}')">
+        <div class="job-card-header">
+          <span class="job-card-client">${esc(j.client_name)}</span>
+          <span class="job-card-status ${j.status}">${j.status}</span>
+        </div>
+        <div class="job-card-address">${esc(j.address)} — ${esc(j.job_number)}</div>
+        <div class="job-card-footer">
+          <span>Paid: $${paid} / $${total}</span>
+          <span class="job-card-amount">Balance: $${balance}</span>
+        </div>
+      </div>`;
+    }).join('');
+  } catch (err) {
+    list.innerHTML = '<div style="color:var(--accent);padding:20px">Error loading jobs: ' + esc(err.message) + '</div>';
+  }
+}
+
+async function openJobDetail(jobId) {
+  currentJobId = jobId;
+  const detail = document.getElementById('job-detail');
+  const content = document.getElementById('job-detail-content');
+  const title = document.getElementById('job-detail-title');
+  detail.classList.add('visible');
+  content.innerHTML = '<div style="text-align:center;color:var(--text-3);padding:20px">Loading...</div>';
+
+  try {
+    const res = await fetch('/api/jobs/' + jobId);
+    const job = await res.json();
+    title.textContent = job.client_name;
+
+    const total = (job.quote_total_cents / 100);
+    const paid = (job.totalPaidCents / 100);
+    const balance = (job.balanceRemainingCents / 100);
+
+    content.innerHTML = `
+      <div class="job-detail-section">
+        <h3>Summary</h3>
+        <div class="job-stat-grid">
+          <div class="job-stat"><div class="job-stat-label">Quote Total</div><div class="job-stat-value">$${formatMoney(total)}</div></div>
+          <div class="job-stat"><div class="job-stat-label">Paid</div><div class="job-stat-value">$${formatMoney(paid)}</div></div>
+          <div class="job-stat"><div class="job-stat-label">Balance</div><div class="job-stat-value" style="color:${balance > 0 ? 'var(--accent)' : 'var(--sage)'}">$${formatMoney(balance)}</div></div>
+          <div class="job-stat"><div class="job-stat-label">Time Entries</div><div class="job-stat-value">${job.timeEntryCount}${job.unmappedCount > 0 ? ' <span style="color:var(--accent);font-size:12px">('+job.unmappedCount+' unmapped)</span>' : ''}</div></div>
+        </div>
+      </div>
+      <div class="job-detail-section">
+        <h3>Details</h3>
+        <div style="font-size:13px;color:var(--text-2);line-height:1.6">
+          <div><strong>Job #:</strong> ${esc(job.job_number)}</div>
+          <div><strong>Address:</strong> ${esc(job.address)}</div>
+          <div><strong>Type:</strong> ${job.project_type}</div>
+          <div><strong>Status:</strong> ${job.status}</div>
+          ${job.internal_notes ? '<div style="margin-top:8px;padding:8px;background:var(--surface-2);border-radius:4px;font-size:12px">' + esc(job.internal_notes) + '</div>' : ''}
+        </div>
+      </div>
+      <div class="job-detail-section">
+        <h3>Actions</h3>
+        <button class="job-action-btn" onclick="importJibbleCSV('${job.id}')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Import Jibble CSV
+        </button>
+        <button class="job-action-btn" onclick="recordPayment('${job.id}')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          Record Payment
+        </button>
+      </div>
+      ${job.payments.length > 0 ? `
+      <div class="job-detail-section">
+        <h3>Payments</h3>
+        ${job.payments.map(p => `
+          <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px">
+            <span style="color:var(--text-2)">${p.payment_date} — ${p.method}</span>
+            <span style="font-family:var(--font-mono);color:var(--sage)">$${(p.amount_cents/100).toLocaleString('fr-CA')}</span>
+          </div>
+        `).join('')}
+      </div>` : ''}
+    `;
+  } catch (err) {
+    content.innerHTML = '<div style="color:var(--accent);padding:20px">Error: ' + esc(err.message) + '</div>';
+  }
+}
+
+function closeJobDetail() {
+  document.getElementById('job-detail').classList.remove('visible');
+  currentJobId = null;
+}
+
+// Convert to Job
+function openConvertModal(sessionId, clientName, address, email) {
+  convertingSessionId = sessionId;
+  document.getElementById('convert-client-name').value = clientName || '';
+  document.getElementById('convert-address').value = address || '';
+  document.getElementById('convert-client-email').value = email || '';
+  document.getElementById('convert-job-number').value = '';
+  document.getElementById('convert-modal').classList.add('visible');
+}
+
+function closeConvertModal() {
+  document.getElementById('convert-modal').classList.remove('visible');
+  convertingSessionId = null;
+}
+
+async function confirmConvertToJob() {
+  if (!convertingSessionId) return;
+  const btn = document.querySelector('.btn-convert-confirm');
+  btn.textContent = 'Creating...';
+  btn.disabled = true;
+  try {
+    const res = await fetch('/api/sessions/' + convertingSessionId + '/convert-to-job', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jobNumber: document.getElementById('convert-job-number').value || undefined,
+        clientName: document.getElementById('convert-client-name').value || undefined,
+        address: document.getElementById('convert-address').value || undefined,
+        clientEmail: document.getElementById('convert-client-email').value || undefined,
+        language: document.getElementById('convert-language').value,
+        projectType: document.getElementById('convert-project-type').value,
+      }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      closeConvertModal();
+      mobileNavTo('jobs');
+    } else {
+      alert(data.error || 'Failed to create job');
+    }
+  } catch (err) {
+    alert('Error: ' + err.message);
+  } finally {
+    btn.textContent = 'Create Job';
+    btn.disabled = false;
+  }
+}
+
+function openConvertFromCurrentSession() {
+  if (!currentSessionId) return;
+  // Fetch session data to prefill modal
+  fetch('/api/sessions/' + currentSessionId)
+    .then(r => r.json())
+    .then(s => {
+      openConvertModal(s.id, s.client_name, s.address, s.email_recipient);
+    });
+}
+
+function updateConvertButton(session) {
+  const btn = document.getElementById('convert-to-job-btn');
+  if (!btn) return;
+  // Show only if quote is ready and not already converted
+  if (session && session.status === 'quote_ready' && !session.converted_job_id) {
+    btn.style.display = '';
+  } else {
+    btn.style.display = 'none';
+  }
+}
+
+// Jibble CSV import (simple file picker)
+function importJibbleCSV(jobId) {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.csv';
+  input.onchange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      const res = await fetch('/api/jobs/' + jobId + '/imports/jibble', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (res.ok) {
+        alert(`Imported: ${data.inserted} rows\nDuplicates skipped: ${data.duplicates}\nUnmapped activities: ${data.unmapped}`);
+        openJobDetail(jobId);
+      } else {
+        alert(data.error || 'Import failed');
+      }
+    } catch (err) {
+      alert('Error: ' + err.message);
+    }
+  };
+  input.click();
+}
+
+// Record payment (simple prompt-based for MVP)
+async function recordPayment(jobId) {
+  const amount = prompt('Payment amount ($):');
+  if (!amount) return;
+  const method = prompt('Method (e_transfer, cash, cheque):', 'e_transfer');
+  if (!method) return;
+  const date = prompt('Payment date (YYYY-MM-DD):', new Date().toISOString().slice(0,10));
+  if (!date) return;
+  const reference = prompt('Reference (optional):');
+
+  try {
+    const res = await fetch('/api/jobs/' + jobId + '/payments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amount: parseFloat(amount), date, method, reference }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      alert('Payment recorded');
+      openJobDetail(jobId);
+    } else {
+      alert(data.error || 'Failed');
+    }
+  } catch (err) {
+    alert('Error: ' + err.message);
+  }
+}
 
 // ── INIT ─────────────────────────────────────────────
 loadSidebar();
