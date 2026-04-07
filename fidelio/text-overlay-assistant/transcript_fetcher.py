@@ -113,6 +113,8 @@ def download_youtube_audio(url: str) -> str:
                 "--extract-audio",
                 "--audio-format",
                 "mp3",
+                "--js-runtimes",
+                "node",
                 "--output",
                 output_template,
                 url,

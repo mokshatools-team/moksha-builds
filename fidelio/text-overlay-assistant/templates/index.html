@@ -1409,10 +1409,12 @@
         return { resp, sourceLabel: youtubeUrl };
       }
 
-      const oauthVideo = document.getElementById('youtube-account-input').value.trim();
+      const oauthInput = document.getElementById('youtube-account-input').value.trim();
+      const oauthDropdown = document.getElementById('youtube-account-select').value.trim();
+      const oauthVideo = oauthInput || oauthDropdown;
       selectedYoutubeOauthVideo = oauthVideo;
       if (!youtubeAuthConnected) throw new Error('Connect your YouTube account before analyzing.');
-      if (!oauthVideo) throw new Error('Paste a YouTube URL or video ID before analyzing.');
+      if (!oauthVideo) throw new Error('Select a video from your channel or paste a YouTube URL / video ID before analyzing.');
       const resp = await fetch('/transcript/youtube-oauth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
