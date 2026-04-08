@@ -2027,6 +2027,31 @@ app.patch('/api/jobs/:id', express.json(), (req, res) => {
   }
 });
 
+// Delete a job (and all its dependent rows). Unlinks the source session so
+// it can be re-converted. Destructive — no soft-delete.
+app.delete('/api/jobs/:id', (req, res) => {
+  try {
+    const job = getJob(req.params.id);
+    if (!job) return res.status(404).json({ error: 'Job not found' });
+    const jobId = job.id;
+    const txn = db.transaction(() => {
+      db.prepare('DELETE FROM payments WHERE job_id = ?').run(jobId);
+      db.prepare('DELETE FROM time_entries WHERE job_id = ?').run(jobId);
+      db.prepare('DELETE FROM time_import_batches WHERE job_id = ?').run(jobId);
+      db.prepare('DELETE FROM job_activity_mappings WHERE job_id = ?').run(jobId);
+      db.prepare('DELETE FROM job_change_orders WHERE job_id = ?').run(jobId);
+      db.prepare('DELETE FROM client_updates WHERE job_id = ?').run(jobId);
+      db.prepare('DELETE FROM invoices WHERE job_id = ?').run(jobId);
+      db.prepare('UPDATE sessions SET converted_job_id = NULL, accepted_at = NULL WHERE converted_job_id = ?').run(jobId);
+      db.prepare('DELETE FROM jobs WHERE id = ?').run(jobId);
+    });
+    txn();
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Record a payment
 app.post('/api/jobs/:id/payments', express.json(), (req, res) => {
   try {

@@ -3067,6 +3067,10 @@ async function openJobDetail(jobId) {
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
           Record Payment
         </button>
+        <button class="job-action-btn" onclick="deleteJob('${job.id}', '${esc(job.client_name || '')}')" style="color:#c94a4a;border-color:rgba(201,74,74,0.3)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg>
+          Delete Job
+        </button>
       </div>
       ${job.payments.length > 0 ? `
       <div class="job-detail-section">
@@ -3487,6 +3491,24 @@ function importJibbleCSV(jobId) {
 }
 
 // Record payment (simple prompt-based for MVP)
+async function deleteJob(jobId, clientName) {
+  const label = clientName ? ` for ${clientName}` : '';
+  if (!confirm(`Delete this job${label}?\n\nThis removes ALL payments, time entries, change orders, invoices, and client updates for this job. The source quote session will be unlinked so you can re-convert it.\n\nThis cannot be undone.`)) return;
+  try {
+    const res = await fetch('/api/jobs/' + jobId, { method: 'DELETE' });
+    const data = await res.json();
+    if (res.ok) {
+      closeJobDetail();
+      if (typeof loadJobs === 'function') loadJobs();
+      if (typeof loadSidebar === 'function') loadSidebar();
+    } else {
+      alert('Error: ' + (data.error || 'Delete failed'));
+    }
+  } catch (err) {
+    alert('Error: ' + err.message);
+  }
+}
+
 async function recordPayment(jobId) {
   const amount = prompt('Payment amount ($):');
   if (!amount) return;
