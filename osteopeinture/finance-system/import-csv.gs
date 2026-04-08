@@ -74,6 +74,7 @@ function onOpen() {
     .addSeparator()
     .addItem('Setup: Configure Folder & API Key', 'setupScriptProperties')
     .addItem('Setup: Install Hourly Trigger', 'installTrigger')
+    .addItem('Setup: Reset Processed File Cache', 'resetProcessedFiles')
     .addToUi();
 }
 
@@ -512,6 +513,11 @@ function pushStagedToTransactions() {
 function getProcessedFileIds() {
   const raw = PropertiesService.getScriptProperties().getProperty('PROCESSED_FILE_IDS') || '[]';
   return new Set(JSON.parse(raw));
+}
+
+function resetProcessedFiles() {
+  PropertiesService.getScriptProperties().deleteProperty('PROCESSED_FILE_IDS');
+  SpreadsheetApp.getUi().alert('Processed file cache cleared. Run "Check Bank Export Folder Now" to re-import.');
 }
 
 function markFileProcessed(fileId, fileName, rowCount) {

@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 15px;
+    background: #f9f9f9;
+    color: #1a1a1a;
+    padding: 12px;
+  }
+
+  .field {
+    margin-bottom: 12px;
+  }
+
+  label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #666;
+    margin-bottom: 4px;
+  }
+
+  input, select, textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 15px;
+    background: #fff;
+    color: #1a1a1a;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23666' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 32px;
+  }
+
+  input:focus, select:focus {
+    outline: none;
+    border-color: #1a1a2e;
+    box-shadow: 0 0 0 2px rgba(26,26,46,0.12);
+  }
+
+  .amount-input {
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+  }
+
+  /* Mirror toggle */
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 0;
+    border-top: 1px solid #eee;
+    border-bottom: 1px solid #eee;
+    margin-bottom: 14px;
+  }
+
+  .toggle-label {
+    font-size: 13px;
+    color: #333;
+    line-height: 1.3;
+    flex: 1;
+  }
+
+  .toggle {
+    position: relative;
+    width: 44px;
+    height: 26px;
+    flex-shrink: 0;
+  }
+
+  .toggle input { opacity: 0; width: 0; height: 0; }
+
+  .slider {
+    position: absolute;
+    cursor: pointer;
+    inset: 0;
+    background: #ccc;
+    border-radius: 26px;
+    transition: 0.2s;
+  }
+
+  .slider:before {
+    content: '';
+    position: absolute;
+    width: 20px; height: 20px;
+    left: 3px; bottom: 3px;
+    background: white;
+    border-radius: 50%;
+    transition: 0.2s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  }
+
+  input:checked + .slider { background: #1a1a2e; }
+  input:checked + .slider:before { transform: translateX(18px); }
+
+  /* Submit button */
+  #submitBtn {
+    width: 100%;
+    padding: 14px;
+    background: #1a1a2e;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    letter-spacing: 0.02em;
+    margin-top: 4px;
+  }
+
+  #submitBtn:active { background: #2d2d5e; }
+  #submitBtn:disabled { background: #999; cursor: default; }
+
+  /* Status messages */
+  #status {
+    text-align: center;
+    font-size: 13px;
+    margin-top: 10px;
+    min-height: 20px;
+  }
+
+  .status-ok  { color: #2d6a2d; font-weight: 600; }
+  .status-err { color: #cc0000; }
+  .status-loading { color: #666; }
+
+  /* Optional field hint */
+  .optional {
+    font-size: 11px;
+    color: #999;
+    font-weight: normal;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+</style>
+</head>
+<body>
+
+<div class="field">
+  <label>Date</label>
+  <input type="date" id="date">
+</div>
+
+<div class="field">
+  <label>Description</label>
+  <input type="text" id="description" placeholder="What was this for?" autocomplete="off">
+</div>
+
+<div class="field">
+  <label>Account <span class="optional">(this row belongs to)</span></label>
+  <select id="account"><option value="">Loading…</option></select>
+</div>
+
+<div class="field">
+  <label>Counterpart <span class="optional">(other side)</span></label>
+  <select id="counterpart"><option value="">— optional —</option></select>
+</div>
+
+<div class="field">
+  <label>Amount</label>
+  <input type="number" id="amount" class="amount-input"
+         placeholder="0.00" step="0.01" inputmode="decimal">
+</div>
+
+<div class="field">
+  <label>Category</label>
+  <select id="category"><option value="">Loading…</option></select>
+</div>
+
+<div class="field">
+  <label>Transfer Type <span class="optional">(if transfer)</span></label>
+  <select id="transferType"><option value="">— none —</option></select>
+</div>
+
+<div class="field">
+  <label>Job <span class="optional">(optional)</span></label>
+  <input type="text" id="job" placeholder="e.g. ARCO_01" autocomplete="off"
+         autocapitalize="characters">
+</div>
+
+<div class="toggle-row">
+  <div class="toggle-label">
+    <strong>Add mirror entry automatically</strong><br>
+    Creates both sides of the transaction
+  </div>
+  <label class="toggle">
+    <input type="checkbox" id="mirror" checked>
+    <span class="slider"></span>
+  </label>
+</div>
+
+<button id="submitBtn" onclick="submit()">Add Transaction</button>
+<div id="status"></div>
+
+<script>
+  // ── INIT ──────────────────────────────────────────────────────────────────
+
+  // Set date to today
+  const today = new Date();
+  const yyyy = today.getFullYear();
+  const mm = String(today.getMonth() + 1).padStart(2, '0');
+  const dd = String(today.getDate()).padStart(2, '0');
+  document.getElementById('date').value = `${yyyy}-${mm}-${dd}`;
+
+  // Load dropdowns from sheet
+  google.script.run
+    .withSuccessHandler(populateDropdowns)
+    .withFailureHandler(err => setStatus('Could not load dropdowns: ' + err.message, 'err'))
+    .getDropdownData();
+
+  function populateDropdowns(data) {
+    fillSelect('account', data.accounts, false);
+    fillSelect('counterpart', data.accounts, true);
+    fillSelect('category', data.categories, true);
+    fillSelect('transferType', data.transferTypes, true);
+  }
+
+  function fillSelect(id, items, allowBlank) {
+    const sel = document.getElementById(id);
+    sel.innerHTML = '';
+    if (allowBlank) {
+      const blank = document.createElement('option');
+      blank.value = '';
+      blank.textContent = '— none —';
+      sel.appendChild(blank);
+    }
+    items.forEach(item => {
+      const opt = document.createElement('option');
+      opt.value = item;
+      opt.textContent = item;
+      sel.appendChild(opt);
+    });
+  }
+
+  // ── SUBMIT ────────────────────────────────────────────────────────────────
+
+  function submit() {
+    const date         = document.getElementById('date').value;
+    const description  = document.getElementById('description').value.trim();
+    const account      = document.getElementById('account').value;
+    const counterpart  = document.getElementById('counterpart').value;
+    const amount       = document.getElementById('amount').value;
+    const category     = document.getElementById('category').value;
+    const transferType = document.getElementById('transferType').value;
+    const job          = document.getElementById('job').value.trim().toUpperCase();
+    const mirror       = document.getElementById('mirror').checked;
+
+    // Basic validation
+    if (!date)        return setStatus('Date is required.', 'err');
+    if (!description) return setStatus('Description is required.', 'err');
+    if (!account)     return setStatus('Account is required.', 'err');
+    if (!amount)      return setStatus('Amount is required.', 'err');
+
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true;
+    setStatus('Saving…', 'loading');
+
+    google.script.run
+      .withSuccessHandler(function(result) {
+        btn.disabled = false;
+        if (result.ok) {
+          setStatus(mirror && counterpart ? '✓ Saved (2 rows added)' : '✓ Saved', 'ok');
+          resetForm(date); // keep date, clear the rest
+        } else {
+          setStatus('Error: ' + result.error, 'err');
+        }
+      })
+      .withFailureHandler(function(err) {
+        btn.disabled = false;
+        setStatus('Error: ' + err.message, 'err');
+      })
+      .submitTransaction({ date, description, account, counterpart,
+                           amount, category, transferType, job, mirror });
+  }
+
+  // ── HELPERS ───────────────────────────────────────────────────────────────
+
+  function resetForm(keepDate) {
+    document.getElementById('description').value = '';
+    document.getElementById('amount').value = '';
+    document.getElementById('job').value = '';
+    document.getElementById('category').value = '';
+    document.getElementById('transferType').value = '';
+    document.getElementById('counterpart').value = '';
+    // Keep date and account — likely same for next entry in the field
+  }
+
+  function setStatus(msg, type) {
+    const el = document.getElementById('status');
+    el.textContent = msg;
+    el.className = type === 'ok' ? 'status-ok' : type === 'err' ? 'status-err' : 'status-loading';
+  }
+</script>
+</body>
+</html>

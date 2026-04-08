@@ -1,0 +1,6 @@
+audit-sheet.js
+node_modules/**
+package.json
+package-lock.json
+SETUP.md
+*.csv
