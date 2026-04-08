@@ -402,6 +402,18 @@ function convertSessionToJob(sessionId, overrides = {}) {
   const now = new Date().toISOString();
   const jobId = uuidv4();
   const jobNumber = overrides.jobNumber || generateJobNumber(session.clientName);
+
+  // Recompute subtotal from the current quoteJson rather than trusting the
+  // cached session.totalAmount — catches edits, reloads, and manual JSON pastes.
+  // Skips sections flagged as excluded (repairs) or optional (add-ons), matching renderQuoteHTML.
+  let recomputed = 0;
+  for (const sec of (session.quoteJson?.sections || [])) {
+    if (sec.excluded || sec.optional) continue;
+    if (sec.total) recomputed += sec.total;
+    else for (const item of (sec.items || [])) recomputed += (item.price || 0);
+  }
+  if (recomputed > 0) session.totalAmount = recomputed;
+
   const subtotalCents = Math.round((session.totalAmount || 0) * 100);
   const taxCents = Math.round(subtotalCents * 0.14975);
   const totalCents = subtotalCents + taxCents;

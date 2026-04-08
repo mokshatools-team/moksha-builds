@@ -77,6 +77,44 @@
     flex-direction: column;
     border-right: 1px solid var(--border);
     overflow: hidden;
+    position: relative;
+    transition: width 0.2s ease, min-width 0.2s ease;
+  }
+
+  /* Desktop sidebar collapse */
+  body.sidebar-collapsed #sidebar {
+    width: 0;
+    min-width: 0;
+    border-right: none;
+  }
+  body.sidebar-collapsed #sidebar > * { display: none; }
+  body.sidebar-collapsed #jobs-panel,
+  body.sidebar-collapsed #job-detail,
+  body.sidebar-collapsed #activity-mapping-panel { left: 0; }
+
+  #sidebar-toggle {
+    position: fixed;
+    top: 12px;
+    left: 240px;
+    width: 22px;
+    height: 28px;
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 0 4px 4px 0;
+    color: var(--text-3);
+    font-size: 11px;
+    line-height: 1;
+    cursor: pointer;
+    z-index: 150;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: left 0.2s ease, background 0.15s, color 0.15s;
+  }
+  #sidebar-toggle:hover { background: var(--surface-2); color: var(--text); }
+  body.sidebar-collapsed #sidebar-toggle { left: 0; border-left: none; }
+  @media (max-width: 768px) {
+    #sidebar-toggle { display: none; }
   }
 
   #sidebar-brand {
@@ -1582,15 +1620,20 @@
       grid-column: 1 / -1;
     }
 
-    /* Sticky send button at bottom */
+    /* Send button: compact, top-right of email header (avoids bottom nav collisions) */
     #email-send-btn {
-      position: sticky;
-      bottom: 0;
-      min-height: 44px;
-      font-size: 14px;
-      margin-top: 8px;
+      position: absolute;
+      top: 8px;
+      right: 40px;
+      min-height: 30px;
+      padding: 6px 12px;
+      font-size: 12px;
+      margin-top: 0;
       flex-shrink: 0;
+      z-index: 2;
     }
+    #email-form { position: relative; }
+    #email-form-header { padding-right: 110px; }
 
     /* Mobile email close button */
     #mobile-email-close {
@@ -1680,6 +1723,9 @@
 <body>
 
 <div id="sidebar-overlay" onclick="closeSidebar()"></div>
+
+<!-- Desktop sidebar collapse toggle -->
+<button id="sidebar-toggle" onclick="toggleSidebarCollapsed()" title="Toggle sidebar" aria-label="Toggle sidebar"></button>
 
 <!-- SIDEBAR -->
 <div id="sidebar">
@@ -1959,6 +2005,25 @@ function closeSidebar() {
   document.getElementById('sidebar').classList.remove('open');
   document.getElementById('sidebar-overlay').classList.remove('visible');
 }
+function toggleSidebarCollapsed() {
+  const collapsed = document.body.classList.toggle('sidebar-collapsed');
+  try { localStorage.setItem('sidebarCollapsed', collapsed ? '1' : '0'); } catch (e) {}
+  updateSidebarToggleIcon();
+}
+function updateSidebarToggleIcon() {
+  const btn = document.getElementById('sidebar-toggle');
+  if (!btn) return;
+  btn.textContent = document.body.classList.contains('sidebar-collapsed') ? '›' : '‹';
+}
+(function restoreSidebarCollapsed() {
+  try {
+    if (localStorage.getItem('sidebarCollapsed') === '1') {
+      document.body.classList.add('sidebar-collapsed');
+    }
+  } catch (e) {}
+  if (document.readyState !== 'loading') updateSidebarToggleIcon();
+  else document.addEventListener('DOMContentLoaded', updateSidebarToggleIcon);
+})();
 function openQuotePanel() {
   document.getElementById('quote-panel').classList.add('mobile-open');
 }
