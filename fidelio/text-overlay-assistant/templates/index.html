@@ -734,7 +734,8 @@
           <span class="ingestion-tab-title">File</span>
           <span class="ingestion-tab-sub">Upload a video file directly.</span>
         </button>
-        <button type="button" class="ingestion-tab" id="tab-youtube-url" onclick="setIngestionMode('youtube-url')">
+        <!-- YouTube URL tab hidden on Railway — blocked by YouTube bot detection on data center IPs. Use local version for this. -->
+        <button type="button" class="ingestion-tab" id="tab-youtube-url" onclick="setIngestionMode('youtube-url')" style="display:none;">
           <span class="ingestion-tab-title">YouTube URL</span>
           <span class="ingestion-tab-sub">Paste a public video URL and transcribe it with the existing flow.</span>
         </button>

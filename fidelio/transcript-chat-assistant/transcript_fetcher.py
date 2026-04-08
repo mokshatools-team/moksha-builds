@@ -39,6 +39,76 @@ def seconds_to_timestamp(seconds: float) -> str:
     return f"{minutes}:{secs:02d}"
 
 
+def extract_youtube_video_id(source: str) -> Optional[str]:
+    """Extract the YouTube video ID from a URL. Returns None if not a YouTube URL."""
+    if not source:
+        return None
+    try:
+        parsed = urlparse(source.strip())
+    except ValueError:
+        return None
+
+    host = (parsed.netloc or "").lower()
+    if host.startswith("www."):
+        host = host[4:]
+
+    if host == "youtu.be":
+        vid = parsed.path.strip("/").split("/")[0]
+        return vid or None
+    if host in {"youtube.com", "m.youtube.com"}:
+        if parsed.path == "/watch":
+            return (parse_qs(parsed.query).get("v") or [None])[0]
+        if parsed.path.startswith(("/shorts/", "/embed/")):
+            parts = parsed.path.strip("/").split("/")
+            return parts[1] if len(parts) > 1 else None
+    return None
+
+
+def fetch_transcript_via_captions_api(url: str, offset_seconds: float = 0.0) -> Optional[List[dict]]:
+    """Try to fetch a YouTube transcript using youtube-transcript-api.
+
+    Returns None if the library is unavailable, the video has no captions,
+    or the fetch fails. Callers should fall back to yt-dlp + Whisper on None.
+    """
+    video_id = extract_youtube_video_id(url)
+    if not video_id:
+        return None
+
+    try:
+        from youtube_transcript_api import YouTubeTranscriptApi
+    except ImportError:
+        return None
+
+    try:
+        # Try the current API (v1.x uses instance method .fetch())
+        api = YouTubeTranscriptApi()
+        if hasattr(api, "fetch"):
+            result = api.fetch(video_id)
+            segments = result.to_raw_data() if hasattr(result, "to_raw_data") else list(result)
+        elif hasattr(YouTubeTranscriptApi, "get_transcript"):
+            segments = YouTubeTranscriptApi.get_transcript(video_id)
+        else:
+            return None
+    except Exception:
+        return None
+
+    entries: List[dict] = []
+    for segment in segments or []:
+        if isinstance(segment, dict):
+            start = float(segment.get("start", 0))
+            text = str(segment.get("text", "")).strip()
+        else:
+            start = float(getattr(segment, "start", 0))
+            text = str(getattr(segment, "text", "")).strip()
+        if text:
+            entries.append({
+                "time": seconds_to_timestamp(start + offset_seconds),
+                "text": text,
+            })
+
+    return entries or None
+
+
 def _create_openai_client():
     api_key = os.environ.get("OPENAI_API_KEY", "").strip()
     if not api_key:
@@ -215,20 +285,38 @@ def _cleanup_temp_media(path: str) -> None:
 
 
 def fetch_youtube_title(url: str) -> str:
+    """Fetch the YouTube video title via the public oEmbed endpoint.
+
+    This avoids yt-dlp (which gets blocked by YouTube bot detection on
+    data-center IPs). oEmbed is a lightweight public API that returns
+    basic video metadata without authentication.
+    """
     if not is_youtube_url(url):
         return ""
+
     try:
-        result = subprocess.run(
-            [sys.executable, "-m", "yt_dlp", "--no-playlist", "--skip-download", "--print", "title", url],
-            check=True, timeout=120, capture_output=True, text=True,
-        )
-    except (FileNotFoundError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
+        import json as _json
+        from urllib.request import Request, urlopen
+        from urllib.parse import quote
+
+        oembed_url = f"https://www.youtube.com/oembed?url={quote(url, safe='')}&format=json"
+        req = Request(oembed_url, headers={"User-Agent": "Mozilla/5.0"})
+        with urlopen(req, timeout=10) as resp:
+            data = _json.loads(resp.read().decode("utf-8"))
+        return (data.get("title") or "").strip()
+    except Exception:
         return ""
-    return (result.stdout or "").strip().splitlines()[0] if (result.stdout or "").strip() else ""
 
 
 def fetch_transcript(source: str) -> str:
     if is_youtube_url(source):
+        # Fast path: try YouTube's own captions via youtube-transcript-api.
+        # This avoids yt-dlp entirely and works from Railway IPs.
+        caption_entries = fetch_transcript_via_captions_api(source)
+        if caption_entries:
+            return " ".join(entry["text"] for entry in caption_entries)
+
+        # Fallback: download audio and transcribe with Whisper
         media_path = download_youtube_audio(source)
         try:
             return transcribe_plain_text(media_path)
@@ -241,6 +329,13 @@ def fetch_transcript(source: str) -> str:
 
 def fetch_transcript_entries(source: str, offset_seconds: float = 0.0) -> List[dict]:
     if is_youtube_url(source):
+        # Fast path: try YouTube's own captions via youtube-transcript-api.
+        # This avoids yt-dlp entirely and works from Railway IPs.
+        caption_entries = fetch_transcript_via_captions_api(source, offset_seconds=offset_seconds)
+        if caption_entries:
+            return caption_entries
+
+        # Fallback: download audio and transcribe with Whisper
         media_path = download_youtube_audio(source)
         try:
             return transcribe_media_segments(media_path, offset_seconds=offset_seconds)
