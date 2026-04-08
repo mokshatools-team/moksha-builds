@@ -28,24 +28,24 @@ Loric is not a developer — plain language always.
 
 ## Key Files in This Repo
 
-| File | Description |
-|------|-------------|
-| `create-sheet.gs` | Apps Script that builds all 12 tabs with headers, dropdowns, formulas, and formatting. Also contains `addBossOwner()` fixup function. Built in a Codex session — **never tested or run from this repo.** |
-| `CONTEXT.md` | This file. |
-
-### Additional Files in Original Folder (not yet copied to repo)
-
-Located at `/Users/loric/MOKSHA/OstéoPeinture/finance-system-2026/`:
+All Apps Script files live in this folder. The legacy `/Users/loric/MOKSHA/OstéoPeinture/finance-system-2026/` folder was consolidated into this repo on 2026-04-07.
 
 | File | Description |
 |------|-------------|
-| `import-csv.gs` | Bank CSV importer + Drive folder watcher + Push to Transactions |
+| `create-sheet.gs` | Apps Script that builds all 12 tabs with headers, dropdowns, formulas, and formatting. Also contains `addBossOwner()` fixup function. |
+| `import-csv.gs` | Bank CSV importer + Drive folder watcher + Push to Transactions + resetProcessedFiles helper |
 | `cash-entry-sidebar.gs` | Mobile cash entry sidebar server-side |
 | `sidebar.html` | Mobile cash entry form |
+| `appsscript.json` | Apps Script manifest |
+| `audit-sheet.js` | Audit helper (not pushed to Apps Script) |
+| `autocat-rules.json` | Keyword-to-category mapping for bank import auto-categorization |
+| `mirror-entries.py` | Double-entry mirror generator (Python — runs locally to validate transfers) |
+| `.clasp.json` | Links to Apps Script project (script ID `1oLbbv-tza-AaB3paR2dnNC1kZUgI4N5M0K1owvXQdHeGxaQ0CT5TKK7E`) |
+| `.claspignore` | Files excluded from clasp push (audit-sheet.js, package.json, SETUP.md, *.csv) |
 | `SETUP.md` | Plain-language setup instructions |
-| `.clasp.json` | Links to Apps Script project above |
+| `CONTEXT.md` | This file. |
 
-Deploy with: `cd` to that folder, `clasp push`
+**Deploy to Apps Script:** `cd osteopeinture/finance-system && clasp push --force`
 
 ---
 
