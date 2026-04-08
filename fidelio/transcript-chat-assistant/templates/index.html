@@ -408,7 +408,8 @@
 
         <div class="seg-wrap" role="tablist">
           <button class="seg active" type="button" data-mode="file" role="tab">File Upload</button>
-          <button class="seg" type="button" data-mode="youtube-url" role="tab">YouTube URL</button>
+          <!-- YouTube URL tab hidden on Railway — blocked by YouTube bot detection on data center IPs. -->
+          <button class="seg" type="button" data-mode="youtube-url" role="tab" style="display:none;">YouTube URL</button>
           <button class="seg" type="button" data-mode="youtube-account" role="tab">YouTube Account</button>
         </div>
 
