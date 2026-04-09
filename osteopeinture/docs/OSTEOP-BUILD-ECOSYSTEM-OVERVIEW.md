@@ -131,7 +131,7 @@ Everything below is one interconnected system. The quote is the entry point. It 
 - Claude parses, shows preview for confirmation, then writes to sheet
 - Validation step before every write — non-negotiable
 - Mobile Safari compatible
-- Status: spec written (docs/OP-FINANCE-CHAT-SPEC.md), not yet built. Prerequisite: bank CSVs imported and real data verified in sheet first.
+- Status: spec written (`osteopeinture/docs/OP-FINANCE-CHAT-SPEC.md`), not yet built. Prerequisite: bank CSVs imported and real data verified in sheet first.
 
 **Finance sheet current state:**
 - Double-entry single-ledger architecture
