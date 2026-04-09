@@ -2166,6 +2166,169 @@ app.get('/api/jobs/:id/payments', (req, res) => {
   }
 });
 
+// ── SMART PASTE — Apple Notes parser ───────────────────────────────────────
+// Takes raw Apple Note text, calls Claude to extract structured job fields,
+// and returns a preview. Does NOT write anything — the client must call
+// /api/jobs/:id/smart-paste/apply after user confirms.
+app.post('/api/jobs/:id/smart-paste', express.json(), async (req, res) => {
+  try {
+    const job = getJob(req.params.id);
+    if (!job) return res.status(404).json({ error: 'Job not found' });
+    const text = (req.body && typeof req.body.text === 'string') ? req.body.text.trim() : '';
+    if (!text) return res.status(400).json({ error: 'text is required' });
+    if (text.length > 20000) return res.status(400).json({ error: 'text too long (max 20000 chars)' });
+
+    const prompt = [
+      'You are parsing a raw Apple Note for a painting job run by OstéoPeinture.',
+      'Extract structured data and return ONLY a single JSON object with this exact shape:',
+      '',
+      '{',
+      '  "clientName": string|null,',
+      '  "address": string|null,',
+      '  "phone": string|null,',
+      '  "contractTotal": number|null,',
+      '  "paintTotal": number|null,',
+      '  "consumablesTotal": number|null,',
+      '  "laborCost": number|null,',
+      '  "payments": [',
+      '    { "date": "YYYY-MM-DD"|null, "amount": number, "method": "cash"|"e_transfer"|"cheque"|null, "note": string|null }',
+      '  ],',
+      '  "remainder": string',
+      '}',
+      '',
+      'Rules:',
+      '- Numbers only in amount fields: no currency symbols, no thousands separators (e.g. 17000 not "17,000$").',
+      '- Dates: try to parse to YYYY-MM-DD. If only month+day is given, use 2026 as the year. If no date at all, use null.',
+      '- method: "cash" for cash/espèces, "e_transfer" for e-transfer/virement/interac, "cheque" for cheque. If unclear, null.',
+      '- Ignore lines that have a ✅ or check mark — those are already-confirmed, still include them as payments.',
+      '- If "deposit" or "dépôt" is mentioned, it is a payment.',
+      '- balance/BALANCE is NOT a payment — it is what is still owing. Skip it.',
+      '- Everything that is not a structured field goes into "remainder", preserving line breaks and order. Door codes, to-dos, dimensions, product lists, notes — all into remainder.',
+      '- If a structured field is not present, use null (do not omit the key).',
+      '- Return ONLY the JSON object. No markdown fence, no prose before or after.',
+      '',
+      'Here is the note:',
+      '---',
+      text,
+      '---',
+    ].join('\n');
+
+    const response = await anthropic.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 4096,
+      messages: [{ role: 'user', content: prompt }],
+    });
+    const assistantText = extractTextContent(response.content);
+    const jsonString = extractJsonString(assistantText);
+    if (!jsonString) {
+      return res.status(502).json({ error: 'Could not parse Claude response', raw: assistantText.slice(0, 500) });
+    }
+    let extracted;
+    try {
+      extracted = JSON.parse(jsonString);
+    } catch (e) {
+      return res.status(502).json({ error: 'Invalid JSON from Claude', raw: assistantText.slice(0, 500) });
+    }
+
+    // Detect conflicts with existing job fields (for the UI's overwrite prompt)
+    const conflicts = {};
+    if (extracted.clientName && job.client_name && extracted.clientName !== job.client_name) {
+      conflicts.clientName = { existing: job.client_name, incoming: extracted.clientName };
+    }
+    if (extracted.address && job.address && extracted.address !== job.address) {
+      conflicts.address = { existing: job.address, incoming: extracted.address };
+    }
+    if (extracted.phone && job.client_phone && extracted.phone !== job.client_phone) {
+      conflicts.phone = { existing: job.client_phone, incoming: extracted.phone };
+    }
+    if (extracted.contractTotal && job.quote_total_cents && Math.round(extracted.contractTotal * 100) !== job.quote_total_cents) {
+      conflicts.contractTotal = { existing: job.quote_total_cents / 100, incoming: extracted.contractTotal };
+    }
+
+    res.json({ extracted, conflicts });
+  } catch (err) {
+    console.error('[smart-paste] Failed:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Apply a previously-previewed smart paste result to the job.
+app.post('/api/jobs/:id/smart-paste/apply', express.json(), (req, res) => {
+  try {
+    const job = getJob(req.params.id);
+    if (!job) return res.status(404).json({ error: 'Job not found' });
+    const { extracted, overwrite } = req.body || {};
+    if (!extracted || typeof extracted !== 'object') {
+      return res.status(400).json({ error: 'extracted object is required' });
+    }
+    const now = new Date().toISOString();
+
+    const updates = [];
+    const params = [];
+    const applied = [];
+
+    function maybeSet(col, incoming, existing) {
+      if (incoming == null || incoming === '') return;
+      if (existing && !overwrite) return;
+      updates.push(`${col} = ?`);
+      params.push(incoming);
+      applied.push(col);
+    }
+    maybeSet('client_name', extracted.clientName, job.client_name);
+    maybeSet('address', extracted.address, job.address);
+    maybeSet('client_phone', extracted.phone, job.client_phone);
+
+    if (extracted.contractTotal && (!job.quote_total_cents || overwrite)) {
+      const cents = Math.round(Number(extracted.contractTotal) / 50) * 5000;
+      const taxCents = Math.round(cents * 0.14975);
+      updates.push('quote_subtotal_cents = ?', 'quote_tax_cents = ?', 'quote_total_cents = ?');
+      params.push(cents, taxCents, cents + taxCents);
+      applied.push('contract_total');
+    }
+
+    // Remainder → scratchpad. Append if scratchpad already has content and !overwrite.
+    if (typeof extracted.remainder === 'string' && extracted.remainder.trim()) {
+      const incoming = extracted.remainder.trim();
+      const existing = (job.scratchpad || '').trim();
+      const newContent = existing && !overwrite ? existing + '\n\n' + incoming : incoming;
+      updates.push('scratchpad = ?');
+      params.push(newContent);
+      applied.push('scratchpad');
+    }
+
+    if (updates.length > 0) {
+      updates.push('updated_at = ?');
+      params.push(now, job.id);
+      db.prepare(`UPDATE jobs SET ${updates.join(', ')} WHERE id = ?`).run(...params);
+    }
+
+    // Payments — insert each as a pending (unsynced) record.
+    const insertedPayments = [];
+    if (Array.isArray(extracted.payments)) {
+      const ins = db.prepare(`
+        INSERT INTO payments (id, job_id, payment_date, amount_cents, method, reference, notes, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+      for (const p of extracted.payments) {
+        if (!p || typeof p.amount !== 'number' || p.amount <= 0) continue;
+        const pid = uuidv4();
+        const date = p.date || now.slice(0, 10);
+        const method = ['cash', 'e_transfer', 'cheque'].includes(p.method) ? p.method : 'cash';
+        const amtCents = Math.round(p.amount * 100);
+        ins.run(pid, job.id, date, amtCents, method, null, p.note || null, now);
+        insertedPayments.push({ id: pid, date, amount: p.amount, method });
+      }
+      if (insertedPayments.length > 0) applied.push(`payments(${insertedPayments.length})`);
+    }
+
+    scheduleBackup(DB_PATH);
+    res.json({ ok: true, applied, insertedPayments, job: getJob(job.id) });
+  } catch (err) {
+    console.error('[smart-paste-apply] Failed:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Import Jibble CSV
 app.post('/api/jobs/:id/imports/jibble', multer({ storage: multer.memoryStorage() }).single('file'), (req, res) => {
   try {

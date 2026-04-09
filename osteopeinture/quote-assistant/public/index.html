@@ -1978,6 +1978,33 @@
   </div>
 </div>
 
+<!-- SMART PASTE MODAL (Apple Notes → job fields) -->
+<div id="smartpaste-modal" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,0.7);align-items:flex-start;justify-content:center;overflow-y:auto;padding:40px 16px;">
+  <div style="background:var(--surface-0);border:1px solid var(--border);border-radius:8px;max-width:640px;width:100%;padding:24px;color:var(--text);font-family:var(--font-sans);">
+    <h3 style="margin:0 0 6px;font-family:var(--font-serif);font-size:20px;">Paste from Apple Notes</h3>
+    <div style="font-size:12px;color:var(--text-3);margin-bottom:14px;">Paste a raw Apple Note. Claude will extract client info, payments, and totals. Everything else goes to the scratchpad.</div>
+
+    <div id="smartpaste-step-input">
+      <textarea id="smartpaste-input" placeholder="Paste note here..." style="width:100%;min-height:280px;padding:12px;background:var(--surface-1);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:var(--font-mono);font-size:13px;line-height:1.55;resize:vertical;box-sizing:border-box;"></textarea>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px;">
+        <button onclick="closeSmartPaste()" style="background:var(--surface-2);border:1px solid var(--border);color:var(--text);padding:8px 16px;border-radius:var(--radius-sm);font-size:13px;cursor:pointer;">Cancel</button>
+        <button id="smartpaste-parse-btn" onclick="parseSmartPaste()" style="background:var(--accent);border:none;color:#fff;padding:8px 18px;border-radius:var(--radius-sm);font-size:13px;font-weight:600;cursor:pointer;">Parse</button>
+      </div>
+    </div>
+
+    <div id="smartpaste-step-preview" style="display:none;">
+      <div id="smartpaste-preview-body" style="max-height:60vh;overflow-y:auto;background:var(--surface-1);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;font-size:13px;line-height:1.55;"></div>
+      <div id="smartpaste-conflicts" style="display:none;margin-top:12px;padding:10px 12px;background:rgba(255,180,0,0.08);border:1px solid rgba(255,180,0,0.3);border-radius:var(--radius-sm);font-size:12px;color:#d9a34a;"></div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap;">
+        <button onclick="closeSmartPaste()" style="background:var(--surface-2);border:1px solid var(--border);color:var(--text);padding:8px 16px;border-radius:var(--radius-sm);font-size:13px;cursor:pointer;">Cancel</button>
+        <button onclick="backToSmartPasteInput()" style="background:var(--surface-2);border:1px solid var(--border);color:var(--text);padding:8px 16px;border-radius:var(--radius-sm);font-size:13px;cursor:pointer;">Edit Note</button>
+        <button id="smartpaste-apply-btn" onclick="applySmartPaste(false)" style="background:var(--sage-dim);border:none;color:var(--sage);padding:8px 18px;border-radius:var(--radius-sm);font-size:13px;font-weight:600;cursor:pointer;">Apply (keep existing)</button>
+        <button id="smartpaste-overwrite-btn" onclick="applySmartPaste(true)" style="display:none;background:var(--accent);border:none;color:#fff;padding:8px 18px;border-radius:var(--radius-sm);font-size:13px;font-weight:600;cursor:pointer;">Apply + Overwrite</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- MOBILE BOTTOM NAV -->
 <div id="mobile-nav">
   <button class="mobile-nav-tab active" id="nav-chat" onclick="mobileNavTo('chat')">
@@ -3085,6 +3112,10 @@ async function openJobDetail(jobId) {
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
           Record Payment
         </button>
+        <button class="job-action-btn" onclick="openSmartPaste('${job.id}')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="2" width="6" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M9 14l2 2 4-4"/></svg>
+          Paste from Apple Notes
+        </button>
         <button class="job-action-btn" onclick="deleteJob('${job.id}', '${esc(job.client_name || '')}')" style="color:#c94a4a;border-color:rgba(201,74,74,0.3)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg>
           Delete Job
@@ -3117,6 +3148,129 @@ async function openJobDetail(jobId) {
 function closeJobDetail() {
   document.getElementById('job-detail').classList.remove('visible');
   currentJobId = null;
+}
+
+// ── SMART PASTE (Apple Notes → job fields) ──────────────────────────────
+let smartPasteJobId = null;
+let smartPasteExtracted = null;
+
+function openSmartPaste(jobId) {
+  smartPasteJobId = jobId;
+  smartPasteExtracted = null;
+  document.getElementById('smartpaste-input').value = '';
+  document.getElementById('smartpaste-step-input').style.display = '';
+  document.getElementById('smartpaste-step-preview').style.display = 'none';
+  document.getElementById('smartpaste-conflicts').style.display = 'none';
+  document.getElementById('smartpaste-overwrite-btn').style.display = 'none';
+  document.getElementById('smartpaste-modal').style.display = 'flex';
+}
+function closeSmartPaste() {
+  document.getElementById('smartpaste-modal').style.display = 'none';
+  smartPasteJobId = null;
+  smartPasteExtracted = null;
+}
+function backToSmartPasteInput() {
+  document.getElementById('smartpaste-step-input').style.display = '';
+  document.getElementById('smartpaste-step-preview').style.display = 'none';
+}
+
+async function parseSmartPaste() {
+  const text = document.getElementById('smartpaste-input').value.trim();
+  if (!text) { alert('Paste a note first.'); return; }
+  const btn = document.getElementById('smartpaste-parse-btn');
+  btn.disabled = true;
+  btn.textContent = 'Parsing…';
+  try {
+    const res = await fetch('/api/jobs/' + smartPasteJobId + '/smart-paste', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      alert('Parse failed: ' + (data.error || 'unknown'));
+      return;
+    }
+    smartPasteExtracted = data.extracted;
+    renderSmartPastePreview(data.extracted, data.conflicts || {});
+    document.getElementById('smartpaste-step-input').style.display = 'none';
+    document.getElementById('smartpaste-step-preview').style.display = '';
+  } catch (err) {
+    alert('Error: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Parse';
+  }
+}
+
+function renderSmartPastePreview(e, conflicts) {
+  function row(label, val) {
+    return val != null && val !== ''
+      ? `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border-soft)"><span style="color:var(--text-3)">${label}</span><span style="color:var(--text);font-weight:500">${esc(String(val))}</span></div>`
+      : '';
+  }
+  const payments = Array.isArray(e.payments) ? e.payments : [];
+  const paymentsHtml = payments.length > 0
+    ? '<div style="margin-top:10px"><div style="font-weight:700;margin-bottom:6px;font-size:12px;color:var(--text-2)">PAYMENTS (' + payments.length + ')</div>' +
+      payments.map(p => `<div style="display:flex;justify-content:space-between;padding:3px 0;font-size:12px"><span style="color:var(--text-3)">${esc(p.date || '—')} · ${esc(p.method || '—')}</span><span style="font-family:var(--font-mono);color:var(--sage)">$${Number(p.amount).toLocaleString('fr-CA')}</span></div>`).join('') +
+      '</div>'
+    : '';
+  const remainderHtml = e.remainder && e.remainder.trim()
+    ? '<div style="margin-top:12px"><div style="font-weight:700;margin-bottom:6px;font-size:12px;color:var(--text-2)">SCRATCHPAD (remainder)</div><pre style="white-space:pre-wrap;font-family:var(--font-mono);font-size:12px;color:var(--text-2);background:var(--surface-2);padding:8px;border-radius:4px;margin:0;max-height:160px;overflow-y:auto">' + esc(e.remainder) + '</pre></div>'
+    : '';
+
+  const fields = [
+    row('Client', e.clientName),
+    row('Address', e.address),
+    row('Phone', e.phone),
+    row('Contract total', e.contractTotal != null ? '$' + Number(e.contractTotal).toLocaleString('fr-CA') : null),
+    row('Paint total', e.paintTotal != null ? '$' + Number(e.paintTotal).toLocaleString('fr-CA') : null),
+    row('Consumables', e.consumablesTotal != null ? '$' + Number(e.consumablesTotal).toLocaleString('fr-CA') : null),
+    row('Labor cost', e.laborCost != null ? '$' + Number(e.laborCost).toLocaleString('fr-CA') : null),
+  ].filter(Boolean).join('');
+  const structured = fields
+    ? '<div style="font-weight:700;margin-bottom:6px;font-size:12px;color:var(--text-2)">FIELDS</div>' + fields
+    : '<div style="color:var(--text-3);font-style:italic">No structured fields detected.</div>';
+
+  document.getElementById('smartpaste-preview-body').innerHTML = structured + paymentsHtml + remainderHtml;
+
+  const conflictKeys = Object.keys(conflicts || {});
+  const conflictBox = document.getElementById('smartpaste-conflicts');
+  const overwriteBtn = document.getElementById('smartpaste-overwrite-btn');
+  if (conflictKeys.length > 0) {
+    const lines = conflictKeys.map(k => {
+      const c = conflicts[k];
+      return `<div><strong>${esc(k)}</strong>: existing <code>${esc(String(c.existing))}</code> → incoming <code>${esc(String(c.incoming))}</code></div>`;
+    }).join('');
+    conflictBox.innerHTML = '<div style="font-weight:700;margin-bottom:6px">⚠ Conflicts with existing job data:</div>' + lines + '<div style="margin-top:6px">Use "Apply + Overwrite" to replace, or "Apply (keep existing)" to skip these fields.</div>';
+    conflictBox.style.display = '';
+    overwriteBtn.style.display = '';
+  } else {
+    conflictBox.style.display = 'none';
+    overwriteBtn.style.display = 'none';
+  }
+}
+
+async function applySmartPaste(overwrite) {
+  if (!smartPasteJobId || !smartPasteExtracted) return;
+  try {
+    const res = await fetch('/api/jobs/' + smartPasteJobId + '/smart-paste/apply', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ extracted: smartPasteExtracted, overwrite: !!overwrite }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      alert('Apply failed: ' + (data.error || 'unknown'));
+      return;
+    }
+    const summary = 'Applied: ' + (data.applied && data.applied.length ? data.applied.join(', ') : 'nothing');
+    alert(summary);
+    closeSmartPaste();
+    openJobDetail(smartPasteJobId);
+  } catch (err) {
+    alert('Error: ' + err.message);
+  }
 }
 
 async function saveScratchpad(el) {
