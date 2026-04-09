@@ -26,6 +26,7 @@ function createFinanceSheet2026() {
   buildReconciliation(ss);
   buildDashboard(ss);
   buildImport(ss);
+  buildCashLedger(ss);
 
   // Remove default blank sheet
   const defaultSheet = ss.getSheetByName('Sheet1');
@@ -777,6 +778,53 @@ function buildImport(ss) {
   // Push button placeholder note
   sh.getRange(1, 8).setValue('← Add "Push to Transactions" button here via Apps Script menu')
     .setFontColor('#999999').setFontStyle('italic');
+}
+
+// ── CASH LEDGER ──────────────────────────────────────────────────────────────
+// Dynamic filtered view of the Cash account with a live running balance.
+// Pulls every Transactions row where Account = "Cash", ordered by date,
+// and computes a cumulative balance via SCAN. Any edit to a cash row in
+// Transactions flows through automatically — no manual refresh.
+
+function buildCashLedger(ss) {
+  let sh = ss.getSheetByName('Cash Ledger');
+  if (sh) ss.deleteSheet(sh);
+  sh = ss.insertSheet('Cash Ledger');
+  sh.setFrozenRows(3);
+
+  // Row 1 — title
+  sh.getRange(1, 1).setValue('Cash Ledger').setFontWeight('bold').setFontSize(14);
+
+  // Row 2 — live balance indicator
+  sh.getRange(2, 1).setFormula(
+    '="Current Cash Balance: "&TEXT(SUMIF(Transactions!C:C,"Cash",Transactions!E:E),"$#,##0.00")'
+  ).setFontWeight('bold');
+
+  // Row 3 — headers
+  const headers = ['Date', 'Description', 'Counterpart', 'Category', 'Amount', 'Running Balance'];
+  sh.getRange(3, 1, 1, headers.length).setValues([headers])
+    .setFontWeight('bold').setBackground('#e5e7eb');
+
+  // Row 4 — QUERY pulls Cash rows live from Transactions
+  sh.getRange(4, 1).setFormula(
+    '=IFERROR(QUERY(Transactions!A2:I2000,"select A,B,D,F,E where C=\'Cash\' order by A",0),"")'
+  );
+
+  // Row 4 col F — SCAN running balance (grows as QUERY returns more rows)
+  sh.getRange(4, 6).setFormula(
+    '=ARRAYFORMULA(IF(A4:A="","",SCAN(0,E4:E,LAMBDA(acc,x,IF(ISNUMBER(x),acc+x,acc)))))'
+  );
+
+  // Formatting
+  sh.getRange('A4:A').setNumberFormat('yyyy-mm-dd');
+  sh.getRange('E4:F').setNumberFormat('$#,##0.00;[red]-$#,##0.00');
+
+  sh.setColumnWidth(1, 100);
+  sh.setColumnWidth(2, 280);
+  sh.setColumnWidth(3, 140);
+  sh.setColumnWidth(4, 140);
+  sh.setColumnWidth(5, 110);
+  sh.setColumnWidth(6, 130);
 }
 
 // ── UTILITIES ────────────────────────────────────────────────────────────────

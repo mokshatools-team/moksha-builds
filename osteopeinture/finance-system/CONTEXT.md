@@ -32,7 +32,7 @@ All Apps Script files live in this folder. The legacy `/Users/loric/MOKSHA/Osté
 
 | File | Description |
 |------|-------------|
-| `create-sheet.gs` | Apps Script that builds all 12 tabs with headers, dropdowns, formulas, and formatting. Also contains `addBossOwner()` fixup function. |
+| `create-sheet.gs` | Apps Script that builds all 13 tabs with headers, dropdowns, formulas, and formatting. Also contains `addBossOwner()` fixup function and `buildCashLedger()` for the Cash Ledger tab. |
 | `import-csv.gs` | Bank CSV importer + Drive folder watcher + Push to Transactions + resetProcessedFiles helper |
 | `cash-entry-sidebar.gs` | Mobile cash entry sidebar server-side |
 | `sidebar.html` | Mobile cash entry form |
@@ -215,6 +215,7 @@ Supplies (Paint & Consumables), Equipment Rentals, Equipment Purchase, Equipment
 10. **Reconciliation** — compares ledger balance vs. manually entered actual bank balance per account (RBC, BMO MC, CIBC, Cash). Flags discrepancies.
 11. **Dashboard** — live summary. Bank balances, owner balances, YTD P&L, current month P&L. No charts — clean readable numbers.
 12. **Import** — CSV staging area. Columns: Date, Description, Amount, Account (auto), Category, Transfer Type, Job, Duplicate?. Duplicate check formula against Transactions. Dropdowns for categorization. 200-row capacity.
+13. **Cash Ledger** — dynamic filtered view of Cash account with live running balance. Built by `buildCashLedger()` in create-sheet.gs. Uses `QUERY(Transactions, "where C='Cash' order by A")` + `SCAN` for cumulative sum. No manual entry — edits to any Cash row in Transactions flow through automatically.
 
 ---
 
