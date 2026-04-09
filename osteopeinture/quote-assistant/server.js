@@ -25,11 +25,35 @@ const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 const DB_PATH = path.join(DATA_DIR, 'sessions.db');
 
-// Seed QUOTING_LOGIC.md to DATA_DIR on first run so it persists on the volume
+// Seed QUOTING_LOGIC.md to DATA_DIR on first run so it persists on the volume.
+// Force-reseed on version bump: compare the `# Version:` header line in the
+// repo seed vs the volume copy. If they differ, the seed wins. This overrides
+// any admin-panel edits — by design, so deploys can push authoritative updates.
 const QUOTING_LOGIC_PATH = path.join(DATA_DIR, 'QUOTING_LOGIC.md');
 const QUOTING_LOGIC_SEED = path.join(__dirname, 'QUOTING_LOGIC.md');
-if (!fs.existsSync(QUOTING_LOGIC_PATH) && fs.existsSync(QUOTING_LOGIC_SEED)) {
-  fs.copyFileSync(QUOTING_LOGIC_SEED, QUOTING_LOGIC_PATH);
+
+function readQuotingLogicVersion(filePath) {
+  try {
+    const head = fs.readFileSync(filePath, 'utf8').split('\n').slice(0, 10).join('\n');
+    const m = head.match(/^# Version:\s*(.+)$/m);
+    return m ? m[1].trim() : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+if (fs.existsSync(QUOTING_LOGIC_SEED)) {
+  const seedVersion = readQuotingLogicVersion(QUOTING_LOGIC_SEED);
+  if (!fs.existsSync(QUOTING_LOGIC_PATH)) {
+    fs.copyFileSync(QUOTING_LOGIC_SEED, QUOTING_LOGIC_PATH);
+    console.log(`[quoting-logic] Seeded volume copy (first run): ${seedVersion || 'unversioned'}`);
+  } else {
+    const volumeVersion = readQuotingLogicVersion(QUOTING_LOGIC_PATH);
+    if (seedVersion && seedVersion !== volumeVersion) {
+      fs.copyFileSync(QUOTING_LOGIC_SEED, QUOTING_LOGIC_PATH);
+      console.log(`[quoting-logic] Force-reseeded: ${volumeVersion || 'unversioned'} -> ${seedVersion}`);
+    }
+  }
 }
 const EMAIL_LOGIC_PATH = path.join(DATA_DIR, 'EMAIL_LOGIC.md');
 const EMAIL_LOGIC_SEED = path.join(__dirname, 'EMAIL_LOGIC.md');

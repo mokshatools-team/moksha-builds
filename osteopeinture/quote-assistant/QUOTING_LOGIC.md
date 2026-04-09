@@ -1,6 +1,7 @@
 # OSTÉOPEINTURE — QUOTING LOGIC
 # Main estimating brain for interior and exterior quotes.
-# Last updated: April 1, 2026
+# Last updated: April 8, 2026
+# Version: v2 — corrected wall benchmark (0.25 min/sqft), added §3A/3B/3C, rewrote §4, restored §16 TAXES, rewrote §20
 
 ---
 ---
@@ -29,17 +30,77 @@
 
 ## 3. LABOUR BENCHMARKS
 
-- Walls: 1.64 min/sqft per coat, excluding setup time
+- Walls standard: 0.25 min/sqft per coat (rolling + edging, confirmed field benchmark)
+- Walls dark paint + white trim: 0.34 min/sqft per coat (+35%)
+- Ceilings: 0.31 min/sqft per coat (+25% vs walls)
 - Daily setup: 30 min per day
-- When exact area-based surface benchmarks are missing, ceilings and other measured paintable surfaces may temporarily use the wall benchmark as a provisional sqft assumption; doors and windows are excluded from this provisional area-based rule.
+- When exact area-based surface benchmarks are missing, other measured paintable surfaces may temporarily use the wall benchmark as a provisional sqft assumption; doors and windows are excluded from this provisional area-based rule.
 - Room-average estimating is fallback only when measured surfaces are not available.
+
+## 3A. BASEBOARD BENCHMARKS — per linear foot (one painter, sequential: tape then paint)
+
+| Type | Taping | Painting | Combined |
+|---|---|---|---|
+| High-end Victorian 10in curved | 1.84 min/lft | 1.84 min/lft | 3.68 min/lft |
+| Standard Victorian 5in curved | 1.60 min/lft | 1.60 min/lft | 3.20 min/lft |
+| Modern rectangular 4in | 1.60 min/lft | 1.36 min/lft | 2.96 min/lft |
+
+Baseboard linear footage: measure full room perimeter, deduct 2.5 ft per door opening.
+
+## 3B. CROWN MOULDING BENCHMARKS — per coat
+
+| Type | Time |
+|---|---|
+| Standard | 45 min |
+| Extra detail | 60–90 min |
+
+## 3C. PRODUCTION STANDARDS
+
+| Scenario | Coats |
+|---|---|
+| Standard | 2 finish coats |
+| Bare gypsum / clean pine / oil-based history / super glossy | 1 primer coat + 2 finish coats |
+| Dark ancestral wood trim, never been painted | 2 primer coats + 2 finish coats |
+| Refresh only (rare) | 1 finish coat |
+| Closets (ceilings, walls, trim) | 1.5h–2.5h per coat depending on size and quality tier |
+
+Primer coat time = same benchmark as finish coat. Extra cost = materials + consumables only.
 
 ## 4. SURFACE / UNIT ASSUMPTIONS
 
-- Doors are count-based allowances: 30 min per face, including frame and inner frame
-- Windows are count-based allowances: standard Victorian / ancestral windows are 30 min per window, including frame and inner frame
-- Windows are count-based allowances: modern flat rectangular windows are 15 min per window
-- If window type is unclear, state the assumption and ask the user to confirm it.
+### Doors — per face, frame inclusive every time
+
+| Type | Time per face |
+|---|---|
+| Standard door + frame | 30 min |
+| Panelled door / window door + frame | 45 min |
+| French door 15 panels + frame | 1h taping + 1h per face |
+
+Notes:
+- All door benchmarks are per face; frame time is included every time.
+- Two-face door = double the time (each face timed independently).
+
+### Windows — per unit, frame inclusive
+
+| Type | Time |
+|---|---|
+| Modern flat rectangular | 15 min |
+| Standard Victorian | 30 min |
+| Extra-detail Victorian (leaded glass / multi-pane) | 1h taping + 1h per unit |
+
+If window type is unclear, state the assumption and ask the user to confirm it.
+
+### Fireplace Mantle
+
+- Flat rate: $300–$450
+
+### Staircase — TBC
+
+| Item | Rate |
+|---|---|
+| Spindles | time / spindle — TBC |
+| Risers | time / step — TBC |
+| Stringers | time / step — TBC |
 
 ## 5. COVERAGE RATES
 
@@ -234,6 +295,13 @@ Standard general conditions:
   - In practice this means cash jobs carry a higher material cost baked into the quote — remind the estimator of this so it doesn't get forgotten.
 - This is easy to overlook — the assistant must flag it early, not after the quote is assembled.
 
+## 16. TAXES (QC)
+
+- GST (TPS): 5.000% — #7784757551RT0001
+- QST (TVQ): 9.975% — #1231045518
+- Total: 14.975%
+- Taxes are added at invoice on the full subtotal (labour + materials)
+
 ## 17. DEPOSIT & PAYMENT TERMS
 
 - Default deposit: 25% of subtotal, rounded UP to the nearest $100
@@ -256,12 +324,22 @@ Standard general conditions:
 - Website: www.osteopeinture.com
 - RBQ#: 5790-0045-01
 
-## 20. KNOWN PROVISIONAL BENCHMARKS
+## 20. CONFIRMED BENCHMARKS
 
-- Walls have a confirmed benchmark of 1.64 min/sqft per coat.
-- Ceilings may temporarily use the wall benchmark until a ceiling-specific benchmark is confirmed.
-- Area-measured trim surfaces may temporarily use the wall benchmark until a trim-specific benchmark is confirmed.
-- This provisional area-based rule does not apply to doors or windows, which remain count-based allowances.
+- Walls standard: 0.25 min/sqft per coat — confirmed field benchmark (rolling + edging)
+- Walls dark paint + white trim: 0.34 min/sqft per coat — confirmed (+35%)
+- Ceilings: 0.31 min/sqft per coat — confirmed (+25% vs walls)
+- Baseboards: see Section 3A — confirmed
+- Crown moulding: see Section 3B — confirmed
+- Production standards (coat counts): see Section 3C — confirmed
+
+**Provisional (pending field confirmation):**
+- Area-measured trim surfaces with no specific benchmark: use wall rate (0.25 min/sqft) as provisional
+- Closets: 1.5h–2.5h per coat range — use judgment on size and quality tier
+- Staircase items (spindles, risers, stringers): TBC
+
+**Notes:**
+- Doors and windows are always count-based allowances, never area-based. See Section 4.
 - Room-average estimates remain valid fallback logic when measured surfaces are unavailable.
 - This file governs both interior and exterior quoting. See Section 23 onward for exterior logic.
 
@@ -306,8 +384,10 @@ These are observed ranges from 2024–2025 quotes. Use as sanity-check reference
 | Small room trim only | $250 – $450 |
 | Full floor trim package | $600 – $2,800 |
 | Heater cover painting | $200 – $400 |
-| French door (per unit) | $250 – $300 |
+| French door (per unit) | $250 – $300 ⚠️ |
 | Single door (2 faces) | $250 – $350 |
+
+⚠️ French door range note: at 1h taping + 1h/face × 2 faces × $65/h = $195 labour alone before materials. The $250–$300 range is tight. Review when next French door job is quoted.
 
 ### Staircase (bundled)
 | Scope | Range |
