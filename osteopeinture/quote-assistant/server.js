@@ -184,6 +184,9 @@ try {
 // ── Job Management Tables (added 2026-04-05) ─────────────────────────────
 try { db.exec('ALTER TABLE sessions ADD COLUMN converted_job_id TEXT'); } catch(e) {}
 try { db.exec('ALTER TABLE sessions ADD COLUMN accepted_at TEXT'); } catch(e) {}
+// Scratchpad: free-text per-job notes (door codes, to-dos, dimensions, etc).
+// Replaces Apple Notes for per-job scratch content.
+try { db.exec('ALTER TABLE jobs ADD COLUMN scratchpad TEXT'); } catch(e) {}
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS jobs (
@@ -2045,7 +2048,7 @@ app.patch('/api/jobs/:id', express.json(), (req, res) => {
       const col = key.replace(/([A-Z])/g, '_$1').toLowerCase();
       if (['client_name','client_email','client_phone','language','address','project_title',
            'project_type','status','payment_terms_text','start_date','target_end_date',
-           'completion_date','internal_notes'].includes(col)) {
+           'completion_date','internal_notes','scratchpad'].includes(col)) {
         updates.push(`${col} = ?`);
         params.push(value);
       }

@@ -3100,6 +3100,14 @@ async function openJobDetail(jobId) {
           </div>
         `).join('')}
       </div>` : ''}
+
+      <div class="job-detail-section">
+        <h3>Scratchpad</h3>
+        <textarea id="job-scratchpad"
+                  data-job-id="${job.id}"
+                  onblur="saveScratchpad(this)"
+                  style="width:100%;min-height:200px;padding:12px;background:var(--surface-1);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:var(--font-mono);font-size:13px;line-height:1.55;resize:vertical;box-sizing:border-box">${esc(job.scratchpad || '')}</textarea>
+      </div>
     `;
   } catch (err) {
     content.innerHTML = '<div style="color:var(--accent);padding:20px">Error: ' + esc(err.message) + '</div>';
@@ -3109,6 +3117,25 @@ async function openJobDetail(jobId) {
 function closeJobDetail() {
   document.getElementById('job-detail').classList.remove('visible');
   currentJobId = null;
+}
+
+async function saveScratchpad(el) {
+  const jobId = el.getAttribute('data-job-id');
+  if (!jobId) return;
+  const content = el.value;
+  try {
+    const res = await fetch('/api/jobs/' + jobId, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ scratchpad: content }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      console.error('Scratchpad save failed:', data.error || res.status);
+    }
+  } catch (err) {
+    console.error('Scratchpad save error:', err.message);
+  }
 }
 
 // Convert to Job
