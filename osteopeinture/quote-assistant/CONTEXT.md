@@ -1,5 +1,42 @@
-# CONTEXT.md — OstéoPeinture Quote Assistant
-# Last updated: April 4, 2026
+# CONTEXT.md — OstéoPeinture OP Hub (fka Quote Assistant)
+# Last updated: April 8, 2026
+# Session: Ecosystem doc + Supabase migration spec (documentation only)
+
+---
+
+## SEE ALSO — canonical planning docs
+
+The full ecosystem overview and build plan is NO LONGER in this file. It lives at:
+- **`osteopeinture/docs/OSTEOP-BUILD-ECOSYSTEM-OVERVIEW.md`** — macro module map, sequencing, editable-outputs principle
+- **`osteopeinture/docs/SUPABASE-MIGRATION-SPEC.md`** — Phase 0 prerequisite migration spec
+
+Read those first for context on how this build fits into the broader OP ecosystem.
+
+---
+
+## STATE AS OF 2026-04-08
+
+**Live URL:** https://op-quote-assistant.up.railway.app (in-app brand: "OP Hub")
+**Supabase decision:** confirmed (free tier). Migration not yet started. See `SUPABASE-MIGRATION-SPEC.md`.
+**Next action:** **Phase 1 smoke test on the upcoming real job** — quote → convert to job → payment → verify Contract Revenue row in finance sheet → generate invoice → verify invoice flows. Do NOT use LACHANCE for this.
+
+## WHAT'S BUILT (D-1 to D-7 + today)
+- OP Quote chat + PDF + email (quote_send, quote_revision only)
+- Job management: convert quote → job, Jobs list + detail, delete job
+- Jibble CSV import + activity mapping (never smoke-tested on real data)
+- Change orders
+- Client update generator (bilingual HTML + PDF)
+- Editable invoice draft (combines quote + change orders + time entries)
+- Payment recording → Contract Revenue sync to finance sheet (fire-and-forget gap)
+- DB backup download endpoint (workaround for service-account Drive writes)
+- Desktop collapsible sidebar + mobile send-button relocation (today)
+- Recompute-on-convert fix for the $0 quote total bug (today)
+
+---
+
+## ORIGINAL CONTEXT (pre-D-series, kept for reference)
+
+# OstéoPeinture Quote Assistant
 # Session: OP exterior quoting logic
 
 ---
