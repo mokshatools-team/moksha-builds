@@ -23,6 +23,8 @@
 ## Feedback & Preferences (OP-specific)
 - [Never ask Loric to manually categorize](feedback_automate_categorization.md) — Auto-categorize imports via autocat-rules.json
 - [Overestimate consumables](feedback_overestimate_consumables.md) — Per-job supplies allocations historically underestimated, overestimate going forward
+- [Railway CLI drifts between projects](feedback_railway_cli_drift.md) — Always chain `railway link` + `railway up` in one shell; verify build log URL contains project `2049a8ed-...`
+- [Bump # Version line when editing QUOTING_LOGIC.md](feedback_quoting_logic_version_bump.md) — Force-reseed only fires when the version header changes; forgetting = silent no-op on deploy
 
 ## References
 - [Tiller Master Sheet](reference_tiller_master.md) — AutoCat rules source (ID: 12FT0agrTeIdrC929n-vjEWLG9Uxbf136VxpESs-Kcsc)
