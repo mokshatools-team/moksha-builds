@@ -1,6 +1,6 @@
 # CONTEXT.md — OstéoPeinture OP Hub (fka Quote Assistant)
-# Last updated: April 8, 2026
-# Session: Ecosystem doc + Supabase migration spec (documentation only)
+# Last updated: April 9, 2026
+# Session: A+B — polish fixes, scratchpad, smart paste, email unlock
 
 ---
 
@@ -33,10 +33,65 @@ Read those first for context on how this build fits into the broader OP ecosyste
 - Deleted orphan `data/QUOTING_LOGIC.md` (gitignored, untracked)
 
 **Railway CLI note (important for future sessions):**
-This session surfaced that the `railway` CLI had been pointing at the wrong project on multiple deploys today. The correct project/service for OP Hub is:
+The `railway` CLI drifts between Railway projects between sessions AND between invocations in the same session. Confirmed by empirical observation across the April 8-9 sessions: after an auto-drift, `railway status` will show the correct names ("osteoPeinture" / "quote-assistant") but `railway up` will deploy to a different project ID entirely.
+
+**Mandatory pre-deploy protocol for OP Hub:**
+- Always chain `railway link` and `railway up` in the SAME bash invocation
+- Use: `railway link -p 2049a8ed-33ea-47bf-aee6-08056b3a16ab -s 81f7e3b4-00b5-4b49-8f74-955313738a11 -e production && railway up --detach`
+- After `railway up`, verify the build log URL contains `project/2049a8ed-...` — if it doesn't, the deploy went to the wrong project and the live app is unchanged
+- Always check `railway deployment list` within 90s to confirm a new SUCCESS deployment appeared
+
+**Correct OP Hub Railway target:**
 - Project: `osteoPeinture` (id `2049a8ed-33ea-47bf-aee6-08056b3a16ab`)
 - Service: `quote-assistant` (id `81f7e3b4-00b5-4b49-8f74-955313738a11`)
-- Verify with `railway status` before every deploy. After `railway up`, always check `railway deployment list` to confirm the new deploy actually landed and the project/service IDs in the build log URL match.
+- Environment: production
+
+## SESSION A+B (2026-04-09) — Polish, Fixes, Scratchpad, Smart Paste, Email Unlock
+
+**Fix 1 — OP Quote UX:**
+- 1a (resizable panel divider): already built in earlier session, no change needed. Verified `#panel-divider` + mousedown/mousemove/mouseup wiring in public/index.html is functional.
+- 1b (mobile floating quote icon): transformed inline header button into a fixed-position circular icon top-right (44x44 touch target, safe-area-inset aware for iOS notch, keyboard-safe by design). New `toggleQuotePanel()` + `.active` state.
+- 1c ($50 subtotal/grand total rounding): `renderQuoteHTML` now computes raw subtotal, derives taxes from raw, then rounds subtotal + grand total to nearest $50 for display. `convertSessionToJob` also rounds the stored job subtotal so job cards match the PDF. Line items and JSON values untouched.
+- Commit: `5f0f82e` (first attempt deployed to wrong project, re-linked and redeployed as `c7051361`).
+
+**Fix 2 — Payment sync confirm step:**
+- Record-payment no longer auto-syncs. Server saves the payment and returns a full sync preview (date, amount, method, job name, category, destination).
+- New `POST /api/payments/:id/sync` endpoint performs the write when the user confirms.
+- Frontend `recordPayment()` now shows a confirm dialog with the preview before calling the sync endpoint. Cancel path leaves the payment with `finance_sync_status='pending'` for later retry.
+- Closes the fire-and-forget gap flagged in the ecosystem overview.
+- Commit: `eceb621` + `390735be` deploy.
+
+**Fix 3 — Scratchpad field in job detail:**
+- New `scratchpad` TEXT column on jobs (ALTER IF NOT EXISTS).
+- PATCH `/api/jobs/:id` whitelist extended to accept `scratchpad`.
+- Job detail renders a textarea (min-height 200px, mono font, vertical resize) below payments. Auto-saves on blur via PATCH. No save button.
+- Commit: `a8903ed` + `42f5e1de` deploy.
+
+**Build 1 — Apple Notes smart paste:**
+- `POST /api/jobs/:id/smart-paste` calls Claude with a strict JSON schema prompt to extract clientName, address, phone, contractTotal, paintTotal, consumablesTotal, laborCost, payments[], remainder. Returns extracted object + conflict list (fields that would overwrite existing job data).
+- `POST /api/jobs/:id/smart-paste/apply` writes fields to the job, appends/replaces scratchpad with remainder, inserts each payment as a pending (unsynced) row. Respects an `overwrite` flag — when false, conflicting fields are preserved.
+- Payments from smart paste are NOT auto-synced to the finance sheet — user must confirm each via the existing payment sync flow.
+- Frontend: "Paste from Apple Notes" button in job detail actions → modal with textarea → parse → preview with field/payment/remainder breakdown → conflict warnings + "Apply + Overwrite" button when conflicts exist.
+- Commit: `7fbd2c1` + `75e97539` deploy.
+
+**Build 2 — Standalone email drafting (all 8 scenarios unlocked):**
+- `buildEmailDraft` no longer gates on `quoteJson`. Any session with clientName or address can produce a draft. Non-quote scenarios (decline, lead_more_info, project_update, etc) don't need quoteJson.
+- New `POST /api/email/standalone-draft` accepts jobId + scenario + signer + language + detailLevel; synthesizes a pseudo-session from the job record and returns subject + body via the existing buildEmailDraft pipeline.
+- New `POST /api/email/standalone-refine` applies an instruction to an arbitrary draft string via Claude. Same prompt as session-based refine, no session required.
+- Session email panel: scenario dropdown expanded from 3 → 8 (all EMAIL_LOGIC scenarios).
+- Session email panel: "Refine with instructions…" button wires the existing `/api/sessions/:id/email/refine` endpoint.
+- Job detail: new "Draft Email" action button opens a modal with all 8 scenarios, signer, length, language. Auto-generates on open from job context. Refine + Copy to clipboard.
+- Standalone modal does NOT send email — copy to clipboard only. Gmail send is Module 6 / horizon.
+- Commit: `14d4384` + `0e40dea5` deploy.
+
+**Still deferred to later sessions:**
+- Supabase migration (Phase 0 prerequisite — see SUPABASE-MIGRATION-SPEC.md)
+- Phase 1 smoke test on upcoming real job (quote → job → payment → invoice → verify finance sheet flow)
+- Jibble smoke test on real CSV
+- Remaining finance sheet hooks (job created → PNL, invoice sent → Receivable, invoice paid → close Receivable + Revenue)
+- OP Quote and OP Hub app split into two URLs/services
+- QUOTING_LOGIC v2 force-reseed is live; admin UI edits still clobbered by deploy version bumps (by design)
+- Backup mechanism still relies on manual `/api/backup/download` until Supabase migration lands
 
 ## WHAT'S BUILT (D-1 to D-7 + today)
 - OP Quote chat + PDF + email (quote_send, quote_revision only)
