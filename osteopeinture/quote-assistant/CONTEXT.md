@@ -1,6 +1,6 @@
 # CONTEXT.md — OstéoPeinture OP Hub (fka Quote Assistant)
 # Last updated: April 9, 2026
-# Session: A+B — polish fixes, scratchpad, smart paste, email unlock
+# Session: C — PWA icons + Build 2 resolved as spec change (no code)
 
 ---
 
@@ -83,6 +83,29 @@ The `railway` CLI drifts between Railway projects between sessions AND between i
 - Job detail: new "Draft Email" action button opens a modal with all 8 scenarios, signer, length, language. Auto-generates on open from job context. Refine + Copy to clipboard.
 - Standalone modal does NOT send email — copy to clipboard only. Gmail send is Module 6 / horizon.
 - Commit: `14d4384` + `0e40dea5` deploy.
+
+## SESSION C (2026-04-09) — PWA icons + Build 2 spec correction
+
+**Build 1 — PWA icons (shipped):**
+- Generator script at `scripts/generate-icons.js` using `sharp` (already in deps). Trims whitespace from the 4000×4000 `OP HOUSE.png` source, composites over a 512 `#0F0D0B` canvas, overlays SVG text, downscales to 192/180. Reproducible on any machine with the repo and the source logo.
+- Active set (OP Hub): `public/icon-192.png`, `public/icon-512.png`, `public/apple-touch-icon.png`. Brown house centered, white "HUB" text underneath.
+- Parked set (OP Quote, for the future app split): `public/icons-op-quote/icon-192.png`, `icon-512.png`, `apple-touch-icon.png`. Same house, white "QUOTE" text. Not referenced by the current manifest.
+- `manifest.json` rewritten: `name` + `short_name` both "OP Hub", description updated, icons point to the new files, `purpose: any` set on both sizes.
+- `index.html`: `<title>` updated OP Hub, `apple-mobile-web-app-title` updated to OP Hub, new `<link rel="apple-touch-icon" href="/apple-touch-icon.png">` added.
+- Commit `8e99825` → deploy `3fa5e7f5` SUCCESS on correct project. Verified live: `/manifest.json` serves OP Hub metadata, `/icon-512.png` returns HTTP 200 image/png.
+
+**Build 2 — Job created → P&L row: RESOLVED AS A SPEC CHANGE, NOT CODE.**
+
+Probed the finance sheet before writing any sync code. Findings:
+- Real tab name is `Per-Job P&L`, not `PNL by Contract`.
+- `Per-Job P&L` is a **derived view**, not a write target. Column A uses a spill formula `=IFERROR(UNIQUE(FILTER(Transactions!I$2:I$2000, <>"")))` that auto-pulls job codes from Transactions. Columns B–E are SUMPRODUCT/SUMIF formulas that auto-compute Revenue, Labor (Wages), Direct Expenses, and Net from Transactions + Wages.
+- There is no Start Date, Contract Total, Status, or Materials column anywhere in the tab.
+- Writing to the tab would clobber formulas. Writing a $0 placeholder to Transactions would pollute the cash-basis ledger.
+- **Jobs already auto-appear in Per-Job P&L on first payment sync** (D-7 commit `ed9f1b2` already writes a Transactions row with the job code in column I).
+
+**Loric confirmed Option A: do nothing.** The ecosystem doc's "Job created → PNL row" bullet was based on a mental model that didn't match the sheet architecture. The bullet was removed from `OSTEOP-BUILD-ECOSYSTEM-OVERVIEW.md` and the Phase 1 sequencing was updated. No code change to OP Hub.
+
+If metadata-in-sheet is ever needed later, the right answer is a new `Active Jobs` tab (separate from Per-Job P&L) written to on job create with a confirm step. Flagged in the ecosystem doc for future reference.
 
 **Still deferred to later sessions:**
 - Supabase migration (Phase 0 prerequisite — see SUPABASE-MIGRATION-SPEC.md)

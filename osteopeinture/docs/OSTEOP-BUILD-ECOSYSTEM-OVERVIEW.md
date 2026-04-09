@@ -108,12 +108,33 @@ Everything below is one interconnected system. The quote is the entry point. It 
 
 | Event | Finance Sheet action | Status |
 |---|---|---|
-| Job created in OP Hub | Add row to PNL by Contract | ❌ not wired |
-| Materials total logged | Update materials cost in PNL by Contract | ❌ not wired |
+| Job created in OP Hub | *(no sheet write — see note below)* | ✅ **by design** (verified 2026-04-09) |
+| Payment recorded | Write Contract Revenue row to Transactions | ✅ **live** (commit `ed9f1b2`, D-7) — confirm step added (commit `eceb621`) |
 | Invoice sent | Add row to Receivables | ❌ not wired |
 | Invoice paid | Close Receivable + add Revenue row | ❌ not wired |
-| Payment recorded | Write Contract Revenue row | ✅ **live** (commit `ed9f1b2`, D-7) |
 | Jibble CSV imported | Populate Wages tab with labor hours per job | ❌ not wired |
+| Materials total logged | Update materials cost per-job | ❌ not wired (likely not needed — see note) |
+
+**Why "Job created → sheet write" is NOT wired (and shouldn't be):**
+
+Investigated on 2026-04-09 (Session C). The `Per-Job P&L` tab is a **derived view**, not a write target. Its columns are:
+
+| Col | Header | How it's populated |
+|---|---|---|
+| A | Job | Spill formula `=IFERROR(UNIQUE(FILTER(Transactions!I$2:I$2000, <>"")))` plus manually-typed job codes below |
+| B | Revenue | `=SUMPRODUCT((Transactions.I=Job)*(Transactions.F="Contract Revenue")*Transactions.E)` |
+| C | Labor (Wages) | `=SUMIF(Wages.C, Job, Wages.F)*-1` |
+| D | Direct Expenses | `=SUMPRODUCT((Transactions.I=Job)*(Transactions.F<>"Contract Revenue")*(Transactions.F<>"Transfer")*Transactions.E)` |
+| E | Net | `=B+C+D` |
+
+There is no Start Date, no Contract Total, no Status, no Materials/Consumables columns in the real tab. All four value columns are SUMPRODUCT/SUMIF formulas that derive numbers from Transactions and Wages automatically.
+
+Therefore:
+- Jobs appear in Per-Job P&L **automatically on their first payment sync**, because that sync already writes a Transactions row with the job code in column I, and the spill formula pulls it into Per-Job P&L.
+- Writing a "Job Created" row on convert-to-job would either (a) require writing a $0 placeholder to Transactions, which pollutes the cash-basis ledger, or (b) clobber the formula-driven Per-Job P&L tab. Neither is acceptable.
+- Job metadata (contract total, start date, status, client info) lives in OP Hub and does not need to duplicate into the sheet. The sheet is the accounting surface; OP Hub is the operations surface; they converge via payments.
+
+**If metadata-in-sheet is ever needed later:** add a new `Active Jobs` tab to the sheet (not Per-Job P&L), wire OP Hub to write job metadata rows there on create with a confirm step. For now: not needed, not built.
 
 **Payment sync — the gap to fix:**
 - When a payment is recorded in OP Hub, the server auto-writes a Contract Revenue row to the finance sheet via service account
@@ -244,7 +265,7 @@ When we wire the remaining finance hooks, they need a preview-then-write pattern
 ### Phase 1 — Test what exists before building more
 4. **End-to-end smoke test on the upcoming real job** (next contract, not LACHANCE): quote → convert to job → payment → verify Contract Revenue row in finance sheet → generate invoice → verify invoice flows.
 5. **Jibble smoke test** with a real CSV on a real job.
-6. **Fix finance hooks surfaced by smoke test:** wire job created → PNL row, invoice sent → Receivable, invoice paid → close Receivable + Revenue. Add confirm-before-write on all of them. Fix payment sync fire-and-forget gap.
+6. **Fix finance hooks surfaced by smoke test:** wire invoice sent → Receivable, invoice paid → close Receivable + Revenue. Add confirm-before-write on all of them. (Job created → sheet write was removed from this list on 2026-04-09 after confirming Per-Job P&L is a formula-driven derived view — jobs already appear on first payment sync. Payment sync confirm step shipped separately as commit `eceb621`.)
 
 ### Phase 2 — UI separation + polish
 7. **Split into OP Quote and OP Hub** — two URLs, two Railway services, two PWA icons, shared Supabase DB.
@@ -275,7 +296,7 @@ OP HUB (job tracking → change orders → payments → scratchpad)
     ↓
 INVOICE GENERATOR (quote + adjustments + payment history → PDF invoice)
     ↓
-FINANCE SHEET (PNL by Contract / Receivables / Revenue / Wages)
+FINANCE SHEET (Transactions / Per-Job P&L / Wages / Receivables)
     ↑
 JIBBLE (time tracking → labor hours → wages)
 ```
