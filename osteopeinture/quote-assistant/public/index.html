@@ -3543,12 +3543,44 @@ async function recordPayment(jobId) {
       body: JSON.stringify({ amount: parseFloat(amount), date, method, reference }),
     });
     const data = await res.json();
-    if (res.ok) {
-      alert('Payment recorded');
-      openJobDetail(jobId);
-    } else {
+    if (!res.ok) {
       alert(data.error || 'Failed');
+      return;
     }
+
+    // Payment is saved. Now show the finance sheet sync preview and require
+    // explicit confirmation before the write fires.
+    const p = data.sync_preview || {};
+    const previewText = [
+      'Payment saved. Write to finance sheet?',
+      '',
+      'Date:     ' + (p.date || date),
+      'Amount:   ' + (p.amount_formatted || ('$' + amount)),
+      'Method:   ' + (p.method || method),
+      'Job:      ' + (p.job_name || ''),
+      'Category: ' + (p.category || 'Contract Revenue'),
+      'Dest:     ' + (p.destination || 'Finance Google Sheet'),
+      '',
+      'OK to write, Cancel to leave as pending (you can sync later).',
+    ].join('\n');
+
+    if (confirm(previewText)) {
+      try {
+        const syncRes = await fetch('/api/payments/' + data.id + '/sync', { method: 'POST' });
+        const syncData = await syncRes.json();
+        if (syncRes.ok) {
+          alert(syncData.status === 'already_synced' ? 'Already synced to finance sheet.' : 'Payment synced to finance sheet.');
+        } else {
+          alert('Sync failed: ' + (syncData.error || 'unknown error') + '\n\nPayment is still recorded. You can retry the sync later.');
+        }
+      } catch (err) {
+        alert('Sync error: ' + err.message + '\n\nPayment is still recorded.');
+      }
+    } else {
+      alert('Payment saved. Finance sheet write skipped — marked as pending.');
+    }
+
+    openJobDetail(jobId);
   } catch (err) {
     alert('Error: ' + err.message);
   }

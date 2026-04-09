@@ -2085,7 +2085,10 @@ app.delete('/api/jobs/:id', (req, res) => {
   }
 });
 
-// Record a payment
+// Record a payment. Saves to DB but does NOT auto-sync to the finance sheet —
+// the client must explicitly confirm via POST /api/payments/:id/sync. This
+// enforces the editable-outputs contract: no write to the finance sheet
+// without explicit user approval.
 app.post('/api/jobs/:id/payments', express.json(), (req, res) => {
   try {
     const job = getJob(req.params.id);
@@ -2095,19 +2098,58 @@ app.post('/api/jobs/:id/payments', express.json(), (req, res) => {
     const now = new Date().toISOString();
     const paymentId = uuidv4();
     const amountCents = Math.round(amount * 100);
+    const resolvedMethod = method || 'e_transfer';
     db.prepare(`
       INSERT INTO payments (id, job_id, payment_date, amount_cents, method, reference, notes, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(paymentId, job.id, date, amountCents, method || 'e_transfer', reference || null, notes || null, now);
-
-    // Sync to finance Google Sheet (background, non-blocking)
-    syncPaymentToSheet(paymentId, job, { date, amountCents, method: method || 'e_transfer', reference }).catch(err => {
-      console.error('[finance-sync] Failed:', err.message);
-    });
+    `).run(paymentId, job.id, date, amountCents, resolvedMethod, reference || null, notes || null, now);
 
     scheduleBackup(DB_PATH);
-    res.json({ id: paymentId, message: 'Payment recorded' });
+
+    // Return a preview of what would be written to the finance sheet.
+    // The client must POST to /api/payments/:id/sync to actually write it.
+    res.json({
+      id: paymentId,
+      message: 'Payment recorded — awaiting finance sync confirmation',
+      sync_preview: {
+        date,
+        amount: Number(amount),
+        amount_formatted: '$' + Number(amount).toLocaleString('fr-CA'),
+        method: resolvedMethod,
+        job_name: job.client_name + (job.project_title ? ` — ${job.project_title}` : ''),
+        job_number: job.job_number,
+        category: 'Contract Revenue',
+        reference: reference || null,
+        destination: 'Finance Google Sheet — Transactions tab',
+      },
+    });
   } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Confirm and execute the finance sheet sync for a previously recorded payment.
+// Called after the user reviews and approves the preview returned by the
+// record-payment endpoint.
+app.post('/api/payments/:id/sync', express.json(), async (req, res) => {
+  try {
+    const payment = db.prepare('SELECT * FROM payments WHERE id = ?').get(req.params.id);
+    if (!payment) return res.status(404).json({ error: 'Payment not found' });
+    const job = getJob(payment.job_id);
+    if (!job) return res.status(404).json({ error: 'Parent job not found' });
+    if (payment.finance_sync_status === 'synced') {
+      return res.json({ ok: true, status: 'already_synced', synced_at: payment.finance_synced_at });
+    }
+    await syncPaymentToSheet(payment.id, job, {
+      date: payment.payment_date,
+      amountCents: payment.amount_cents,
+      method: payment.method,
+      reference: payment.reference,
+    });
+    const updated = db.prepare('SELECT finance_sync_status, finance_synced_at FROM payments WHERE id = ?').get(payment.id);
+    res.json({ ok: true, status: updated.finance_sync_status, synced_at: updated.finance_synced_at });
+  } catch (err) {
+    console.error('[finance-sync] Confirm-sync failed:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
