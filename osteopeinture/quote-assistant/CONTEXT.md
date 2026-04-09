@@ -20,6 +20,24 @@ Read those first for context on how this build fits into the broader OP ecosyste
 **Supabase decision:** confirmed (free tier). Migration not yet started. See `SUPABASE-MIGRATION-SPEC.md`.
 **Next action:** **Phase 1 smoke test on the upcoming real job** — quote → convert to job → payment → verify Contract Revenue row in finance sheet → generate invoice → verify invoice flows. Do NOT use LACHANCE for this.
 
+**QUOTING_LOGIC.md v2 merged and live (2026-04-08):**
+- Wall benchmark corrected: 0.25 min/sqft (was stale 1.64)
+- Added §3A (baseboards per lft), §3B (crown moulding), §3C (production standards)
+- §4 rewritten with full door/window tier tables + mantle + staircase TBC
+- §16 TAXES (QC) restored (had been silently deleted when §15A CASH was added)
+- §20 rewritten as "Confirmed Benchmarks"
+- §22 French door range warning restored
+- Preserved from repo: §15A CASH, §23A Exterior Assistant Guidance, §25 resolved exterior primer prices
+- Force-reseed mechanism added in server.js: compares `# Version:` header on seed vs volume copy and overwrites volume on version bump. Overrides admin panel edits by design.
+- Verified live: all 19 post-deploy checks passed, force-reseed log line confirmed
+- Deleted orphan `data/QUOTING_LOGIC.md` (gitignored, untracked)
+
+**Railway CLI note (important for future sessions):**
+This session surfaced that the `railway` CLI had been pointing at the wrong project on multiple deploys today. The correct project/service for OP Hub is:
+- Project: `osteoPeinture` (id `2049a8ed-33ea-47bf-aee6-08056b3a16ab`)
+- Service: `quote-assistant` (id `81f7e3b4-00b5-4b49-8f74-955313738a11`)
+- Verify with `railway status` before every deploy. After `railway up`, always check `railway deployment list` to confirm the new deploy actually landed and the project/service IDs in the build log URL match.
+
 ## WHAT'S BUILT (D-1 to D-7 + today)
 - OP Quote chat + PDF + email (quote_send, quote_revision only)
 - Job management: convert quote → job, Jobs list + detail, delete job
