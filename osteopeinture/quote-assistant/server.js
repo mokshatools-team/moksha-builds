@@ -438,7 +438,11 @@ function convertSessionToJob(sessionId, overrides = {}) {
   }
   if (recomputed > 0) session.totalAmount = recomputed;
 
-  const subtotalCents = Math.round((session.totalAmount || 0) * 100);
+  // Round subtotal to nearest $50 for display consistency with the PDF
+  // renderer (renderQuoteHTML). JSON values stay untouched — this only
+  // affects the stored job totals used in the job card UI.
+  const rawSubtotalCents = Math.round((session.totalAmount || 0) * 100);
+  const subtotalCents = Math.round(rawSubtotalCents / 5000) * 5000;
   const taxCents = Math.round(subtotalCents * 0.14975);
   const totalCents = subtotalCents + taxCents;
 
@@ -954,20 +958,25 @@ function renderQuoteHTML(data) {
   const isExterior = (data.projectType || '').toLowerCase().includes('exterior');
 
   // Calculate subtotal — skip excluded and optional sections
-  let subtotal = 0;
+  let rawSubtotal = 0;
   for (const sec of sections) {
     if (sec.excluded || sec.optional) continue;
     if (sec.total) {
-      subtotal += sec.total;
+      rawSubtotal += sec.total;
     } else if (sec.items) {
       for (const item of sec.items) {
-        if (item.price) subtotal += item.price;
+        if (item.price) rawSubtotal += item.price;
       }
     }
   }
-  const tps = subtotal * 0.05;
-  const tvq = subtotal * 0.09975;
-  const grandTotal = subtotal + tps + tvq;
+  // Taxes computed from raw subtotal to preserve correct percentages.
+  const tps = rawSubtotal * 0.05;
+  const tvq = rawSubtotal * 0.09975;
+  const rawGrandTotal = rawSubtotal + tps + tvq;
+  // Display-level $50 rounding on subtotal and grand total only.
+  // Line items and section totals remain exact. JSON values untouched.
+  const subtotal = Math.round(rawSubtotal / 50) * 50;
+  const grandTotal = Math.round(rawGrandTotal / 50) * 50;
 
   // Build terms block
   const terms = data.terms || {};

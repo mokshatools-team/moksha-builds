@@ -1663,24 +1663,31 @@
     }
     #mobile-back-btn:active { color: var(--accent); }
 
-    /* View Quote button in chat header */
+    /* Floating quote toggle — top-right, keyboard-safe (no bottom anchoring) */
     #mobile-quote-btn {
       display: none;
+      position: fixed;
+      top: calc(env(safe-area-inset-top, 0px) + 10px);
+      right: 12px;
+      width: 44px;
+      height: 44px;
       align-items: center;
-      gap: 4px;
+      justify-content: center;
       background: var(--accent);
       color: #fff;
       border: none;
-      border-radius: var(--radius-sm);
-      padding: 5px 10px;
-      font-size: 11px;
-      font-weight: 600;
-      font-family: var(--font-sans);
+      border-radius: 50%;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
       cursor: pointer;
-      letter-spacing: 0.03em;
-      flex-shrink: 0;
+      z-index: 310;
+      transition: background 0.15s, transform 0.15s;
+      padding: 0;
+      font-size: 0; /* hide any text fallback */
     }
+    #mobile-quote-btn svg { width: 20px; height: 20px; display: block; }
     #mobile-quote-btn.visible { display: flex; }
+    #mobile-quote-btn.active { background: var(--surface-2); color: var(--accent); }
+    #mobile-quote-btn:active { transform: scale(0.92); }
 
     /* Prevent iOS zoom on input focus */
     #message-input { font-size: 16px; }
@@ -1781,7 +1788,9 @@
       </button>
       <div id="chat-header-title">New Quote</div>
       <div id="session-badge" style="display:none"></div>
-      <button id="mobile-quote-btn" onclick="openQuotePanel()">Quote ›</button>
+      <button id="mobile-quote-btn" onclick="toggleQuotePanel()" aria-label="Toggle quote preview" title="Toggle quote preview">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
+      </button>
       <button id="convert-to-job-btn" onclick="openConvertFromCurrentSession()" style="display:none;background:var(--sage-dim);color:var(--sage);border:none;padding:4px 10px;border-radius:4px;font-size:11px;font-weight:600;cursor:pointer">→ Job</button>
     </div>
     <div id="messages">
@@ -2026,9 +2035,18 @@ function updateSidebarToggleIcon() {
 })();
 function openQuotePanel() {
   document.getElementById('quote-panel').classList.add('mobile-open');
+  const btn = document.getElementById('mobile-quote-btn');
+  if (btn) btn.classList.add('active');
 }
 function closeQuotePanel() {
   document.getElementById('quote-panel').classList.remove('mobile-open');
+  const btn = document.getElementById('mobile-quote-btn');
+  if (btn) btn.classList.remove('active');
+}
+function toggleQuotePanel() {
+  const panel = document.getElementById('quote-panel');
+  if (panel.classList.contains('mobile-open')) closeQuotePanel();
+  else openQuotePanel();
 }
 const emailDraftStateBySession = new Map();
 const MAX_CLIENT_IMAGE_COUNT = 15;
