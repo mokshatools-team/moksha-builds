@@ -828,7 +828,11 @@ function buildScenarioBody(session, emailMeta) {
 }
 
 function buildEmailDraft(session) {
-  if (!session || !session.quoteJson) return null;
+  // Standalone-friendly: a session only needs clientName or address to
+  // produce a draft. quoteJson is optional — non-quote scenarios
+  // (decline, lead_more_info, project_update, etc) don't need it.
+  if (!session) return null;
+  if (!session.quoteJson && !session.clientName && !session.address) return null;
 
   const emailMeta = getEmailMeta(session);
   const emailSubject = buildEmailSubject(session, emailMeta);
@@ -1984,6 +1988,87 @@ app.post('/api/sessions/:id/email/refine', express.json(), async (req, res) => {
     res.json({ ok: true, refinedDraft });
   } catch (err) {
     console.error('Email refine error:', err);
+    res.status(500).json({ error: err.message || 'Failed to refine email' });
+  }
+});
+
+// ── STANDALONE EMAIL DRAFTING ───────────────────────────────────────────
+// Generate an email draft without requiring a quote session. Used by
+// OP Hub when drafting follow-ups, declines, lead responses, or project
+// updates from a job context (or with no context at all).
+app.post('/api/email/standalone-draft', express.json(), (req, res) => {
+  try {
+    const { jobId, scenario, signer, language, detailLevel, clientName, address, recipient } = req.body || {};
+    const allowedScenarios = new Set([
+      'quote_send', 'quote_revision', 'quote_follow_up', 'quote_promise',
+      'decline', 'lead_more_info', 'lead_follow_up', 'project_update',
+    ]);
+    if (!scenario || !allowedScenarios.has(scenario)) {
+      return res.status(400).json({ error: 'Invalid or missing scenario' });
+    }
+
+    // Build a pseudo-session from the provided context or a job record.
+    const pseudo = {
+      clientName: clientName || '',
+      address: address || '',
+      projectId: null,
+      emailRecipient: recipient || '',
+      quoteJson: null,
+      emailMeta: {
+        scenario,
+        signer: ['Loric', 'Graeme', 'Lubo'].includes(signer) ? signer : 'Loric',
+        language: ['english', 'french'].includes(language) ? language : 'english',
+        detailLevel: ['minimal', 'standard', 'detailed'].includes(detailLevel) ? detailLevel : 'standard',
+        scenarioManual: true,
+      },
+    };
+
+    if (jobId) {
+      const job = getJob(jobId);
+      if (!job) return res.status(404).json({ error: 'Job not found' });
+      pseudo.clientName = pseudo.clientName || job.client_name || '';
+      pseudo.address = pseudo.address || job.address || '';
+      pseudo.projectId = job.project_title || job.job_number || null;
+      pseudo.emailRecipient = pseudo.emailRecipient || job.client_email || '';
+    }
+
+    const draft = buildEmailDraft(pseudo);
+    if (!draft) return res.status(400).json({ error: 'Not enough context to build draft' });
+    res.json(draft);
+  } catch (err) {
+    console.error('[standalone-draft] Failed:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Standalone refine — applies an instruction to an arbitrary draft string
+// without needing a session. Wraps the same Claude prompt used by the
+// session-based refine endpoint.
+app.post('/api/email/standalone-refine', express.json(), async (req, res) => {
+  try {
+    const { currentDraft, instruction } = req.body || {};
+    if (!currentDraft || !instruction) {
+      return res.status(400).json({ error: 'currentDraft and instruction are required' });
+    }
+    const response = await anthropic.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 2048,
+      system: `You are an email editor for OstéoPeinture, a painting company in Montréal. You receive a draft email and a refinement instruction. Apply the instruction and return ONLY the updated email body — no explanation, no preamble, no quotes around it. Preserve the existing sign-off and structure unless the instruction says otherwise. Keep the tone warm, professional, and concise.`,
+      messages: [
+        {
+          role: 'user',
+          content: `Here is the current email draft:\n\n${currentDraft}\n\n---\n\nInstruction: ${instruction}\n\nReturn only the updated email body.`,
+        },
+      ],
+    });
+    const refinedDraft = response.content
+      .filter((part) => part.type === 'text')
+      .map((part) => part.text)
+      .join('\n')
+      .trim();
+    res.json({ ok: true, refinedDraft });
+  } catch (err) {
+    console.error('[standalone-refine] Failed:', err.message);
     res.status(500).json({ error: err.message || 'Failed to refine email' });
   }
 });

@@ -1859,7 +1859,12 @@
           <select class="form-input" id="email-scenario">
             <option value="quote_send">Send quote</option>
             <option value="quote_revision">Revised quote</option>
-            <option value="quote_follow_up">Follow up</option>
+            <option value="quote_follow_up">Quote follow-up</option>
+            <option value="quote_promise">Quote coming shortly</option>
+            <option value="decline">Decline job</option>
+            <option value="lead_more_info">Ask for more info (lead)</option>
+            <option value="lead_follow_up">Lead follow-up</option>
+            <option value="project_update">Project / cost update</option>
           </select>
         </div>
         <div class="form-row">
@@ -1897,6 +1902,9 @@
       <div class="form-row form-row-flex">
         <div class="form-label">Message</div>
         <textarea class="form-textarea" id="email-body"></textarea>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px;">
+        <button onclick="refineSessionEmail()" style="background:var(--surface-2);border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:var(--radius-sm);font-size:12px;cursor:pointer;">Refine with instructions…</button>
       </div>
       <button id="email-send-btn" onclick="sendEmail()">Send Email with PDF</button>
     </div>
@@ -1974,6 +1982,64 @@
     <div class="convert-actions">
       <button class="btn-convert-cancel" onclick="closeConvertModal()">Cancel</button>
       <button class="btn-convert-confirm" onclick="confirmConvertToJob()">Create Job</button>
+    </div>
+  </div>
+</div>
+
+<!-- STANDALONE EMAIL DRAFT MODAL -->
+<div id="stdemail-modal" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,0.7);align-items:flex-start;justify-content:center;overflow-y:auto;padding:40px 16px;">
+  <div style="background:var(--surface-0);border:1px solid var(--border);border-radius:8px;max-width:680px;width:100%;padding:24px;color:var(--text);font-family:var(--font-sans);">
+    <h3 style="margin:0 0 6px;font-family:var(--font-serif);font-size:20px;">Draft Email</h3>
+    <div id="stdemail-context" style="font-size:12px;color:var(--text-3);margin-bottom:14px;"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+      <div>
+        <div style="font-size:11px;color:var(--text-3);margin-bottom:4px;letter-spacing:.06em;text-transform:uppercase;">Type</div>
+        <select id="stdemail-scenario" style="width:100%;padding:8px;background:var(--surface-1);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px;">
+          <option value="quote_send">Send quote</option>
+          <option value="quote_revision">Revised quote</option>
+          <option value="quote_follow_up">Quote follow-up</option>
+          <option value="quote_promise">Quote coming shortly</option>
+          <option value="decline">Decline job</option>
+          <option value="lead_more_info">Ask for more info (lead)</option>
+          <option value="lead_follow_up">Lead follow-up</option>
+          <option value="project_update">Project / cost update</option>
+        </select>
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--text-3);margin-bottom:4px;letter-spacing:.06em;text-transform:uppercase;">Signer</div>
+        <select id="stdemail-signer" style="width:100%;padding:8px;background:var(--surface-1);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px;">
+          <option>Loric</option><option>Graeme</option><option>Lubo</option>
+        </select>
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--text-3);margin-bottom:4px;letter-spacing:.06em;text-transform:uppercase;">Length</div>
+        <select id="stdemail-detail" style="width:100%;padding:8px;background:var(--surface-1);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px;">
+          <option value="minimal">Short</option>
+          <option value="standard" selected>Standard</option>
+          <option value="detailed">Detailed</option>
+        </select>
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--text-3);margin-bottom:4px;letter-spacing:.06em;text-transform:uppercase;">Language</div>
+        <select id="stdemail-language" style="width:100%;padding:8px;background:var(--surface-1);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px;">
+          <option value="english">English</option>
+          <option value="french">French</option>
+        </select>
+      </div>
+    </div>
+    <div style="margin-bottom:8px;">
+      <div style="font-size:11px;color:var(--text-3);margin-bottom:4px;letter-spacing:.06em;text-transform:uppercase;">Subject</div>
+      <input type="text" id="stdemail-subject" style="width:100%;padding:8px;background:var(--surface-1);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px;box-sizing:border-box;">
+    </div>
+    <div style="margin-bottom:8px;">
+      <div style="font-size:11px;color:var(--text-3);margin-bottom:4px;letter-spacing:.06em;text-transform:uppercase;">Body</div>
+      <textarea id="stdemail-body" style="width:100%;min-height:280px;padding:12px;background:var(--surface-1);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:var(--font-mono);font-size:13px;line-height:1.55;resize:vertical;box-sizing:border-box;"></textarea>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;">
+      <button onclick="closeStandaloneEmail()" style="background:var(--surface-2);border:1px solid var(--border);color:var(--text);padding:8px 16px;border-radius:var(--radius-sm);font-size:13px;cursor:pointer;">Close</button>
+      <button onclick="generateStandaloneEmail()" style="background:var(--surface-2);border:1px solid var(--border);color:var(--text);padding:8px 16px;border-radius:var(--radius-sm);font-size:13px;cursor:pointer;">Generate / Regenerate</button>
+      <button onclick="refineStandaloneEmail()" style="background:var(--surface-2);border:1px solid var(--border);color:var(--text);padding:8px 16px;border-radius:var(--radius-sm);font-size:13px;cursor:pointer;">Refine with instructions…</button>
+      <button onclick="copyStandaloneEmail()" style="background:var(--accent);border:none;color:#fff;padding:8px 18px;border-radius:var(--radius-sm);font-size:13px;font-weight:600;cursor:pointer;">Copy to clipboard</button>
     </div>
   </div>
 </div>
@@ -3116,6 +3182,10 @@ async function openJobDetail(jobId) {
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="2" width="6" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M9 14l2 2 4-4"/></svg>
           Paste from Apple Notes
         </button>
+        <button class="job-action-btn" onclick="openStandaloneEmail('${job.id}')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><polyline points="22,7 12,13 2,7"/></svg>
+          Draft Email
+        </button>
         <button class="job-action-btn" onclick="deleteJob('${job.id}', '${esc(job.client_name || '')}')" style="color:#c94a4a;border-color:rgba(201,74,74,0.3)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg>
           Delete Job
@@ -3148,6 +3218,107 @@ async function openJobDetail(jobId) {
 function closeJobDetail() {
   document.getElementById('job-detail').classList.remove('visible');
   currentJobId = null;
+}
+
+// ── STANDALONE EMAIL DRAFT (job-context, no quote session needed) ───────
+let stdEmailJobId = null;
+
+async function openStandaloneEmail(jobId) {
+  stdEmailJobId = jobId;
+  // Pull job context for the header and for subject seeding
+  let ctx = '';
+  try {
+    const res = await fetch('/api/jobs/' + jobId);
+    if (res.ok) {
+      const job = await res.json();
+      ctx = (job.client_name || '') + (job.address ? ' — ' + job.address : '');
+    }
+  } catch (e) {}
+  document.getElementById('stdemail-context').textContent = ctx ? 'Context: ' + ctx : 'No job context';
+  document.getElementById('stdemail-subject').value = '';
+  document.getElementById('stdemail-body').value = '';
+  document.getElementById('stdemail-modal').style.display = 'flex';
+  // Auto-generate on open
+  generateStandaloneEmail();
+}
+function closeStandaloneEmail() {
+  document.getElementById('stdemail-modal').style.display = 'none';
+  stdEmailJobId = null;
+}
+
+async function generateStandaloneEmail() {
+  const payload = {
+    jobId: stdEmailJobId,
+    scenario: document.getElementById('stdemail-scenario').value,
+    signer: document.getElementById('stdemail-signer').value,
+    language: document.getElementById('stdemail-language').value,
+    detailLevel: document.getElementById('stdemail-detail').value,
+  };
+  try {
+    const res = await fetch('/api/email/standalone-draft', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) { alert('Draft failed: ' + (data.error || 'unknown')); return; }
+    document.getElementById('stdemail-subject').value = data.subject || '';
+    document.getElementById('stdemail-body').value = data.body || '';
+  } catch (err) {
+    alert('Error: ' + err.message);
+  }
+}
+
+async function refineStandaloneEmail() {
+  const currentDraft = document.getElementById('stdemail-body').value.trim();
+  if (!currentDraft) { alert('Nothing to refine yet — generate a draft first.'); return; }
+  const instruction = prompt('How should this email be changed?\n\ne.g. "Make it shorter", "Add a line about next week", "Be more formal"');
+  if (!instruction) return;
+  try {
+    const res = await fetch('/api/email/standalone-refine', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ currentDraft, instruction }),
+    });
+    const data = await res.json();
+    if (!res.ok) { alert('Refine failed: ' + (data.error || 'unknown')); return; }
+    document.getElementById('stdemail-body').value = data.refinedDraft || currentDraft;
+  } catch (err) {
+    alert('Error: ' + err.message);
+  }
+}
+
+async function copyStandaloneEmail() {
+  const subject = document.getElementById('stdemail-subject').value;
+  const body = document.getElementById('stdemail-body').value;
+  const text = 'Subject: ' + subject + '\n\n' + body;
+  try {
+    await navigator.clipboard.writeText(text);
+    alert('Copied subject + body to clipboard.');
+  } catch (err) {
+    alert('Could not copy automatically. Select and copy manually.');
+  }
+}
+
+// Refine for the existing session-based email form (quote context).
+async function refineSessionEmail() {
+  if (!currentSessionId) { alert('No active session.'); return; }
+  const currentDraft = document.getElementById('email-body').value.trim();
+  if (!currentDraft) { alert('Nothing to refine yet — generate a draft first.'); return; }
+  const instruction = prompt('How should this email be changed?\n\ne.g. "Make it shorter", "Add a line about next week", "Be more formal"');
+  if (!instruction) return;
+  try {
+    const res = await fetch('/api/sessions/' + currentSessionId + '/email/refine', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ instruction, currentDraft }),
+    });
+    const data = await res.json();
+    if (!res.ok) { alert('Refine failed: ' + (data.error || 'unknown')); return; }
+    document.getElementById('email-body').value = data.refinedDraft || currentDraft;
+  } catch (err) {
+    alert('Error: ' + err.message);
+  }
 }
 
 // ── SMART PASTE (Apple Notes → job fields) ──────────────────────────────
