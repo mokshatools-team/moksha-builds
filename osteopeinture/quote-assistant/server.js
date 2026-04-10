@@ -16,6 +16,7 @@ const {
   summarizeImageUpload,
 } = require('./lib/image-upload');
 const { ensureDatabase, scheduleBackup, backupToDrive } = require('./lib/db-backup');
+const { calculateScaffold } = require('./lib/scaffold-engine');
 
 // ============================================================
 // DATABASE SETUP
@@ -1733,6 +1734,69 @@ app.put('/api/sessions/:id/email-draft', express.json(), (req, res) => {
   });
 });
 
+// Scaffold calculation endpoint
+app.post('/api/scaffold/calculate', express.json(), (req, res) => {
+  try {
+    const spec = req.body;
+    if (!spec || !Array.isArray(spec.towers) || spec.towers.length === 0) {
+      return res.status(400).json({ error: 'Invalid scaffold spec: towers array required' });
+    }
+    if (!spec.duration_days || spec.duration_days < 1) {
+      return res.status(400).json({ error: 'Invalid scaffold spec: duration_days required (>= 1)' });
+    }
+    const result = calculateScaffold(spec);
+    res.json(result);
+  } catch (error) {
+    console.error('Scaffold calculation error:', error);
+    res.status(500).json({ error: 'Scaffold calculation failed' });
+  }
+});
+
+// Scaffold tool definition for Claude tool use
+const SCAFFOLD_TOOL = {
+  name: 'calculate_scaffold',
+  description: 'Calculate scaffold component quantities and rental costs from a tower specification. Call this when you have confirmed all tower dimensions, overhang levels, triangle sizes, and rental duration with the user.',
+  input_schema: {
+    type: 'object',
+    required: ['duration_days', 'towers'],
+    properties: {
+      duration_days: {
+        type: 'integer',
+        description: 'Total rental duration in days. Determines rate tier: 1-2=daily, 3-14=weekly, >14=monthly.',
+      },
+      towers: {
+        type: 'array',
+        description: 'Array of tower specifications.',
+        items: {
+          type: 'object',
+          required: ['label', 'facade', 'bays', 'levels', 'overhang_levels', 'triangle_size'],
+          properties: {
+            label: { type: 'string' },
+            facade: { type: 'string' },
+            frame_width: { type: 'string', enum: ['4ft', '5ft', '30in'], default: '4ft' },
+            bays: { type: 'array', items: { type: 'integer', enum: [7, 10] } },
+            levels: { type: 'integer' },
+            overhang_levels: { type: 'integer' },
+            triangle_size: { type: 'string', enum: ['small', 'medium', 'large'] },
+            sidewalk_frames: { type: 'boolean', default: false },
+            adjacent_to: { type: ['string', 'null'], default: null },
+            duration_days: { type: ['integer', 'null'], default: null },
+            notes: { type: 'string', default: '' },
+          },
+        },
+      },
+      extras: {
+        type: 'object',
+        properties: {
+          harness: { type: 'boolean', default: false },
+          ladders: { type: 'array', items: { type: 'object', properties: { size: { type: 'string' }, quantity: { type: 'integer' }, rental: { type: 'boolean' } } }, default: [] },
+          custom_items: { type: 'array', items: { type: 'object' }, default: [] },
+        },
+      },
+    },
+  },
+};
+
 // Send message
 async function handleSessionMessage(req, res) {
   const session = getSession(req.params.id);
@@ -1752,14 +1816,52 @@ async function handleSessionMessage(req, res) {
     const messages = buildTextOnlyHistory(session.messages);
     messages.push({ role: 'user', content });
 
-    const response = await anthropic.messages.create({
+    // Detect exterior/scaffold sessions to enable tool use
+    const conversationText = session.messages
+      .map(m => typeof m.content === 'string' ? m.content : '')
+      .join(' ').toLowerCase();
+    const isExteriorSession = conversationText.includes('exterior')
+      || conversationText.includes('scaffold')
+      || conversationText.includes('facade')
+      || conversationText.includes('façade')
+      || userText.toLowerCase().includes('exterior')
+      || userText.toLowerCase().includes('scaffold');
+
+    const apiParams = {
       model: 'claude-sonnet-4-6',
       max_tokens: 4096,
       system: buildSystemPrompt(),
       messages,
-    });
+    };
+    if (isExteriorSession) {
+      apiParams.tools = [SCAFFOLD_TOOL];
+    }
+    let response = await anthropic.messages.create(apiParams);
 
-    const assistantText = extractTextContent(response.content);
+    // Handle tool use loop (scaffold calculations)
+    let assistantContent = response.content;
+    while (response.stop_reason === 'tool_use') {
+      const toolBlock = assistantContent.find(b => b.type === 'tool_use');
+      if (!toolBlock || toolBlock.name !== 'calculate_scaffold') break;
+
+      let toolResult;
+      try {
+        toolResult = calculateScaffold(toolBlock.input);
+      } catch (err) {
+        toolResult = { error: err.message };
+      }
+
+      messages.push({ role: 'assistant', content: assistantContent });
+      messages.push({
+        role: 'user',
+        content: [{ type: 'tool_result', tool_use_id: toolBlock.id, content: JSON.stringify(toolResult) }],
+      });
+
+      response = await anthropic.messages.create({ ...apiParams, messages });
+      assistantContent = response.content;
+    }
+
+    const assistantText = extractTextContent(assistantContent);
     session.messages.push({
       role: 'user',
       content: buildCompactStoredUserContent(userText, normalizedImages),
