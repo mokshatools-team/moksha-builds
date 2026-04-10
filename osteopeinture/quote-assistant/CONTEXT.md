@@ -1,6 +1,6 @@
 # CONTEXT.md — OstéoPeinture OP Hub (fka Quote Assistant)
-# Last updated: April 9, 2026
-# Session: C — PWA icons + Build 2 resolved as spec change (no code)
+# Last updated: April 10, 2026
+# Session: D — Scaffold access quoting module built and deployed
 
 ---
 
@@ -11,6 +11,35 @@ The full ecosystem overview and build plan is NO LONGER in this file. It lives a
 - **`osteopeinture/docs/SUPABASE-MIGRATION-SPEC.md`** — Phase 0 prerequisite migration spec
 
 Read those first for context on how this build fits into the broader OP ecosystem.
+
+---
+
+## STATE AS OF 2026-04-10
+
+### Session D — Scaffold Module (2026-04-10)
+
+**What was built:**
+- Scaffold access quoting module — full design, spec, plan, and implementation in one session
+- `lib/scaffold-engine.js` — deterministic calculation engine with EMCO 2025 catalog
+- `POST /api/scaffold/calculate` — API endpoint for scaffold calculations
+- Claude tool `calculate_scaffold` — registered for exterior/scaffold sessions only
+- QUOTING_LOGIC.md bumped to v3 with §30-34 (scaffold terminology, formulas, EMCO catalog, ladders, labor)
+- 14 new unit tests (28 total pass)
+
+**How it works:** User discusses scaffold in an exterior quote conversation. Claude proposes tower layouts, confirms inputs, calls `calculate_scaffold` tool, backend returns deterministic component breakdown + rental costs. Claude presents results conversationally.
+
+**Key domain decisions (agreed with Loric):**
+- Default frame width: 4ft (not 5ft)
+- Platform formula: OVH × B × 2
+- Cross brace formula: (2B − 1) × L
+- Triangles attach to frames (not bays): OVH × (B+1)
+- Towers labeled A, B, C, organized by facade
+- Labor: manual hours input (no benchmarks yet)
+- EMCO primary, GAMMA for lifts (TBD)
+- 10% buffer on rental, $200 delivery (2 trips)
+
+**Design spec:** `docs/superpowers/specs/2026-04-10-scaffold-module-design.md`
+**Implementation plan:** `docs/superpowers/plans/2026-04-10-scaffold-module.md`
 
 ---
 

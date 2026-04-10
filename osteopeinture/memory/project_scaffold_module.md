@@ -181,4 +181,13 @@ Labor is quoted independently from component rental. Phases:
 
 ---
 
-**Next session:** Loric to confirm overhang/triangle/platform formulas, then plan UI/code integration into quote-assistant. GAMMA lift prices still TBD.
+## Status: V1 LIVE (2026-04-10)
+
+Deployed to Railway. Engine, endpoint, Claude tool, and §30-34 all live.
+- `lib/scaffold-engine.js` — all formulas + EMCO catalog
+- `POST /api/scaffold/calculate` — tested live
+- `calculate_scaffold` tool registered for exterior/scaffold sessions
+- QUOTING_LOGIC.md bumped to v3 with §30-34
+- 28/28 tests pass
+
+**Next session:** Test a real exterior quote conversation with scaffold in OP Hub. GAMMA lift prices still TBD.
