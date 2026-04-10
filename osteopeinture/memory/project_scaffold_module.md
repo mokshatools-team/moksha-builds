@@ -101,8 +101,8 @@ Overhangs extend outward from the scaffold so workers aren't stuck behind cross 
   - Full facade (siding, stucco, windows) → multiple overhang levels covering full height
 
 ### Platforms
-- Per overhang level: 2 platforms per bay + 1 extra
-- Total: `OVH × (B × 2 + 1)` where OVH = overhang_levels, B = num_bays
+- Per overhang level: 2 platforms per bay
+- Total: `OVH × B × 2` where OVH = overhang_levels, B = num_bays
 
 ### Planks (Boards)
 - **1 plank per bay per level** (all levels)

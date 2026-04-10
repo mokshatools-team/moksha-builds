@@ -130,7 +130,7 @@ Given: `B` = num_bays, `L` = levels, `OVH` = overhang_levels, `F` = frames_per_l
 | Sidewalk frames | If flagged: replaces ground-level standard frames = `F` | 5ft wide only |
 | Adjustable feet | `2 × F` | Ground level only |
 | Cross braces | `(2 × B - 1) × L` | Per bay width from array (7ft or 10ft) |
-| Platforms | `OVH × (B × 2 + 1)` | Per bay width (7ft or 10ft) |
+| Platforms | `OVH × B × 2` | Per bay width (7ft or 10ft) |
 | Planks | `B × L` | 8ft for 7ft bays, 12ft for 10ft bays |
 | Triangles | `OVH × F` | Small/medium/large per tower |
 | Tie-ins | `tie_in_levels × B` | tie_in_levels = FLOOR((height-15)/10)+1 when height ≥ 15ft |
