@@ -26,6 +26,10 @@
 - [Railway CLI drifts between projects](feedback_railway_cli_drift.md) — Always chain `railway link` + `railway up` in one shell; verify build log URL contains project `2049a8ed-...`
 - [Bump # Version line when editing QUOTING_LOGIC.md](feedback_quoting_logic_version_bump.md) — Force-reseed only fires when the version header changes; forgetting = silent no-op on deploy
 
+## Scaffold Module
+- [Scaffold module — scope & logic](project_scaffold_module.md) — new OP Hub module, calculates scaffold component quantities + rental costs from job dimensions
+- [EMCO 2025 scaffold rental catalog](reference_emco_scaffold_catalog.md) — full price list: frames, braces, platforms, boards, accessories, lifts (Jan 2025)
+
 ## References
 - [Tiller Master Sheet](reference_tiller_master.md) — AutoCat rules source (ID: 12FT0agrTeIdrC929n-vjEWLG9Uxbf136VxpESs-Kcsc)
 - [Cash Ledger tab pattern](reference_cash_ledger_tab.md) — QUERY + SCAN reusable pattern for per-account dynamic ledgers (tab #13)
