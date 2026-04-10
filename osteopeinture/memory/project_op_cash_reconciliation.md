@@ -1,21 +1,31 @@
 ---
-name: OP Cash reconciliation gaps (Jan 2026 + Feb–Apr 2026)
-description: Known cash balance anchors vs. Cash Ledger running balance — unresolved gaps identified 2026-04-08
+name: OP Cash reconciliation — blocked on FIDELIO ledger + 2025 finalization
+description: Cash pile is physically merged OP + FIDELIO. Reconciliation is blocked until 2025 closes and FIDELIO has its own system. Correct path documented.
 type: project
 ---
 
-After restoring the 7 destroyed Transactions rows and building the Cash Ledger tab, the running balance does NOT reconcile to Loric's stated anchors.
+**Root cause discovered 2026-04-09:** The physical cash pile is a **merged OP + FIDELIO pile**. The OP Cash Ledger can never reconcile to a pile count until FIDELIO cash flows are also tracked.
 
-**Anchors (from Loric):**
-- Jan 30, 2026 EOD cash = $550
-- Current (Apr 7, 2026) cash = $1,125
+**Known FIDELIO cash moves NOT in any ledger:**
+- Jan 2026: -$1,500 cash to Loric (FIDELIO draw)
+- Mar 24, 2026: -$1,000 cash to BOSS (FIDELIO cut; the -$2,750 on the same day was OP's cut and is in the OP ledger)
 
-**Cash Ledger shows:**
-- Jan 30, 2026 = -$64  → **+$614 missing inflow in January**
-- Apr 7, 2026 = $1,441 → **-$316 missing outflow Feb–Apr**
+**Anchors:**
+- Apr 9, 2026 mixed pile = $825 (physical count)
+- Jan 30, 2026 mixed pile = $550 (recollection)
+- Neither is usable for OP alone until FIDELIO is subtracted out
 
-**Why:** January gap is the bigger red flag because all subsequent math depends on Jan 1 opening balance being correct. The restored opening of $961 + known Jan activity (Loric -$700, Graeme -$1,200, Lubo -$1,200, Dufresne +$2,075) = -$64, not $550.
+**Current OP Cash Ledger state:**
+- Opening balance row cleared (no longer assumes $961)
+- Sum of 26 logged 2026 cash rows = +$180 net
+- Computed Jan 30 (with $645 opening derived from pure count-down) = -$380 → $930 short of anchor. Gap is explained by the missing FIDELIO flows above.
 
-**How to apply:** Next session walk Loric through January cash day-by-day starting from opening $961, find the ~$614 missing inflow (likely an early contract payment or cash deposit before Jan 30). Once Jan 30 hits $550, isolate the -$316 Feb–Apr outflow gap. Do NOT silently patch — surface every gap and get Loric to confirm the source before writing.
+**Correct sequencing (agreed with Loric):**
+1. **Finalize 2025 ledgers** (OP + whatever FIDELIO has) → gives clean Dec 31, 2025 closing balances including true Cash opening for each entity
+2. **Build FIDELIO finance system** — mirror of OP's structure (Transactions, Cash Ledger, Accounts, etc.)
+3. **Settle today** — split physical pile into two envelopes, anchor each separately, post adjusting entries for any unrecorded 2026 flows
+4. **Automate going forward** — shared import patterns, auto-categorization, conversational interface across both companies
 
-**Next session:** Open the Cash Ledger tab with Loric, walk January cash day-by-day, identify the +$614 missing January inflow first.
+**How to apply:** Do NOT attempt to patch OP's Cash Ledger gaps in isolation. Any "fix" without FIDELIO's side of the pile will just move numbers around without matching reality. Next session starts with item 1: finalize 2025 OP ledger.
+
+**Next session:** Resume 2025 OP ledger finalization (blocked earlier on Loric's corrections). Do not touch Cash reconciliation until 2025 is closed and FIDELIO system is scoped.
