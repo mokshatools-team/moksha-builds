@@ -1,7 +1,7 @@
 # OSTÉOPEINTURE — QUOTING LOGIC
 # Main estimating brain for interior and exterior quotes.
 # Last updated: April 8, 2026
-# Version: v2 — corrected wall benchmark (0.25 min/sqft), added §3A/3B/3C, rewrote §4, restored §16 TAXES, rewrote §20
+# Version: v3 — added §30-34 scaffold access quoting (EMCO catalog, component formulas, ladder table, labor phases)
 
 ---
 ---
@@ -725,3 +725,138 @@ Same rules as interior (Section 17):
 - Multi-week jobs: balance in weekly installments
 - Jobs ≤1 week: balance at completion
 - Payment: cheque or e-transfer
+
+---
+---
+# ██████████████████████████████████████████████████████
+# ██                                                  ██
+# ██         SCAFFOLD & ACCESS QUOTING LOGIC          ██
+# ██                                                  ██
+# ██████████████████████████████████████████████████████
+
+## 30. SCAFFOLD ACCESS OVERVIEW
+
+Exterior jobs require access equipment. Three options, in order of preference:
+1. **Ladders** — for low work (≤17ft with owned 21ft ladder) or isolated spots
+2. **Scaffold** — for sustained work on facades, when multiple workers need simultaneous access
+3. **Lifts** — for very high work or limited ground access (GAMMA pricing TBD)
+
+Always itemize scaffold/access separately from painting work in the quote.
+
+### When to suggest scaffold vs ladder
+- **Ladder only:** Work height ≤17ft, small isolated areas, touch-ups
+- **Scaffold:** Work height >17ft, wide facades needing sustained access, multiple workers
+- **Ladder + scaffold combo:** Common — scaffold on main facades, ladder for returns/small sections
+
+### Terminology
+- **Tower** — standalone non-contiguous scaffold structure. Label: A, B, C...
+- **Bay** — one section within a contiguous tower. First bay = 2 frames/level, each additional = +1 frame/level
+- **Level** — 5ft of height (standard frame height)
+- **Frame** — H-shaped vertical piece. Default 4ft wide (lighter). 5ft wide only when sidewalk or half-height frames needed.
+- **Overhang level** — platform extending outside the scaffold structure for working access. Standard spacing: start at highest work point −5ft, then every 6ft down.
+- **Triangle** — overhang bracket. Small (20"), Medium (24"), Large (36").
+- **Adjustable foot** — threaded screw with base plate under each frame for leveling
+- **Tie-in** — anchoring arm, 4ft post with swivel clamp securing scaffold to wall
+- **Banana** — small clip securing frames to wall (separate from tie-ins)
+
+### Tower layout notation
+Always present tower layouts visually:
+```
+FRONT Facade
+Tower A  →  | 7 | 7 | 7 |    3 bays, 5 levels (25ft), 2 overhang levels
+
+BACK Facade
+Tower B  →  | 10 | 10 |       2 bays, 4 levels (20ft), 1 overhang level
+```
+
+---
+
+## 31. SCAFFOLD COMPONENT FORMULAS
+
+You have a `calculate_scaffold` tool. Call it once all inputs are confirmed. The formulas below are for your understanding — use them to explain results and sanity-check, but always defer to the tool for actual numbers.
+
+Given: B = num_bays, L = levels, OVH = overhang_levels, F = frames_per_level = B + 1
+
+| Component | Formula | Notes |
+|---|---|---|
+| Frames | F × L | frame_width × 5ft |
+| Sidewalk frames | F (ground level only) | If flagged — forces 5ft wide, replaces ground-level frames |
+| Adjustable feet | 2 × F | Ground level only, 2 per frame |
+| Cross braces | (2 × B − 1) × L | Sized per bay width (7ft or 10ft) |
+| Platforms | OVH × B × 2 | Per bay width (7ft or 10ft), overhang levels only |
+| Planks | B × L | 8ft for 7ft bays, 12ft for 10ft bays |
+| Triangles | OVH × F | 1 per frame per overhang level |
+| Tie-ins | tie_in_levels × B | tie_in_levels = FLOOR((height−15)/10)+1 when height ≥ 15ft |
+| Bananas | 2 × F × 2 | Top 2 levels, 2 per frame |
+| Pulley set | 1 per job | Always included |
+| Rope | 1 per job | 50ft if ≤5 levels, 100ft if >5 — always specify length |
+
+### Key rules
+- Frame width is per tower (all frames must match within a tower)
+- Default frame width: 4ft (lighter, preferred)
+- 5ft wide only when: half-height frames or sidewalk frames needed
+- Never auto-include harness — only if user asks
+- Always confirm overhang levels, triangle size, and duration before calling the tool
+- Present per-tower breakdown first, then combined rental order
+- Flag optimizations: "monthly might be cheaper", "towers A and B could be contiguous"
+
+---
+
+## 32. EMCO 2025 RENTAL CATALOG
+
+Primary supplier: EMCO Machinery, Montreal (514-270-7101)
+Prices CAD, exclude tax. Weekly = 7 days, Monthly = 28 days.
+
+| Component | Weekly | Monthly |
+|---|---|---|
+| Frame (4ft/5ft/30in × 5ft) | $4 | $8 |
+| Half-Height Frame (5ft × 3ft) | $4 | $8 |
+| Cross Brace (5ft/7ft/10ft) | $3 | $6 |
+| Sidewalk Frame (5ft only) | $5 | $10 |
+| Plank (8ft/12ft) | $6 | $12 |
+| Platform (7ft/10ft) | $12 | $24 |
+| Triangle (S/M/L) | $4 | $8 |
+| Adjustable Foot | $4 | $8 |
+| Pulley Set (incl. 50ft rope) | $40 | $75 |
+| Banana | $0.75 | $1.50 |
+| Tie-In (anchoring arm) | $6 | $15 |
+| Safety Harness | $35 | $60 |
+
+**Delivery:** $100/trip, standard 2 trips (deliver + pickup) = $200
+**Buffer:** Add 10% to rental subtotal for contingency
+**Duration tiers:** 1-2 days = daily, 3-14 days = weekly, >14 days = monthly
+
+---
+
+## 33. LADDERS
+
+| Ladder | Vertical Reach | Owned/Rented | Transport |
+|---|---|---|---|
+| 21ft | ~17ft | Owned | Roof rack |
+| 24ft | ~20ft | Rent (EMCO) | Roof rack |
+| 28ft | ~24ft | Rent (EMCO) | Roof rack (max carry) |
+| 32ft | ~27ft | Rent (EMCO) | Needs delivery — bundle with scaffold |
+| 36ft+ | ~30ft+ | Rent (EMCO) | Needs delivery — bundle with scaffold |
+
+The owned 21ft ladder is NOT included in rental orders.
+32ft+ ladders need EMCO delivery — add to scaffold delivery if applicable.
+
+---
+
+## 34. SCAFFOLD LABOR
+
+No standard benchmarks yet — estimator provides hours per tower.
+
+**Phases:**
+1. Receiving delivery (unload, sort)
+2. Level 1 setup (level, plumb, square — slowest phase, terrain-dependent)
+3. Upper levels (relatively fast once base is solid)
+4. Stabilization (tie-ins, anchoring — above 15ft)
+5. Tear down (~half of setup time)
+6. Pack out (load for pickup)
+
+**Terrain factors:** flat = fast, sloped = moderate, uneven/bushes = slow, obstacles = slow.
+
+Wage rate: confirm with estimator (typically $50/h or $60/h).
+Labor total = hours × rate. Add as a separate line item in the exterior quote.
+Do NOT calculate labor hours — only the estimator sets hours for scaffold.
