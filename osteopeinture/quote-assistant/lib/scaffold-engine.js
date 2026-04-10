@@ -200,6 +200,127 @@ function calculateTower(tower, period) {
   };
 }
 
+// ---------------------------------------------------------------------------
+// Job-level aggregation
+// ---------------------------------------------------------------------------
+
+/**
+ * Calculate a full scaffold job across all towers, aggregate rental order,
+ * and produce a job-level summary.
+ *
+ * @param {Object} spec
+ * @param {number} spec.duration_days      - Job duration used to determine pricing period
+ * @param {Object[]} spec.towers           - Array of tower definitions (see calculateTower)
+ * @param {Object} spec.extras
+ * @param {boolean} spec.extras.harness    - Include safety harness?
+ * @param {Object[]} spec.extras.ladders   - Array of { size, quantity, rental }
+ * @param {Object[]} spec.extras.custom_items - Custom line items (ignored here)
+ * @returns {{ towers, rental_order, summary }}
+ */
+function calculateScaffold(spec) {
+  const { duration_days, towers, extras } = spec;
+
+  // 1. Determine job-level pricing period
+  const period = getRatePeriod(duration_days);
+
+  // 2. Find max levels across all towers (determines rope length)
+  const maxLevels = Math.max(...towers.map(t => t.levels));
+  const ropeLength = maxLevels > 5 ? '100ft' : '50ft';
+
+  // 3. Calculate each tower (use per-tower duration_days override if provided)
+  const towerResults = {};
+  for (const tower of towers) {
+    const towerPeriod = tower.duration_days != null
+      ? getRatePeriod(tower.duration_days)
+      : period;
+    towerResults[tower.label] = calculateTower(tower, towerPeriod);
+  }
+
+  // 4. Aggregate all tower components into a single map (sum same item names)
+  const aggregateMap = {};
+  for (const tResult of Object.values(towerResults)) {
+    for (const comp of tResult.components) {
+      if (aggregateMap[comp.item]) {
+        aggregateMap[comp.item].qty += comp.qty;
+        aggregateMap[comp.item].cost += comp.cost;
+      } else {
+        aggregateMap[comp.item] = { ...comp };
+      }
+    }
+  }
+
+  const rental_order = Object.values(aggregateMap);
+
+  // 5. Add job-level items
+
+  // Pulley Set — always 1
+  const pulleyRate = getRate('pulley_set', period) ?? 0;
+  rental_order.push({
+    item: 'Pulley Set',
+    qty: 1,
+    rate: pulleyRate,
+    period,
+    cost: pulleyRate,
+  });
+
+  // Rope — always 1, cost = 0, note depends on length
+  const ropeNote = ropeLength === '100ft'
+    ? 'pricing TBD, confirm with EMCO'
+    : null;
+  rental_order.push({
+    item: `Rope ${ropeLength}`,
+    qty: 1,
+    rate: null,
+    period,
+    cost: 0,
+    ...(ropeNote ? { note: ropeNote } : {}),
+  });
+
+  // Safety Harness — only if requested
+  if (extras.harness === true) {
+    const harnessRate = getRate('safety_harness', period) ?? 0;
+    rental_order.push({
+      item: 'Safety Harness',
+      qty: 1,
+      rate: harnessRate,
+      period,
+      cost: harnessRate,
+    });
+  }
+
+  // Ladders — only rental ones
+  for (const ladder of (extras.ladders ?? [])) {
+    if (ladder.rental) {
+      rental_order.push({
+        item: `Ladder ${ladder.size}`,
+        qty: ladder.quantity,
+        rate: null,
+        period,
+        cost: 0,
+        note: 'Confirm rental rate with EMCO',
+      });
+    }
+  }
+
+  // 6. Summary
+  const rental_subtotal = rental_order.reduce((sum, r) => sum + (r.cost ?? 0), 0);
+  const delivery = DELIVERY_PER_TRIP * STANDARD_TRIPS; // $200
+  const buffer_10pct = Math.round(rental_subtotal * BUFFER_PERCENT * 100) / 100;
+  const rental_total = rental_subtotal + delivery + buffer_10pct;
+
+  return {
+    towers: towerResults,
+    rental_order,
+    summary: {
+      rental_subtotal,
+      delivery,
+      buffer_10pct,
+      rental_total,
+      period,
+    },
+  };
+}
+
 module.exports = {
   EMCO_CATALOG,
   DELIVERY_PER_TRIP,
@@ -208,4 +329,5 @@ module.exports = {
   getRate,
   getRatePeriod,
   calculateTower,
+  calculateScaffold,
 };

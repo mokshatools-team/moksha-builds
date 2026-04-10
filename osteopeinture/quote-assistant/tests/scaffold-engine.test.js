@@ -107,3 +107,80 @@ test('calculateTower — mixed bay widths', () => {
   const plat10 = result.components.find(c => c.item === 'Platform 10ft');
   assert.equal((plat7?.qty || 0) + (plat10?.qty || 0), 12);
 });
+
+// ---------------------------------------------------------------------------
+// calculateScaffold — job-level aggregation tests
+// ---------------------------------------------------------------------------
+
+const { calculateScaffold } = require('../lib/scaffold-engine');
+
+test('calculateScaffold — multi-tower job with aggregation', () => {
+  const spec = {
+    duration_days: 14,
+    towers: [
+      {
+        label: 'A', facade: 'Front', frame_width: '4ft', bays: [7, 7],
+        levels: 5, overhang_levels: 3, triangle_size: 'medium',
+        sidewalk_frames: false, adjacent_to: null, duration_days: null,
+      },
+      {
+        label: 'B', facade: 'Back', frame_width: '4ft', bays: [10],
+        levels: 3, overhang_levels: 1, triangle_size: 'medium',
+        sidewalk_frames: false, adjacent_to: null, duration_days: null,
+      },
+    ],
+    extras: { harness: false, ladders: [{ size: '28ft', quantity: 1, rental: true }], custom_items: [] },
+  };
+  const result = calculateScaffold(spec);
+
+  assert.ok(result.towers.A);
+  assert.ok(result.towers.B);
+  assert.ok(Array.isArray(result.rental_order));
+  const frames = result.rental_order.find(r => r.item.startsWith('Frame'));
+  assert.ok(frames);
+  assert.ok(frames.qty > 0);
+  assert.equal(result.summary.delivery, 200);
+  assert.ok(result.summary.buffer_10pct > 0);
+  assert.ok(result.summary.rental_total > 0);
+  assert.equal(result.summary.period, 'weekly');
+  const pulley = result.rental_order.find(r => r.item === 'Pulley Set');
+  assert.ok(pulley);
+  assert.equal(pulley.qty, 1);
+  const rope = result.rental_order.find(r => r.item.startsWith('Rope'));
+  assert.ok(rope);
+  assert.ok(rope.item.includes('50ft'));
+});
+
+test('calculateScaffold — rope is 100ft when any tower > 5 levels', () => {
+  const spec = {
+    duration_days: 7,
+    towers: [{
+      label: 'A', facade: 'Front', frame_width: '4ft', bays: [7],
+      levels: 6, overhang_levels: 1, triangle_size: 'medium',
+      sidewalk_frames: false, adjacent_to: null, duration_days: null,
+    }],
+    extras: { harness: false, ladders: [], custom_items: [] },
+  };
+  const result = calculateScaffold(spec);
+  const rope = result.rental_order.find(r => r.item.startsWith('Rope'));
+  assert.ok(rope.item.includes('100ft'));
+});
+
+test('calculateScaffold — harness only when requested', () => {
+  const baseTower = {
+    label: 'A', facade: 'Front', frame_width: '4ft', bays: [7],
+    levels: 3, overhang_levels: 1, triangle_size: 'medium',
+    sidewalk_frames: false, adjacent_to: null, duration_days: null,
+  };
+  const r1 = calculateScaffold({
+    duration_days: 7, towers: [baseTower],
+    extras: { harness: false, ladders: [], custom_items: [] },
+  });
+  assert.equal(r1.rental_order.find(r => r.item === 'Safety Harness'), undefined);
+
+  const r2 = calculateScaffold({
+    duration_days: 7, towers: [baseTower],
+    extras: { harness: true, ladders: [], custom_items: [] },
+  });
+  assert.ok(r2.rental_order.find(r => r.item === 'Safety Harness'));
+});
