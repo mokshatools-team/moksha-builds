@@ -965,6 +965,58 @@ function renderQuoteHTML(data) {
   const sections = data.sections || [];
   const isExterior = (data.projectType || '').toLowerCase().includes('exterior');
 
+  // Language detection — French if projectType contains French words or explicit lang field
+  const pt = (data.projectType || '').toLowerCase();
+  const isFr = data.lang === 'fr' || pt.includes('peinture') || pt.includes('teinture') || pt.includes('intérieur') || pt.includes('extérieur');
+
+  const t = isFr ? {
+    address: 'Adresse',
+    project: 'Projet',
+    date: 'Date',
+    scope: 'Portée et conditions générales',
+    costBreakdown: 'Ventilation des coûts',
+    total: 'TOTAL',
+    grandTotal: 'GRAND TOTAL',
+    paintProducts: 'Peinture et produits',
+    paintNote: 'Nos soumissions incluent de la peinture haut de gamme et tous les matériaux nécessaires à la bonne préparation des surfaces.',
+    paintTotal: 'Total peinture (incl. dans la soumission)',
+    details: 'Détails et modalités',
+    startDate: 'Date de début proposée',
+    duration: 'Durée des travaux',
+    deposit: 'Montant du dépôt',
+    paymentMethod: 'Mode de paiement',
+    additionalWork: 'Tout travail supplémentaire sera facturé en conséquence.',
+    validPeriod: 'Cette soumission est valide pour une période de 30 jours.',
+    clientResponsibility: 'Le client est responsable de s\'assurer que les travaux sont conformes aux spécifications et aux permis requis par la Ville.',
+    clientSignature: 'Signature du client',
+    representative: 'Représentant OstéoPeinture',
+    excludedLabel: '(exclu du total)',
+    paintingWork: 'Travaux de peinture',
+  } : {
+    address: 'Address',
+    project: 'Project',
+    date: 'Date',
+    scope: 'Scope & General Conditions',
+    costBreakdown: 'Cost Breakdown',
+    total: 'TOTAL',
+    grandTotal: 'GRAND TOTAL',
+    paintProducts: 'Paint & Products',
+    paintNote: 'Our quotes include high-end paint and all materials required for proper preparation of surfaces.',
+    paintTotal: 'Paint Total (incl. in quote)',
+    details: 'Details & Modalities',
+    startDate: 'Proposed Start Date',
+    duration: 'Duration of Work',
+    deposit: 'Deposit Amount',
+    paymentMethod: 'Payment Method',
+    additionalWork: 'All additional work will be charged accordingly.',
+    validPeriod: 'This quote is valid for a period of 30 days.',
+    clientResponsibility: 'The client is responsible for ensuring that the work conforms to the specifications and permits required by the City.',
+    clientSignature: 'Client Signature',
+    representative: 'OstéoPeinture Representative',
+    excludedLabel: '(excluded from total)',
+    paintingWork: 'Painting Work',
+  };
+
   // Calculate subtotal — skip excluded and optional sections
   let rawSubtotal = 0;
   for (const sec of sections) {
@@ -1052,7 +1104,7 @@ function renderQuoteHTML(data) {
 
       const secTotal = sec.total != null ? sec.total : (sec.items || []).reduce((s, i) => s + (i.price || 0), 0);
       const rangeLabel = sec.range ? ` <span style="font-size:7.5px;font-weight:400;color:#888;">${esc(sec.range)}</span>` : '';
-      const excludedLabel = sec.excluded ? ' <span style="font-size:7px;font-weight:400;color:#999;font-style:italic;">(excluded from total)</span>' : '';
+      const excludedLabel = sec.excluded ? ` <span style="font-size:7px;font-weight:400;color:#999;font-style:italic;">${t.excludedLabel}</span>` : '';
       const priceDisplay = sec.excluded ? '' : (secTotal ? fmt(secTotal) : '');
       tableHtml += `<tr class="row-section"><td class="col-desc">${esc(sec.title || sec.name || '')}${rangeLabel}${excludedLabel}</td><td class="col-price">${priceDisplay}</td></tr>`;
       for (const item of (sec.items || [])) {
@@ -1077,7 +1129,7 @@ function renderQuoteHTML(data) {
     paintHtml += `<tr><td class="col-product"><strong>${esc(type)}:</strong> ${esc(product)}</td><td class="col-finish">${cost}${esc(color)}${finish ? ' — ' + esc(finish) : ''}</td></tr>`;
   }
   const paintTotal = data.paintTotal || paints.reduce((s, p) => s + (p.approxCost || 0), 0);
-  paintHtml += `<tr><td class="col-product">Paint Total (incl. in quote)</td><td class="col-finish">~ ${fmt(paintTotal)}</td></tr>`;
+  paintHtml += `<tr><td class="col-product">${t.paintTotal}</td><td class="col-finish">~ ${fmt(paintTotal)}</td></tr>`;
 
   // Modalities
   const mod = data.modalities || {};
@@ -1088,7 +1140,7 @@ function renderQuoteHTML(data) {
     : '';
 
   return `<!DOCTYPE html>
-<html lang="en">
+<html lang="${isFr ? 'fr' : 'en'}">
 <head>
 <meta charset="UTF-8">
 <title>Ostéopeinture — Quote</title>
@@ -1166,52 +1218,52 @@ body { background:#e8e8e8; font-family:'Montserrat',sans-serif; padding:40px 20p
   <div class="logo-block">
     ${logoImg}
   </div>
-  <div class="project-title">${esc(data.projectType || 'Painting Work')}</div>
+  <div class="project-title">${esc(data.projectType || t.paintingWork)}</div>
   <table class="client-header">
     <tr>
       <td class="lbl">Client</td>
       <td class="val">${esc(data.clientName || '')}</td>
       <td class="gap"></td>
-      <td class="lbl-r">Address</td>
+      <td class="lbl-r">${t.address}</td>
       <td class="val-r">${esc(data.address || '')}</td>
     </tr>
     <tr>
-      <td class="lbl">Project</td>
+      <td class="lbl">${t.project}</td>
       <td class="val">${esc(data.projectId || '')}</td>
       <td class="gap"></td>
-      <td class="lbl-r">Date</td>
+      <td class="lbl-r">${t.date}</td>
       <td class="val-r">${esc(data.date || '')}</td>
     </tr>
   </table>
-  <div class="section-header" style="margin-top:0;">Scope &amp; General Conditions</div>
+  <div class="section-header" style="margin-top:0;">${t.scope}</div>
   <div class="terms-block">${termsHtml}</div>
-  <div class="section-header">Cost Breakdown</div>
+  <div class="section-header">${t.costBreakdown}</div>
   <table class="quote-table">${tableHtml}</table>
-  <div class="row-total total-line"><div class="lbl">TOTAL</div><div class="prc">${fmt(subtotal)}</div></div>
+  <div class="row-total total-line"><div class="lbl">${t.total}</div><div class="prc">${fmt(subtotal)}</div></div>
   <div class="row-total tax"><div class="lbl">TPS #7784757551RT0001</div><div class="prc">${fmt(tps)}</div></div>
   <div class="row-total tax"><div class="lbl">TVQ #1231045518</div><div class="prc">${fmt(tvq)}</div></div>
-  <div class="row-total grand"><div class="lbl">GRAND TOTAL</div><div class="prc">${fmt(grandTotal)}</div></div>
-  <div class="section-header">Paint &amp; Products</div>
-  <div class="paint-note">Our quotes include high-end paint and all materials required for proper preparation of surfaces.</div>
+  <div class="row-total grand"><div class="lbl">${t.grandTotal}</div><div class="prc">${fmt(grandTotal)}</div></div>
+  <div class="section-header">${t.paintProducts}</div>
+  <div class="paint-note">${t.paintNote}</div>
   <table class="paint-table">${paintHtml}</table>
-  <div class="section-header">Details &amp; Modalities</div>
+  <div class="section-header">${t.details}</div>
   <div class="mod-grid">
-    <div class="mod-cell"><div class="mod-label">Proposed Start Date</div><div class="mod-value">${esc(mod.startDate || '—')}</div></div>
-    <div class="mod-cell"><div class="mod-label">Duration of Work</div><div class="mod-value">${esc(mod.duration || '—')}</div></div>
-    <div class="mod-cell"><div class="mod-label">Deposit Amount</div><div class="mod-value">${esc(depositStr)}</div></div>
-    <div class="mod-cell"><div class="mod-label">Payment Method</div><div class="mod-value small">${esc(mod.paymentMethod || '')}</div></div>
+    <div class="mod-cell"><div class="mod-label">${t.startDate}</div><div class="mod-value">${esc(mod.startDate || '—')}</div></div>
+    <div class="mod-cell"><div class="mod-label">${t.duration}</div><div class="mod-value">${esc(mod.duration || '—')}</div></div>
+    <div class="mod-cell"><div class="mod-label">${t.deposit}</div><div class="mod-value">${esc(depositStr)}</div></div>
+    <div class="mod-cell"><div class="mod-label">${t.paymentMethod}</div><div class="mod-value small">${esc(mod.paymentMethod || '')}</div></div>
   </div>
   ${data.estimateDisclaimer ? `<div class="legal-block" style="background:#f9f6f2;border-top:1.5px solid #1a1a1a;">
     <strong style="color:#7B3A10;">${esc(data.estimateDisclaimer)}</strong>
   </div>` : ''}
   <div class="legal-block">
-    <strong>All additional work will be charged accordingly.</strong><br>
-    This quote is valid for a period of 30 days.<br>
-    The client is responsible for ensuring that the work conforms to the specifications and permits required by the City.
+    <strong>${t.additionalWork}</strong><br>
+    ${t.validPeriod}<br>
+    ${t.clientResponsibility}
   </div>
   <div class="sig-grid">
-    <div class="sig-cell">Client Signature</div>
-    <div class="sig-cell">OstéoPeinture Representative</div>
+    <div class="sig-cell">${t.clientSignature}</div>
+    <div class="sig-cell">${t.representative}</div>
   </div>
   <div class="footer">
     <div class="footer-logo">${LOGO_WORD_B64 ? `<img src="data:image/jpeg;base64,${LOGO_WORD_B64}" alt="Ostéopeinture">` : 'Ostéopeinture'}</div>
