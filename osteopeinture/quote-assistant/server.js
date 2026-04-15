@@ -135,7 +135,7 @@ async function saveSession(session) {
 
 async function listSessions() {
   return await db.all(`
-    SELECT id, created_at, updated_at, client_name, project_id, address, total_amount, status, email_recipient
+    SELECT id, created_at, updated_at, client_name, project_id, address, total_amount, status, email_recipient, converted_job_id
     FROM sessions ORDER BY updated_at DESC LIMIT 50
   `);
 }
@@ -728,7 +728,7 @@ function renderQuoteHTML(data, options = {}) {
     address: 'Adresse',
     project: 'Projet',
     date: 'Date',
-    scope: 'Portée et conditions générales',
+    scope: 'Conditions et inclusions',
     costBreakdown: 'Ventilation des coûts',
     total: 'TOTAL',
     grandTotal: 'GRAND TOTAL',
@@ -797,19 +797,21 @@ function renderQuoteHTML(data, options = {}) {
   const terms = data.terms || {};
   let termsHtml = '';
   if (terms.includes && terms.includes.length) {
-    termsHtml += `<div class="terms-title">Our Price Includes:</div>`;
+    termsHtml += `<div class="terms-title">${isFr ? 'Notre prix inclut\u00a0:' : 'Our Price Includes:'}</div>`;
     for (const t of terms.includes) {
       termsHtml += `<div class="terms-item">${esc(t)}</div>`;
     }
   }
   if (terms.conditions && terms.conditions.length) {
-    termsHtml += `<div class="terms-gap"></div><div class="terms-subtitle">General Conditions</div>`;
+    termsHtml += `<div class="terms-gap"></div><div class="terms-subtitle">${isFr ? 'Conditions générales' : 'General Conditions'}</div>`;
     for (const c of terms.conditions) {
       termsHtml += `<div class="terms-item">${esc(c)}</div>`;
     }
   }
   const rate = terms.hourlyRate || 65;
-  termsHtml += `<div class="terms-item bold">Any work outside of the scope of this quote will be billed at $${rate}/h + materials, as demanded</div>`;
+  termsHtml += `<div class="terms-item bold">${isFr
+    ? `Tout travail hors de la portée de cette soumission sera facturé à ${rate}\u00a0$/h + matériaux`
+    : `Any work outside of the scope of this quote will be billed at $${rate}/h + materials, as demanded`}</div>`;
 
   // Build sections — detect format
   // Format A: room-based (has `floor` or `name` fields)
@@ -914,7 +916,9 @@ body { background:#e8e8e8; font-family:'Montserrat',sans-serif; padding:40px 20p
 .client-header .gap { width:32px; border-right:1.5px solid #1a1a1a; padding:0; }
 .client-header .lbl-r { background:#1a1a1a; color:#fff; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; width:80px; border-right:1px solid #555; }
 .client-header .val-r { font-weight:600; border-right:1.5px solid #1a1a1a; }
-.client-header tr:first-child td { border-bottom:1px solid #1a1a1a; }
+.client-header tr:first-child td { border-bottom:none; }
+.client-header tr:first-child { border-bottom:1.5px solid #1a1a1a; }
+.client-header tr:last-child td { padding-top:8px; }
 .section-header { background:#1a1a1a; color:#fff; text-align:center; font-size:9.5px; font-weight:700; letter-spacing:2.5px; text-transform:uppercase; padding:11px 12px; margin-top:20px; }
 .terms-block { padding:10px 14px 12px; border-bottom:1.5px solid #1a1a1a; }
 .terms-title { font-size:8px; font-weight:700; margin-bottom:5px; }
@@ -925,7 +929,7 @@ body { background:#e8e8e8; font-family:'Montserrat',sans-serif; padding:40px 20p
 .terms-subtitle { font-size:8px; font-weight:700; margin-bottom:4px; margin-top:2px; }
 .quote-table { width:100%; border-collapse:collapse; }
 .row-floor td { background:#f2f2f2; font-size:7.8px; font-weight:700; letter-spacing:1px; text-transform:uppercase; padding:5px 10px; border-top:1.5px solid #1a1a1a; border-bottom:1px solid #ccc; }
-.row-section td { padding:6px 10px; font-size:9px; font-weight:700; border-top:1.5px solid #1a1a1a; border-bottom:1px solid #bbb; }
+.row-section td { padding:5px 10px; font-size:8.2px; font-weight:700; border-top:1.5px solid #1a1a1a; border-bottom:1px solid #bbb; }
 .row-section .col-price { text-align:right; white-space:nowrap; }
 .row-item td { padding:3px 10px; font-size:7.8px; color:#222; border-bottom:0.5px solid #ebebeb; }
 .row-item .col-price { text-align:right; white-space:nowrap; }
@@ -962,9 +966,9 @@ body { background:#e8e8e8; font-family:'Montserrat',sans-serif; padding:40px 20p
 .sig-grid { display:grid; grid-template-columns:1fr 1fr; }
 .sig-cell { padding:10px 14px; font-size:8px; font-weight:600; min-height:70px; display:flex; flex-direction:column; align-items:flex-start; }
 .footer { text-align:center; margin-top:36px; }
-.footer-logo { text-align:center; margin-bottom:5px; }
-.footer-logo img { height:14px; }
-.footer-info { font-size:7.5px; color:#666; line-height:1.9; }
+.footer-logo { text-align:center; margin-bottom:8px; }
+.footer-logo img { height:22px; }
+.footer-info { font-size:7.5px; color:#666; line-height:1.8; }
 @media print { body { background:white; padding:0; } .page { box-shadow:none; width:100%; padding:32px 40px; } }
 </style>
 </head>

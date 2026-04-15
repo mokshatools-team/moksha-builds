@@ -476,6 +476,19 @@
   }
   .sidebar-status.sent::before { background: var(--text-3); }
 
+  .sidebar-status.converted {
+    background: rgba(76, 175, 80, 0.12);
+    color: #4CAF50;
+  }
+  .sidebar-status.converted::before { background: #4CAF50; }
+
+  .sidebar-status.declined, .sidebar-status.archived {
+    background: var(--surface-2);
+    color: var(--text-4);
+    opacity: 0.7;
+  }
+  .sidebar-status.declined::before, .sidebar-status.archived::before { background: var(--text-4); }
+
   /* ─── MAIN ─── */
   #main {
     flex: 1;
@@ -2179,8 +2192,9 @@ async function loadSidebar() {
     const subLabel = shortAddress || date;
     const total = s.total_amount ? formatMoney(s.total_amount) + ' $' : '—';
     const active = s.id === currentSessionId ? 'active' : '';
-    const statusLabel = { gathering: 'In progress', quote_ready: 'Ready', sent: 'Sent' }[s.status] || s.status;
-    const statusClass = s.status || 'gathering';
+    const effectiveStatus = s.converted_job_id ? 'converted' : (s.status || 'gathering');
+    const statusLabel = { gathering: 'In progress', quote_ready: 'Ready', sent: 'Sent', converted: 'Active', declined: 'Declined', archived: 'Archived' }[effectiveStatus] || effectiveStatus;
+    const statusClass = effectiveStatus;
     return `<div class="sidebar-item ${active}" onclick="handleSidebarClick('${s.id}')">
       <button class="sidebar-item-rename" onclick="event.stopPropagation();startRenameSession('${s.id}',this.parentElement.querySelector('.sidebar-item-client'))" title="Rename">✎</button>
       <button class="sidebar-item-delete" onclick="event.stopPropagation();deleteSession('${s.id}')" title="Delete">×</button>
