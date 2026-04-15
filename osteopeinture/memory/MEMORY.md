@@ -25,6 +25,11 @@
 - [Overestimate consumables](feedback_overestimate_consumables.md) — Per-job supplies allocations historically underestimated, overestimate going forward
 - [Railway CLI drifts between projects](feedback_railway_cli_drift.md) — Always chain `railway link` + `railway up` in one shell; verify build log URL contains project `2049a8ed-...`
 - [Bump # Version line when editing QUOTING_LOGIC.md](feedback_quoting_logic_version_bump.md) — Force-reseed only fires when the version header changes; forgetting = silent no-op on deploy
+- [Supabase — always use Session Pooler](feedback_supabase_pooler_only.md) — direct connection is IPv6-only, fails on Railway and local networks
+
+## Cash/Declared + Past Quotes
+- [Cash vs declared job logic](project_cash_declared_logic.md) — no taxes on cash, agreed flat total, unbranded docs, declared ledger future intent
+- [Past quotes search plan](project_past_quotes_search.md) — import 252 PDFs + extracted JSON into Supabase, Claude tool for institutional memory
 
 ## Scaffold Module
 - [Scaffold module — scope & logic](project_scaffold_module.md) — new OP Hub module, calculates scaffold component quantities + rental costs from job dimensions
