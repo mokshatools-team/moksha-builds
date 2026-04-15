@@ -1983,6 +1983,17 @@
         <option value="fixed">Fixed Price</option>
       </select>
     </div>
+    <div class="convert-field">
+      <label>Payment Type</label>
+      <select id="convert-payment-type" onchange="toggleAgreedTotal()">
+        <option value="declared">Declared (taxes apply)</option>
+        <option value="cash">Cash (no taxes, agreed total)</option>
+      </select>
+    </div>
+    <div class="convert-field" id="convert-agreed-total-row" style="display:none">
+      <label>Agreed Total ($)</label>
+      <input type="number" id="convert-agreed-total" placeholder="e.g. 11500" step="50">
+    </div>
     <div class="convert-actions">
       <button class="btn-convert-cancel" onclick="closeConvertModal()">Cancel</button>
       <button class="btn-convert-confirm" onclick="confirmConvertToJob()">Create Job</button>
@@ -3099,13 +3110,16 @@ async function loadJobs() {
       return;
     }
     list.innerHTML = jobs.map(j => {
-      const total = (j.quote_total_cents / 100).toLocaleString('fr-CA', {maximumFractionDigits:0});
+      const isCash = j.payment_type === 'cash';
+      const effectiveTotal = isCash && j.agreed_total_cents ? j.agreed_total_cents : j.quote_total_cents;
+      const total = (effectiveTotal / 100).toLocaleString('fr-CA', {maximumFractionDigits:0});
       const paid = ((j.total_paid_cents || 0) / 100).toLocaleString('fr-CA', {maximumFractionDigits:0});
-      const balance = ((j.quote_total_cents - (j.total_paid_cents || 0)) / 100).toLocaleString('fr-CA', {maximumFractionDigits:0});
+      const balance = ((effectiveTotal - (j.total_paid_cents || 0)) / 100).toLocaleString('fr-CA', {maximumFractionDigits:0});
+      const typeLabel = isCash ? ' · CASH' : '';
       return `<div class="job-card" onclick="openJobDetail('${j.id}')">
         <div class="job-card-header">
           <span class="job-card-client">${esc(j.client_name)}</span>
-          <span class="job-card-status ${j.status}">${j.status}</span>
+          <span class="job-card-status ${j.status}">${j.status}${typeLabel}</span>
         </div>
         <div class="job-card-address">${esc(j.address)} — ${esc(j.job_number)}</div>
         <div class="job-card-footer">
@@ -3132,15 +3146,22 @@ async function openJobDetail(jobId) {
     const job = await res.json();
     title.textContent = job.client_name;
 
-    const total = (job.quote_total_cents / 100);
+    const isCash = job.payment_type === 'cash';
+    const effectiveTotal = (job.effectiveTotalCents || job.quote_total_cents || 0) / 100;
     const paid = (job.totalPaidCents / 100);
     const balance = (job.balanceRemainingCents / 100);
+    const quoteOriginal = (job.quote_total_cents / 100);
+
+    const financeSummary = isCash
+      ? `<div class="job-stat"><div class="job-stat-label">Original Quote</div><div class="job-stat-value" style="font-size:13px;color:var(--text-3);text-decoration:line-through">$${formatMoney(quoteOriginal)}</div></div>
+         <div class="job-stat"><div class="job-stat-label">Agreed Total (Cash)</div><div class="job-stat-value" style="color:var(--sage)">$${formatMoney(effectiveTotal)}</div></div>`
+      : `<div class="job-stat"><div class="job-stat-label">Quote Total</div><div class="job-stat-value">$${formatMoney(effectiveTotal)}</div></div>`;
 
     content.innerHTML = `
       <div class="job-detail-section">
-        <h3>Summary</h3>
+        <h3>Summary${isCash ? ' <span style="font-size:11px;color:var(--accent);font-weight:500;letter-spacing:.05em;text-transform:uppercase;margin-left:8px">Cash</span>' : ''}</h3>
         <div class="job-stat-grid">
-          <div class="job-stat"><div class="job-stat-label">Quote Total</div><div class="job-stat-value">$${formatMoney(total)}</div></div>
+          ${financeSummary}
           <div class="job-stat"><div class="job-stat-label">Paid</div><div class="job-stat-value">$${formatMoney(paid)}</div></div>
           <div class="job-stat"><div class="job-stat-label">Balance</div><div class="job-stat-value" style="color:${balance > 0 ? 'var(--accent)' : 'var(--sage)'}">$${formatMoney(balance)}</div></div>
           <div class="job-stat"><div class="job-stat-label">Time Entries</div><div class="job-stat-value">${job.timeEntryCount}${job.unmappedCount > 0 ? ' <span style="color:var(--accent);font-size:12px">('+job.unmappedCount+' unmapped)</span>' : ''}</div></div>
@@ -3151,8 +3172,9 @@ async function openJobDetail(jobId) {
         <div style="font-size:13px;color:var(--text-2);line-height:1.6">
           <div><strong>Job #:</strong> ${esc(job.job_number)}</div>
           <div><strong>Address:</strong> ${esc(job.address)}</div>
-          <div><strong>Type:</strong> ${job.project_type}</div>
+          <div><strong>Type:</strong> ${job.project_type}${isCash ? ' — Cash (no taxes)' : ' — Declared'}</div>
           <div><strong>Status:</strong> ${job.status}</div>
+          ${isCash ? '<div style="margin-top:6px"><strong>Agreed Total:</strong> <input type="number" value="' + effectiveTotal + '" style="width:120px;padding:4px 8px;background:var(--surface-1);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:13px" onblur="updateAgreedTotal(\\'' + job.id + '\\', this.value)"> <span style="font-size:11px;color:var(--text-3)">(editable)</span></div>' : ''}
           ${job.internal_notes ? '<div style="margin-top:8px;padding:8px;background:var(--surface-2);border-radius:4px;font-size:12px">' + esc(job.internal_notes) + '</div>' : ''}
         </div>
       </div>
@@ -3448,6 +3470,21 @@ async function applySmartPaste(overwrite) {
   }
 }
 
+async function updateAgreedTotal(jobId, value) {
+  const cents = Math.round(Number(value) * 100);
+  if (!cents || cents <= 0) return;
+  try {
+    await fetch('/api/jobs/' + jobId, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ agreed_total_cents: cents }),
+    });
+    openJobDetail(jobId); // refresh
+  } catch (err) {
+    console.error('Update agreed total failed:', err.message);
+  }
+}
+
 async function saveScratchpad(el) {
   const jobId = el.getAttribute('data-job-id');
   if (!jobId) return;
@@ -3474,7 +3511,15 @@ function openConvertModal(sessionId, clientName, address, email) {
   document.getElementById('convert-address').value = address || '';
   document.getElementById('convert-client-email').value = email || '';
   document.getElementById('convert-job-number').value = '';
+  document.getElementById('convert-payment-type').value = 'declared';
+  document.getElementById('convert-agreed-total').value = '';
+  document.getElementById('convert-agreed-total-row').style.display = 'none';
   document.getElementById('convert-modal').classList.add('visible');
+}
+
+function toggleAgreedTotal() {
+  const isCash = document.getElementById('convert-payment-type').value === 'cash';
+  document.getElementById('convert-agreed-total-row').style.display = isCash ? '' : 'none';
 }
 
 function closeConvertModal() {
@@ -3498,6 +3543,8 @@ async function confirmConvertToJob() {
         clientEmail: document.getElementById('convert-client-email').value || undefined,
         language: document.getElementById('convert-language').value,
         projectType: document.getElementById('convert-project-type').value,
+        paymentType: document.getElementById('convert-payment-type').value,
+        agreedTotal: document.getElementById('convert-agreed-total').value || undefined,
       }),
     });
     const data = await res.json();

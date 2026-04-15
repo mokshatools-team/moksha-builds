@@ -192,12 +192,18 @@ async function convertSessionToJob(sessionId, overrides = {}) {
   const taxCents = Math.round(subtotalCents * 0.14975);
   const totalCents = subtotalCents + taxCents;
 
-  await db.all(`
+  // Cash jobs: no taxes, agreed_total overrides computed total
+  const paymentType = overrides.paymentType === 'cash' ? 'cash' : 'declared';
+  const agreedTotalCents = paymentType === 'cash' && overrides.agreedTotal
+    ? Math.round(Number(overrides.agreedTotal) * 100)
+    : null;
+
+  await db.run(`
     INSERT INTO jobs (id, quote_session_id, job_number, client_name, client_email, client_phone,
       language, address, project_title, project_type, status,
       quote_subtotal_cents, quote_tax_cents, quote_total_cents, accepted_quote_json,
-      payment_terms_text, start_date, internal_notes, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      payment_terms_text, start_date, internal_notes, payment_type, agreed_total_cents, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `, [jobId, sessionId, jobNumber,
     overrides.clientName || session.clientName || 'Unknown',
     overrides.clientEmail || session.emailRecipient || null,
@@ -211,6 +217,7 @@ async function convertSessionToJob(sessionId, overrides = {}) {
     overrides.paymentTerms || null,
     overrides.startDate || null,
     overrides.internalNotes || null,
+    paymentType, agreedTotalCents,
     now, now
   ]);
 
@@ -700,7 +707,8 @@ function fmt(n) {
   return Number(n).toLocaleString('fr-CA', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' $';
 }
 
-function renderQuoteHTML(data) {
+function renderQuoteHTML(data, options = {}) {
+  const branded = options.branded !== false; // default true
   const sections = data.sections || [];
   const isExterior = (data.projectType || '').toLowerCase().includes('exterior');
 
@@ -954,9 +962,7 @@ body { background:#e8e8e8; font-family:'Montserrat',sans-serif; padding:40px 20p
 </head>
 <body>
 <div class="page">
-  <div class="logo-block">
-    ${logoImg}
-  </div>
+  ${branded ? `<div class="logo-block">${logoImg}</div>` : ''}
   <div class="project-title">${esc(data.projectType || t.paintingWork)}</div>
   <table class="client-header">
     <tr>
@@ -979,9 +985,9 @@ body { background:#e8e8e8; font-family:'Montserrat',sans-serif; padding:40px 20p
   <div class="section-header">${t.costBreakdown}</div>
   <table class="quote-table">${tableHtml}</table>
   <div class="row-total total-line"><div class="lbl">${t.total}</div><div class="prc">${fmt(subtotal)}</div></div>
-  <div class="row-total tax"><div class="lbl">TPS #7784757551RT0001</div><div class="prc">${fmt(tps)}</div></div>
+  ${branded ? `<div class="row-total tax"><div class="lbl">TPS #7784757551RT0001</div><div class="prc">${fmt(tps)}</div></div>
   <div class="row-total tax"><div class="lbl">TVQ #1231045518</div><div class="prc">${fmt(tvq)}</div></div>
-  <div class="row-total grand"><div class="lbl">${t.grandTotal}</div><div class="prc">${fmt(grandTotal)}</div></div>
+  <div class="row-total grand"><div class="lbl">${t.grandTotal}</div><div class="prc">${fmt(grandTotal)}</div></div>` : `<div class="row-total grand"><div class="lbl">${t.grandTotal}</div><div class="prc">${fmt(subtotal)}</div></div>`}
   <div class="section-header">${t.paintProducts}</div>
   <div class="paint-note">${t.paintNote}</div>
   <table class="paint-table">${paintHtml}</table>
@@ -1000,7 +1006,7 @@ body { background:#e8e8e8; font-family:'Montserrat',sans-serif; padding:40px 20p
     ${t.validPeriod}<br>
     ${t.clientResponsibility}
   </div>
-  <div class="sig-grid">
+  ${branded ? `<div class="sig-grid">
     <div class="sig-cell">${t.clientSignature}</div>
     <div class="sig-cell">${t.representative}</div>
   </div>
@@ -1011,7 +1017,7 @@ body { background:#e8e8e8; font-family:'Montserrat',sans-serif; padding:40px 20p
       438-870-8087 | info@osteopeinture.com | www.osteopeinture.com<br>
       RBQ# 5790-0045-01
     </div>
-  </div>
+  </div>` : ''}
 </div>
 </body>
 </html>`;
@@ -2001,11 +2007,18 @@ app.get('/api/jobs/:id', async (req, res) => {
     const totalPaidCents = payments.reduce((sum, p) => sum + p.amount_cents, 0);
     const timeEntries = await getJobTimeEntries(job.id);
     const mappings = await getJobActivityMappings(job.id);
+    // Cash jobs: balance is based on agreed_total, no taxes.
+    // Declared jobs: balance is based on quote_total (includes taxes).
+    const effectiveTotalCents = job.payment_type === 'cash' && job.agreed_total_cents
+      ? job.agreed_total_cents
+      : job.quote_total_cents;
+
     res.json({
       ...job,
       payments,
       totalPaidCents,
-      balanceRemainingCents: job.quote_total_cents - totalPaidCents,
+      effectiveTotalCents,
+      balanceRemainingCents: effectiveTotalCents - totalPaidCents,
       timeEntryCount: timeEntries.length,
       unmappedCount: timeEntries.filter(e => e.mapping_status === 'unmapped').length,
       activityMappings: mappings,
@@ -2038,7 +2051,7 @@ app.patch('/api/jobs/:id', express.json(), async (req, res) => {
       const col = key.replace(/([A-Z])/g, '_$1').toLowerCase();
       if (['client_name','client_email','client_phone','language','address','project_title',
            'project_type','status','payment_terms_text','start_date','target_end_date',
-           'completion_date','internal_notes','scratchpad'].includes(col)) {
+           'completion_date','internal_notes','scratchpad','payment_type','agreed_total_cents'].includes(col)) {
         updates.push(`${col} = ?`);
         params.push(value);
       }
