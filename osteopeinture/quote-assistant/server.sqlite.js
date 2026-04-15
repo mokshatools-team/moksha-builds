@@ -6,6 +6,7 @@ const multer = require('multer');
 const nodemailer = require('nodemailer');
 const path = require('path');
 const fs = require('fs');
+const Database = require('better-sqlite3');
 const {
   MAX_IMAGE_COUNT,
   UploadError,
@@ -23,12 +24,7 @@ const { calculateScaffold } = require('./lib/scaffold-engine');
 
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-
-// ── DATABASE (Supabase Postgres via db.js wrapper) ─────────────────────
-// Archive: server.sqlite.js has the original SQLite version.
-// db.js handles connection pool, ? → $N placeholder conversion, transactions.
-const db = require('./db');
-const DB_PATH = path.join(DATA_DIR, 'sessions.db'); // kept for backup endpoint compatibility — file may not exist on Supabase builds
+const DB_PATH = path.join(DATA_DIR, 'sessions.db');
 
 // Seed QUOTING_LOGIC.md to DATA_DIR on first run so it persists on the volume.
 // Force-reseed on version bump: compare the `# Version:` header line in the
@@ -72,16 +68,278 @@ function getQuotingLogic() {
   return '(no quoting logic file found)';
 }
 
-// createFallbackDatabase removed — was the in-memory SQLite mock for tests.
-// Tests now use the real Supabase connection or a test-specific DB.
-// Archive: see server.sqlite.js for the original implementation.
+function createFallbackDatabase() {
+  const sessions = new Map();
 
-// Schema creation removed — tables are managed in Supabase directly.
-// See server.sqlite.js for the original CREATE TABLE statements.
-// See scripts/convert-to-pg.js for the migration script.
+  function cloneSession(row) {
+    return row ? { ...row } : null;
+  }
 
-async function getSession(id) {
-  const row = await db.get('SELECT * FROM sessions WHERE id = ?', [id]);
+  return {
+    exec() {},
+    prepare(sql) {
+      if (sql.includes('SELECT * FROM sessions WHERE id = ?')) {
+        return {
+          get(id) {
+            return cloneSession(sessions.get(id));
+          },
+        };
+      }
+
+      if (sql.includes('SELECT project_id FROM sessions WHERE project_id LIKE')) {
+        return {
+          all(prefix) {
+            const rows = Array.from(sessions.values())
+              .filter((r) => r.project_id && r.project_id.startsWith(prefix.replace('_%', '')))
+              .sort((a, b) => String(b.project_id).localeCompare(String(a.project_id)));
+            return rows.map((r) => ({ project_id: r.project_id }));
+          },
+        };
+      }
+
+      if (sql.includes('DELETE FROM sessions WHERE id')) {
+        return {
+          run(id) { sessions.delete(id); },
+        };
+      }
+
+      if (sql.includes('FROM sessions ORDER BY updated_at DESC LIMIT 50')) {
+        return {
+          all() {
+            return Array.from(sessions.values())
+              .sort((a, b) => String(b.updated_at).localeCompare(String(a.updated_at)))
+              .map((row) => ({
+                id: row.id,
+                created_at: row.created_at,
+                updated_at: row.updated_at,
+                client_name: row.client_name,
+                project_id: row.project_id,
+                address: row.address,
+                total_amount: row.total_amount,
+                status: row.status,
+                email_recipient: row.email_recipient,
+                email_meta: row.email_meta,
+              }));
+          },
+        };
+      }
+
+      return {
+        run(params) {
+          sessions.set(params.id, {
+            id: params.id,
+            created_at: params.created_at,
+            updated_at: params.updated_at,
+            client_name: params.client_name,
+            project_id: params.project_id,
+            address: params.address,
+            total_amount: params.total_amount,
+            status: params.status,
+            messages: params.messages,
+            quote_json: params.quote_json,
+            email_recipient: params.email_recipient,
+            email_meta: params.email_meta,
+          });
+        },
+      };
+    },
+  };
+}
+
+function createDatabase(filename) {
+  if (process.env.NODE_ENV === 'test') {
+    return createFallbackDatabase();
+  }
+
+  try {
+    return new Database(filename);
+  } catch (error) {
+    return createFallbackDatabase();
+  }
+}
+
+const db = createDatabase(path.join(DATA_DIR, 'sessions.db'));
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS sessions (
+    id TEXT PRIMARY KEY,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    client_name TEXT,
+    project_id TEXT,
+    address TEXT,
+    total_amount REAL,
+    status TEXT DEFAULT 'gathering',
+    messages TEXT DEFAULT '[]',
+    quote_json TEXT,
+    email_recipient TEXT,
+    email_meta TEXT
+  )
+`);
+try {
+  db.exec('ALTER TABLE sessions ADD COLUMN email_meta TEXT');
+} catch (error) {
+  // Column already exists in persistent databases; ignore migration failure.
+}
+
+// ── Job Management Tables (added 2026-04-05) ─────────────────────────────
+try { db.exec('ALTER TABLE sessions ADD COLUMN converted_job_id TEXT'); } catch(e) {}
+try { db.exec('ALTER TABLE sessions ADD COLUMN accepted_at TEXT'); } catch(e) {}
+// Scratchpad: free-text per-job notes (door codes, to-dos, dimensions, etc).
+// Replaces Apple Notes for per-job scratch content.
+try { db.exec('ALTER TABLE jobs ADD COLUMN scratchpad TEXT'); } catch(e) {}
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS jobs (
+    id TEXT PRIMARY KEY,
+    quote_session_id TEXT UNIQUE,
+    job_number TEXT NOT NULL UNIQUE,
+    client_name TEXT NOT NULL,
+    client_email TEXT,
+    client_phone TEXT,
+    language TEXT NOT NULL DEFAULT 'english',
+    address TEXT NOT NULL,
+    project_title TEXT,
+    project_type TEXT DEFAULT 'hourly',
+    status TEXT NOT NULL DEFAULT 'active',
+    quote_subtotal_cents INTEGER NOT NULL DEFAULT 0,
+    quote_tax_cents INTEGER NOT NULL DEFAULT 0,
+    quote_total_cents INTEGER NOT NULL DEFAULT 0,
+    accepted_quote_json TEXT,
+    payment_terms_text TEXT,
+    start_date TEXT,
+    target_end_date TEXT,
+    completion_date TEXT,
+    internal_notes TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS job_activity_mappings (
+    id TEXT PRIMARY KEY,
+    job_id TEXT NOT NULL,
+    source_activity_name TEXT NOT NULL,
+    phase_code TEXT NOT NULL DEFAULT 'other',
+    client_label_en TEXT NOT NULL,
+    client_label_fr TEXT NOT NULL,
+    billable INTEGER NOT NULL DEFAULT 1,
+    show_on_update INTEGER NOT NULL DEFAULT 1,
+    sort_order INTEGER NOT NULL DEFAULT 100,
+    UNIQUE(job_id, source_activity_name)
+  )
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS time_import_batches (
+    id TEXT PRIMARY KEY,
+    job_id TEXT NOT NULL,
+    file_name TEXT NOT NULL,
+    imported_at TEXT NOT NULL,
+    row_count INTEGER NOT NULL DEFAULT 0,
+    inserted_count INTEGER NOT NULL DEFAULT 0,
+    duplicate_count INTEGER NOT NULL DEFAULT 0,
+    unmapped_count INTEGER NOT NULL DEFAULT 0
+  )
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS time_entries (
+    id TEXT PRIMARY KEY,
+    batch_id TEXT NOT NULL,
+    job_id TEXT NOT NULL,
+    external_row_key TEXT NOT NULL UNIQUE,
+    work_date TEXT,
+    employee_name TEXT NOT NULL,
+    source_activity_name TEXT NOT NULL,
+    mapped_phase_code TEXT,
+    mapped_label_en TEXT,
+    mapped_label_fr TEXT,
+    mapping_status TEXT NOT NULL DEFAULT 'unmapped',
+    duration_minutes INTEGER NOT NULL,
+    billable_minutes INTEGER NOT NULL DEFAULT 0,
+    notes TEXT,
+    raw_row_json TEXT NOT NULL,
+    created_at TEXT NOT NULL
+  )
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS job_change_orders (
+    id TEXT PRIMARY KEY,
+    job_id TEXT NOT NULL,
+    title_en TEXT NOT NULL,
+    title_fr TEXT NOT NULL,
+    description TEXT,
+    amount_cents INTEGER NOT NULL DEFAULT 0,
+    taxable INTEGER NOT NULL DEFAULT 1,
+    status TEXT NOT NULL DEFAULT 'draft',
+    approved_at TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS client_updates (
+    id TEXT PRIMARY KEY,
+    job_id TEXT NOT NULL,
+    sequence_no INTEGER NOT NULL,
+    language TEXT NOT NULL,
+    period_start TEXT NOT NULL,
+    period_end TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'draft',
+    summary_json TEXT NOT NULL,
+    html_snapshot TEXT NOT NULL DEFAULT '',
+    sent_to TEXT,
+    sent_at TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    UNIQUE(job_id, sequence_no)
+  )
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS invoices (
+    id TEXT PRIMARY KEY,
+    job_id TEXT NOT NULL,
+    invoice_number TEXT NOT NULL UNIQUE,
+    invoice_type TEXT NOT NULL DEFAULT 'final',
+    language TEXT NOT NULL DEFAULT 'french',
+    issue_date TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'draft',
+    subtotal_cents INTEGER NOT NULL DEFAULT 0,
+    tax_cents INTEGER NOT NULL DEFAULT 0,
+    total_cents INTEGER NOT NULL DEFAULT 0,
+    balance_due_cents INTEGER NOT NULL DEFAULT 0,
+    invoice_json TEXT,
+    sent_to TEXT,
+    sent_at TEXT,
+    paid_at TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS payments (
+    id TEXT PRIMARY KEY,
+    job_id TEXT NOT NULL,
+    invoice_id TEXT,
+    payment_date TEXT NOT NULL,
+    amount_cents INTEGER NOT NULL,
+    method TEXT NOT NULL DEFAULT 'e_transfer',
+    reference TEXT,
+    notes TEXT,
+    finance_sync_status TEXT NOT NULL DEFAULT 'pending',
+    finance_synced_at TEXT,
+    created_at TEXT NOT NULL
+  )
+`);
+
+function getSession(id) {
+  const row = db.prepare('SELECT * FROM sessions WHERE id = ?').get(id);
   if (!row) return null;
   return {
     ...row,
@@ -91,53 +349,52 @@ async function getSession(id) {
   };
 }
 
-async function saveSession(session) {
+function saveSession(session) {
   const now = new Date().toISOString();
-  const params = [
-    session.id,
-    session.createdAt || now,
-    now,
-    session.clientName || null,
-    session.projectId || null,
-    session.address || null,
-    session.totalAmount || null,
-    session.status || 'gathering',
-    JSON.stringify(session.messages || []),
-    session.quoteJson ? JSON.stringify(session.quoteJson) : null,
-    session.emailRecipient || null,
-    JSON.stringify(session.emailMeta || {}),
-  ];
-  await db.run(`
+  db.prepare(`
     INSERT INTO sessions (id, created_at, updated_at, client_name, project_id, address, total_amount, status, messages, quote_json, email_recipient, email_meta)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (@id, @created_at, @updated_at, @client_name, @project_id, @address, @total_amount, @status, @messages, @quote_json, @email_recipient, @email_meta)
     ON CONFLICT(id) DO UPDATE SET
-      updated_at = EXCLUDED.updated_at,
-      client_name = EXCLUDED.client_name,
-      project_id = EXCLUDED.project_id,
-      address = EXCLUDED.address,
-      total_amount = EXCLUDED.total_amount,
-      status = EXCLUDED.status,
-      messages = EXCLUDED.messages,
-      quote_json = EXCLUDED.quote_json,
-      email_recipient = EXCLUDED.email_recipient,
-      email_meta = EXCLUDED.email_meta
-  `, params);
+      updated_at = @updated_at,
+      client_name = @client_name,
+      project_id = @project_id,
+      address = @address,
+      total_amount = @total_amount,
+      status = @status,
+      messages = @messages,
+      quote_json = @quote_json,
+      email_recipient = @email_recipient,
+      email_meta = @email_meta
+  `).run({
+    id: session.id,
+    created_at: session.createdAt || now,
+    updated_at: now,
+    client_name: session.clientName || null,
+    project_id: session.projectId || null,
+    address: session.address || null,
+    total_amount: session.totalAmount || null,
+    status: session.status || 'gathering',
+    messages: JSON.stringify(session.messages || []),
+    quote_json: session.quoteJson ? JSON.stringify(session.quoteJson) : null,
+    email_recipient: session.emailRecipient || null,
+    email_meta: JSON.stringify(session.emailMeta || {}),
+  });
   scheduleBackup(DB_PATH);
 }
 
-async function listSessions() {
-  return await db.all(`
+function listSessions() {
+  return db.prepare(`
     SELECT id, created_at, updated_at, client_name, project_id, address, total_amount, status, email_recipient
     FROM sessions ORDER BY updated_at DESC LIMIT 50
-  `);
+  `).all();
 }
 
 // ============================================================
 // JOB MANAGEMENT HELPERS
 // ============================================================
 
-async function getJob(id) {
-  const row = await db.get('SELECT * FROM jobs WHERE id = ?', [id]);
+function getJob(id) {
+  const row = db.prepare('SELECT * FROM jobs WHERE id = ?').get(id);
   if (!row) return null;
   return {
     ...row,
@@ -145,17 +402,18 @@ async function getJob(id) {
   };
 }
 
-async function listJobs() {
-  return await db.all(`
+function listJobs() {
+  return db.prepare(`
     SELECT j.*,
       (SELECT COALESCE(SUM(amount_cents), 0) FROM payments WHERE job_id = j.id) as total_paid_cents
     FROM jobs j ORDER BY j.updated_at DESC LIMIT 50
-  `, []);
+  `).all();
 }
 
-async function generateJobNumber(clientName) {
+function generateJobNumber(clientName) {
   const prefix = (clientName || 'JOB').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 10);
-  const existing = await db.get("SELECT job_number FROM jobs WHERE job_number LIKE ? ORDER BY job_number DESC LIMIT 1", [`${prefix}_%`]);
+  const existing = db.prepare("SELECT job_number FROM jobs WHERE job_number LIKE ? ORDER BY job_number DESC LIMIT 1")
+    .get(`${prefix}_%`);
   if (existing) {
     const match = existing.job_number.match(/_(\d+)$/);
     const next = match ? parseInt(match[1]) + 1 : 1;
@@ -164,14 +422,14 @@ async function generateJobNumber(clientName) {
   return `${prefix}_01`;
 }
 
-async function convertSessionToJob(sessionId, overrides = {}) {
-  const session = await getSession(sessionId);
+function convertSessionToJob(sessionId, overrides = {}) {
+  const session = getSession(sessionId);
   if (!session) throw new Error('Session not found');
   if (session.converted_job_id) throw new Error('Session already converted to a job');
 
   const now = new Date().toISOString();
   const jobId = uuidv4();
-  const jobNumber = overrides.jobNumber || await generateJobNumber(session.clientName);
+  const jobNumber = overrides.jobNumber || generateJobNumber(session.clientName);
 
   // Recompute subtotal from the current quoteJson rather than trusting the
   // cached session.totalAmount — catches edits, reloads, and manual JSON pastes.
@@ -192,13 +450,14 @@ async function convertSessionToJob(sessionId, overrides = {}) {
   const taxCents = Math.round(subtotalCents * 0.14975);
   const totalCents = subtotalCents + taxCents;
 
-  await db.all(`
+  db.prepare(`
     INSERT INTO jobs (id, quote_session_id, job_number, client_name, client_email, client_phone,
       language, address, project_title, project_type, status,
       quote_subtotal_cents, quote_tax_cents, quote_total_cents, accepted_quote_json,
       payment_terms_text, start_date, internal_notes, created_at, updated_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `, [jobId, sessionId, jobNumber,
+  `).run(
+    jobId, sessionId, jobNumber,
     overrides.clientName || session.clientName || 'Unknown',
     overrides.clientEmail || session.emailRecipient || null,
     overrides.clientPhone || null,
@@ -212,24 +471,25 @@ async function convertSessionToJob(sessionId, overrides = {}) {
     overrides.startDate || null,
     overrides.internalNotes || null,
     now, now
-  ]);
+  );
 
   // Mark session as converted
-  await db.run('UPDATE sessions SET converted_job_id = ?, accepted_at = ? WHERE id = ?', [jobId, now, sessionId]);
+  db.prepare('UPDATE sessions SET converted_job_id = ?, accepted_at = ? WHERE id = ?')
+    .run(jobId, now, sessionId);
 
-  return await getJob(jobId);
+  return getJob(jobId);
 }
 
-async function getJobPayments(jobId) {
-  return await db.all('SELECT * FROM payments WHERE job_id = ? ORDER BY payment_date DESC', [jobId]);
+function getJobPayments(jobId) {
+  return db.prepare('SELECT * FROM payments WHERE job_id = ? ORDER BY payment_date DESC').all(jobId);
 }
 
-async function getJobTimeEntries(jobId) {
-  return await db.all('SELECT * FROM time_entries WHERE job_id = ? ORDER BY work_date DESC, employee_name', [jobId]);
+function getJobTimeEntries(jobId) {
+  return db.prepare('SELECT * FROM time_entries WHERE job_id = ? ORDER BY work_date DESC, employee_name').all(jobId);
 }
 
-async function getJobActivityMappings(jobId) {
-  return await db.all('SELECT * FROM job_activity_mappings WHERE job_id = ? ORDER BY sort_order', [jobId]);
+function getJobActivityMappings(jobId) {
+  return db.prepare('SELECT * FROM job_activity_mappings WHERE job_id = ? ORDER BY sort_order').all(jobId);
 }
 
 // ── FINANCE SHEET SYNC ─────────────────────────────────────────────────────
@@ -239,7 +499,7 @@ async function syncPaymentToSheet(paymentId, job, payment) {
   const credJson = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
   if (!sheetId || !credJson) {
     console.log('[finance-sync] No GOOGLE_SHEET_ID or credentials — skipping');
-    await db.run("UPDATE payments SET finance_sync_status = 'skipped' WHERE id = ?", [paymentId]);
+    db.prepare("UPDATE payments SET finance_sync_status = 'skipped' WHERE id = ?").run(paymentId);
     return;
   }
 
@@ -282,12 +542,13 @@ async function syncPaymentToSheet(paymentId, job, payment) {
       },
     });
 
-    await db.run("UPDATE payments SET finance_sync_status = 'synced', finance_synced_at = ? WHERE id = ?", [new Date().toISOString(), paymentId]);
+    db.prepare("UPDATE payments SET finance_sync_status = 'synced', finance_synced_at = ? WHERE id = ?")
+      .run(new Date().toISOString(), paymentId);
 
     console.log(`[finance-sync] Payment ${paymentId} synced to sheet — $${amountDollars} for ${job.job_number}`);
   } catch (err) {
     console.error('[finance-sync] Error:', err.message);
-    await db.run("UPDATE payments SET finance_sync_status = 'failed' WHERE id = ?", [paymentId]);
+    db.prepare("UPDATE payments SET finance_sync_status = 'failed' WHERE id = ?").run(paymentId);
   }
 }
 
@@ -1425,11 +1686,10 @@ function sendUploadError(res, error) {
 // ============================================================
 
 // Generate next sequential project ID with a given prefix
-async function nextProjectId(prefix) {
-  const rows = await db.all(
-    "SELECT project_id FROM sessions WHERE project_id LIKE ? ORDER BY project_id DESC LIMIT 1",
-    [prefix + '_%']
-  );
+function nextProjectId(prefix) {
+  const rows = db.prepare(
+    "SELECT project_id FROM sessions WHERE project_id LIKE ? ORDER BY project_id DESC LIMIT 1"
+  ).all(prefix + '_%');
   let num = 1;
   if (rows.length) {
     const match = rows[0].project_id.match(/_(\d+)$/);
@@ -1439,34 +1699,34 @@ async function nextProjectId(prefix) {
 }
 
 // Create session
-async function createSessionHandler(req, res) {
+function createSessionHandler(req, res) {
   const id = uuidv4();
   const now = new Date().toISOString();
-  const projectId = await nextProjectId('NEW');
-  await saveSession({ id, createdAt: now, status: 'gathering', messages: [], projectId });
+  const projectId = nextProjectId('NEW');
+  saveSession({ id, createdAt: now, status: 'gathering', messages: [], projectId });
   res.json({ id, projectId });
 }
 
 app.post('/api/sessions', createSessionHandler);
 
 // Rename session
-app.patch('/api/sessions/:id/name', express.json(), async (req, res) => {
-  const session = await getSession(req.params.id);
+app.patch('/api/sessions/:id/name', express.json(), (req, res) => {
+  const session = getSession(req.params.id);
   if (!session) return res.status(404).json({ error: 'Session not found' });
   const { name } = req.body;
   if (!name || !name.trim()) return res.status(400).json({ error: 'Missing name' });
   session.projectId = name.trim();
-  await saveSession(session);
+  saveSession(session);
   res.json({ ok: true, projectId: session.projectId });
 });
 
 // Get quoting logic file
-app.get('/api/quoting-logic', async (req, res) => {
+app.get('/api/quoting-logic', (req, res) => {
   res.json({ content: getQuotingLogic() });
 });
 
 // Save quoting logic file
-app.put('/api/quoting-logic', express.json(), async (req, res) => {
+app.put('/api/quoting-logic', express.json(), (req, res) => {
   const { content } = req.body;
   if (typeof content !== 'string') return res.status(400).json({ error: 'content required' });
   fs.writeFileSync(QUOTING_LOGIC_PATH, content, 'utf8');
@@ -1474,14 +1734,14 @@ app.put('/api/quoting-logic', express.json(), async (req, res) => {
 });
 
 // List all sessions (for sidebar)
-app.get('/api/sessions', async (req, res) => {
-  const sessions = await listSessions();
+app.get('/api/sessions', (req, res) => {
+  const sessions = listSessions();
   res.json(sessions);
 });
 
 // Get single session
-app.get('/api/sessions/:id', async (req, res) => {
-  const session = await getSession(req.params.id);
+app.get('/api/sessions/:id', (req, res) => {
+  const session = getSession(req.params.id);
   if (!session) return res.status(404).json({ error: 'Session not found' });
   res.json({
     ...session,
@@ -1489,8 +1749,8 @@ app.get('/api/sessions/:id', async (req, res) => {
   });
 });
 
-app.put('/api/sessions/:id/email-draft', express.json(), async (req, res) => {
-  const session = await getSession(req.params.id);
+app.put('/api/sessions/:id/email-draft', express.json(), (req, res) => {
+  const session = getSession(req.params.id);
   if (!session) return res.status(404).json({ error: 'Session not found' });
 
   const nextMeta = {
@@ -1529,7 +1789,7 @@ app.put('/api/sessions/:id/email-draft', express.json(), async (req, res) => {
   if (typeof req.body.recipient === 'string') {
     session.emailRecipient = req.body.recipient.trim();
   }
-  await saveSession(session);
+  saveSession(session);
 
   res.json({
     ok: true,
@@ -1538,7 +1798,7 @@ app.put('/api/sessions/:id/email-draft', express.json(), async (req, res) => {
 });
 
 // Scaffold calculation endpoint
-app.post('/api/scaffold/calculate', express.json(), async (req, res) => {
+app.post('/api/scaffold/calculate', express.json(), (req, res) => {
   try {
     const spec = req.body;
     if (!spec || !Array.isArray(spec.towers) || spec.towers.length === 0) {
@@ -1602,7 +1862,7 @@ const SCAFFOLD_TOOL = {
 
 // Send message
 async function handleSessionMessage(req, res) {
-  const session = await getSession(req.params.id);
+  const session = getSession(req.params.id);
   if (!session) return res.status(404).json({ error: 'Session not found' });
 
   try {
@@ -1698,7 +1958,7 @@ async function handleSessionMessage(req, res) {
 
     session.messages.push({ role: 'assistant', content: assistantText });
     session.status = status;
-    await saveSession(session);
+    saveSession(session);
 
     res.json({
       reply: assistantText,
@@ -1714,7 +1974,7 @@ async function handleSessionMessage(req, res) {
   }
 }
 
-app.post('/api/sessions/:id/messages', async (req, res) => {
+app.post('/api/sessions/:id/messages', (req, res) => {
   upload.array('images', MAX_IMAGE_COUNT)(req, res, async (err) => {
     if (err) {
       const handled = sendUploadError(res, err);
@@ -1728,8 +1988,8 @@ app.post('/api/sessions/:id/messages', async (req, res) => {
 });
 
 // Preview quote HTML
-app.get('/preview/:id', async (req, res) => {
-  const session = await getSession(req.params.id);
+app.get('/preview/:id', (req, res) => {
+  const session = getSession(req.params.id);
   if (!session || !session.quoteJson) {
     return res.status(404).send('<h2>No quote available for this session.</h2>');
   }
@@ -1739,7 +1999,7 @@ app.get('/preview/:id', async (req, res) => {
 
 // Generate PDF
 app.post('/api/sessions/:id/pdf', async (req, res) => {
-  const session = await getSession(req.params.id);
+  const session = getSession(req.params.id);
   if (!session || !session.quoteJson) return res.status(404).json({ error: 'No quote' });
 
   const html = renderQuoteHTML(session.quoteJson);
@@ -1767,7 +2027,7 @@ app.post('/api/sessions/:id/pdf', async (req, res) => {
 
 // Send email
 app.post('/api/sessions/:id/send-email', async (req, res) => {
-  const session = await getSession(req.params.id);
+  const session = getSession(req.params.id);
   if (!session || !session.quoteJson) return res.status(404).json({ error: 'No quote' });
 
   const { to, subject, body } = req.body;
@@ -1817,7 +2077,7 @@ app.post('/api/sessions/:id/send-email', async (req, res) => {
 
     session.emailRecipient = to;
     session.status = 'sent';
-    await saveSession(session);
+    saveSession(session);
 
     res.json({ ok: true });
   } catch (err) {
@@ -1829,8 +2089,8 @@ app.post('/api/sessions/:id/send-email', async (req, res) => {
 });
 
 // Adjust quote JSON
-app.post('/api/sessions/:id/adjust-quote', async (req, res) => {
-  const session = await getSession(req.params.id);
+app.post('/api/sessions/:id/adjust-quote', (req, res) => {
+  const session = getSession(req.params.id);
   if (!session) return res.status(404).json({ error: 'Session not found' });
 
   const { quoteJson } = req.body;
@@ -1848,22 +2108,22 @@ app.post('/api/sessions/:id/adjust-quote', async (req, res) => {
   session.clientName = quoteJson.clientName || session.clientName;
   session.projectId = quoteJson.projectId || session.projectId;
   session.address = quoteJson.address || session.address;
-  await saveSession(session);
+  saveSession(session);
 
   res.json({ ok: true });
 });
 
 // Delete session
-app.delete('/api/sessions/:id', async (req, res) => {
-  const session = await getSession(req.params.id);
+app.delete('/api/sessions/:id', (req, res) => {
+  const session = getSession(req.params.id);
   if (!session) return res.status(404).json({ error: 'Session not found' });
-  await db.run('DELETE FROM sessions WHERE id = ?', [req.params.id]);
+  db.prepare('DELETE FROM sessions WHERE id = ?').run(req.params.id);
   res.json({ ok: true });
 });
 
 // Refine email draft via Claude
 app.post('/api/sessions/:id/email/refine', express.json(), async (req, res) => {
-  const session = await getSession(req.params.id);
+  const session = getSession(req.params.id);
   if (!session) return res.status(404).json({ error: 'Session not found' });
 
   const { instruction, currentDraft } = req.body;
@@ -1901,7 +2161,7 @@ app.post('/api/sessions/:id/email/refine', express.json(), async (req, res) => {
 // Generate an email draft without requiring a quote session. Used by
 // OP Hub when drafting follow-ups, declines, lead responses, or project
 // updates from a job context (or with no context at all).
-app.post('/api/email/standalone-draft', express.json(), async (req, res) => {
+app.post('/api/email/standalone-draft', express.json(), (req, res) => {
   try {
     const { jobId, scenario, signer, language, detailLevel, clientName, address, recipient } = req.body || {};
     const allowedScenarios = new Set([
@@ -1929,7 +2189,7 @@ app.post('/api/email/standalone-draft', express.json(), async (req, res) => {
     };
 
     if (jobId) {
-      const job = await getJob(jobId);
+      const job = getJob(jobId);
       if (!job) return res.status(404).json({ error: 'Job not found' });
       pseudo.clientName = pseudo.clientName || job.client_name || '';
       pseudo.address = pseudo.address || job.address || '';
@@ -1983,9 +2243,9 @@ app.post('/api/email/standalone-refine', express.json(), async (req, res) => {
 // ============================================================
 
 // List all jobs
-app.get('/api/jobs', async (req, res) => {
+app.get('/api/jobs', (req, res) => {
   try {
-    const jobs = await listJobs();
+    const jobs = listJobs();
     res.json(jobs);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1993,14 +2253,14 @@ app.get('/api/jobs', async (req, res) => {
 });
 
 // Get single job with summary
-app.get('/api/jobs/:id', async (req, res) => {
+app.get('/api/jobs/:id', (req, res) => {
   try {
-    const job = await getJob(req.params.id);
+    const job = getJob(req.params.id);
     if (!job) return res.status(404).json({ error: 'Job not found' });
-    const payments = await getJobPayments(job.id);
+    const payments = getJobPayments(job.id);
     const totalPaidCents = payments.reduce((sum, p) => sum + p.amount_cents, 0);
-    const timeEntries = await getJobTimeEntries(job.id);
-    const mappings = await getJobActivityMappings(job.id);
+    const timeEntries = getJobTimeEntries(job.id);
+    const mappings = getJobActivityMappings(job.id);
     res.json({
       ...job,
       payments,
@@ -2016,9 +2276,9 @@ app.get('/api/jobs/:id', async (req, res) => {
 });
 
 // Convert quote session to job
-app.post('/api/sessions/:id/convert-to-job', express.json(), async (req, res) => {
+app.post('/api/sessions/:id/convert-to-job', express.json(), (req, res) => {
   try {
-    const job = await convertSessionToJob(req.params.id, req.body || {});
+    const job = convertSessionToJob(req.params.id, req.body || {});
     res.json(job);
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -2026,9 +2286,9 @@ app.post('/api/sessions/:id/convert-to-job', express.json(), async (req, res) =>
 });
 
 // Update job details
-app.patch('/api/jobs/:id', express.json(), async (req, res) => {
+app.patch('/api/jobs/:id', express.json(), (req, res) => {
   try {
-    const job = await getJob(req.params.id);
+    const job = getJob(req.params.id);
     if (!job) return res.status(404).json({ error: 'Job not found' });
     const now = new Date().toISOString();
     const fields = req.body;
@@ -2046,8 +2306,8 @@ app.patch('/api/jobs/:id', express.json(), async (req, res) => {
     if (updates.length === 0) return res.status(400).json({ error: 'No valid fields to update' });
     updates.push('updated_at = ?');
     params.push(now, req.params.id);
-    await db.run(`UPDATE jobs SET ${updates.join(', ')} WHERE id = ?`, [...params]);
-    res.json(await getJob(req.params.id));
+    db.prepare(`UPDATE jobs SET ${updates.join(', ')} WHERE id = ?`).run(...params);
+    res.json(getJob(req.params.id));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -2055,22 +2315,23 @@ app.patch('/api/jobs/:id', express.json(), async (req, res) => {
 
 // Delete a job (and all its dependent rows). Unlinks the source session so
 // it can be re-converted. Destructive — no soft-delete.
-app.delete('/api/jobs/:id', async (req, res) => {
+app.delete('/api/jobs/:id', (req, res) => {
   try {
-    const job = await getJob(req.params.id);
+    const job = getJob(req.params.id);
     if (!job) return res.status(404).json({ error: 'Job not found' });
     const jobId = job.id;
-    await db.transaction(async (tx) => {
-      await tx.run('DELETE FROM payments WHERE job_id = ?', [jobId]);
-      await tx.run('DELETE FROM time_entries WHERE job_id = ?', [jobId]);
-      await tx.run('DELETE FROM time_import_batches WHERE job_id = ?', [jobId]);
-      await tx.run('DELETE FROM job_activity_mappings WHERE job_id = ?', [jobId]);
-      await tx.run('DELETE FROM job_change_orders WHERE job_id = ?', [jobId]);
-      await tx.run('DELETE FROM client_updates WHERE job_id = ?', [jobId]);
-      await tx.run('DELETE FROM invoices WHERE job_id = ?', [jobId]);
-      await tx.run('UPDATE sessions SET converted_job_id = NULL, accepted_at = NULL WHERE converted_job_id = ?', [jobId]);
-      await tx.run('DELETE FROM jobs WHERE id = ?', [jobId]);
+    const txn = db.transaction(() => {
+      db.prepare('DELETE FROM payments WHERE job_id = ?').run(jobId);
+      db.prepare('DELETE FROM time_entries WHERE job_id = ?').run(jobId);
+      db.prepare('DELETE FROM time_import_batches WHERE job_id = ?').run(jobId);
+      db.prepare('DELETE FROM job_activity_mappings WHERE job_id = ?').run(jobId);
+      db.prepare('DELETE FROM job_change_orders WHERE job_id = ?').run(jobId);
+      db.prepare('DELETE FROM client_updates WHERE job_id = ?').run(jobId);
+      db.prepare('DELETE FROM invoices WHERE job_id = ?').run(jobId);
+      db.prepare('UPDATE sessions SET converted_job_id = NULL, accepted_at = NULL WHERE converted_job_id = ?').run(jobId);
+      db.prepare('DELETE FROM jobs WHERE id = ?').run(jobId);
     });
+    txn();
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -2081,9 +2342,9 @@ app.delete('/api/jobs/:id', async (req, res) => {
 // the client must explicitly confirm via POST /api/payments/:id/sync. This
 // enforces the editable-outputs contract: no write to the finance sheet
 // without explicit user approval.
-app.post('/api/jobs/:id/payments', express.json(), async (req, res) => {
+app.post('/api/jobs/:id/payments', express.json(), (req, res) => {
   try {
-    const job = await getJob(req.params.id);
+    const job = getJob(req.params.id);
     if (!job) return res.status(404).json({ error: 'Job not found' });
     const { amount, date, method, reference, notes } = req.body;
     if (!amount || !date) return res.status(400).json({ error: 'amount and date are required' });
@@ -2091,10 +2352,10 @@ app.post('/api/jobs/:id/payments', express.json(), async (req, res) => {
     const paymentId = uuidv4();
     const amountCents = Math.round(amount * 100);
     const resolvedMethod = method || 'e_transfer';
-    await db.run(`
+    db.prepare(`
       INSERT INTO payments (id, job_id, payment_date, amount_cents, method, reference, notes, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `, [paymentId, job.id, date, amountCents, resolvedMethod, reference || null, notes || null, now]);
+    `).run(paymentId, job.id, date, amountCents, resolvedMethod, reference || null, notes || null, now);
 
     scheduleBackup(DB_PATH);
 
@@ -2125,9 +2386,9 @@ app.post('/api/jobs/:id/payments', express.json(), async (req, res) => {
 // record-payment endpoint.
 app.post('/api/payments/:id/sync', express.json(), async (req, res) => {
   try {
-    const payment = await db.get('SELECT * FROM payments WHERE id = ?', [req.params.id]);
+    const payment = db.prepare('SELECT * FROM payments WHERE id = ?').get(req.params.id);
     if (!payment) return res.status(404).json({ error: 'Payment not found' });
-    const job = await getJob(payment.job_id);
+    const job = getJob(payment.job_id);
     if (!job) return res.status(404).json({ error: 'Parent job not found' });
     if (payment.finance_sync_status === 'synced') {
       return res.json({ ok: true, status: 'already_synced', synced_at: payment.finance_synced_at });
@@ -2138,7 +2399,7 @@ app.post('/api/payments/:id/sync', express.json(), async (req, res) => {
       method: payment.method,
       reference: payment.reference,
     });
-    const updated = await db.get('SELECT finance_sync_status, finance_synced_at FROM payments WHERE id = ?', [payment.id]);
+    const updated = db.prepare('SELECT finance_sync_status, finance_synced_at FROM payments WHERE id = ?').get(payment.id);
     res.json({ ok: true, status: updated.finance_sync_status, synced_at: updated.finance_synced_at });
   } catch (err) {
     console.error('[finance-sync] Confirm-sync failed:', err.message);
@@ -2147,9 +2408,9 @@ app.post('/api/payments/:id/sync', express.json(), async (req, res) => {
 });
 
 // Get job payments
-app.get('/api/jobs/:id/payments', async (req, res) => {
+app.get('/api/jobs/:id/payments', (req, res) => {
   try {
-    res.json(await getJobPayments(req.params.id));
+    res.json(getJobPayments(req.params.id));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -2161,7 +2422,7 @@ app.get('/api/jobs/:id/payments', async (req, res) => {
 // /api/jobs/:id/smart-paste/apply after user confirms.
 app.post('/api/jobs/:id/smart-paste', express.json(), async (req, res) => {
   try {
-    const job = await getJob(req.params.id);
+    const job = getJob(req.params.id);
     if (!job) return res.status(404).json({ error: 'Job not found' });
     const text = (req.body && typeof req.body.text === 'string') ? req.body.text.trim() : '';
     if (!text) return res.status(400).json({ error: 'text is required' });
@@ -2242,9 +2503,9 @@ app.post('/api/jobs/:id/smart-paste', express.json(), async (req, res) => {
 });
 
 // Apply a previously-previewed smart paste result to the job.
-app.post('/api/jobs/:id/smart-paste/apply', express.json(), async (req, res) => {
+app.post('/api/jobs/:id/smart-paste/apply', express.json(), (req, res) => {
   try {
-    const job = await getJob(req.params.id);
+    const job = getJob(req.params.id);
     if (!job) return res.status(404).json({ error: 'Job not found' });
     const { extracted, overwrite } = req.body || {};
     if (!extracted || typeof extracted !== 'object') {
@@ -2288,13 +2549,13 @@ app.post('/api/jobs/:id/smart-paste/apply', express.json(), async (req, res) => 
     if (updates.length > 0) {
       updates.push('updated_at = ?');
       params.push(now, job.id);
-      await db.run(`UPDATE jobs SET ${updates.join(', ')} WHERE id = ?`, [...params]);
+      db.prepare(`UPDATE jobs SET ${updates.join(', ')} WHERE id = ?`).run(...params);
     }
 
     // Payments — insert each as a pending (unsynced) record.
     const insertedPayments = [];
     if (Array.isArray(extracted.payments)) {
-      const ins = await db.run(`
+      const ins = db.prepare(`
         INSERT INTO payments (id, job_id, payment_date, amount_cents, method, reference, notes, created_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `);
@@ -2311,7 +2572,7 @@ app.post('/api/jobs/:id/smart-paste/apply', express.json(), async (req, res) => 
     }
 
     scheduleBackup(DB_PATH);
-    res.json({ ok: true, applied, insertedPayments, job: await getJob(job.id) });
+    res.json({ ok: true, applied, insertedPayments, job: getJob(job.id) });
   } catch (err) {
     console.error('[smart-paste-apply] Failed:', err.message);
     res.status(500).json({ error: err.message });
@@ -2319,9 +2580,9 @@ app.post('/api/jobs/:id/smart-paste/apply', express.json(), async (req, res) => 
 });
 
 // Import Jibble CSV
-app.post('/api/jobs/:id/imports/jibble', multer({ storage: multer.memoryStorage() }).single('file'), async (req, res) => {
+app.post('/api/jobs/:id/imports/jibble', multer({ storage: multer.memoryStorage() }).single('file'), (req, res) => {
   try {
-    const job = await getJob(req.params.id);
+    const job = getJob(req.params.id);
     if (!job) return res.status(404).json({ error: 'Job not found' });
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
@@ -2344,7 +2605,7 @@ app.post('/api/jobs/:id/imports/jibble', multer({ storage: multer.memoryStorage(
 
     // Get existing mappings for this job
     const mappings = {};
-    await getJobActivityMappings(job.id).forEach(m => { mappings[m.source_activity_name] = m; });
+    getJobActivityMappings(job.id).forEach(m => { mappings[m.source_activity_name] = m; });
 
     let inserted = 0, duplicates = 0, unmapped = 0;
     const dataLines = lines.slice(1);
@@ -2370,7 +2631,7 @@ app.post('/api/jobs/:id/imports/jibble', multer({ storage: multer.memoryStorage(
         .digest('hex');
 
       // Check for duplicate
-      const existing = await db.get('SELECT id FROM time_entries WHERE external_row_key = ?', [rowKey]);
+      const existing = db.prepare('SELECT id FROM time_entries WHERE external_row_key = ?').get(rowKey);
       if (existing) { duplicates++; continue; }
 
       // Check mapping
@@ -2379,27 +2640,28 @@ app.post('/api/jobs/:id/imports/jibble', multer({ storage: multer.memoryStorage(
       if (!mapping) unmapped++;
 
       const entryId = uuidv4();
-      await db.run(`
+      db.prepare(`
         INSERT INTO time_entries (id, batch_id, job_id, external_row_key, work_date, employee_name,
           source_activity_name, mapped_phase_code, mapped_label_en, mapped_label_fr,
           mapping_status, duration_minutes, billable_minutes, raw_row_json, created_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `, [entryId, batchId, job.id, rowKey, workDate, member, activity,
+      `).run(
+        entryId, batchId, job.id, rowKey, workDate, member, activity,
         mapping ? mapping.phase_code : null,
         mapping ? mapping.client_label_en : null,
         mapping ? mapping.client_label_fr : null,
         mappingStatus, minutes,
         mapping && mapping.billable ? minutes : 0,
         JSON.stringify(cols), now
-      ]);
+      );
       inserted++;
     }
 
     // Save batch record
-    await db.run(`
+    db.prepare(`
       INSERT INTO time_import_batches (id, job_id, file_name, imported_at, row_count, inserted_count, duplicate_count, unmapped_count)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `, [batchId, job.id, req.file.originalname || 'jibble.csv', now, dataLines.length, inserted, duplicates, unmapped]);
+    `).run(batchId, job.id, req.file.originalname || 'jibble.csv', now, dataLines.length, inserted, duplicates, unmapped);
 
     res.json({ batchId, inserted, duplicates, unmapped, total: dataLines.length });
   } catch (err) {
@@ -2408,21 +2670,21 @@ app.post('/api/jobs/:id/imports/jibble', multer({ storage: multer.memoryStorage(
 });
 
 // Get/set activity mappings for a job
-app.get('/api/jobs/:id/activity-mappings', async (req, res) => {
+app.get('/api/jobs/:id/activity-mappings', (req, res) => {
   try {
-    const mappings = await getJobActivityMappings(req.params.id);
+    const mappings = getJobActivityMappings(req.params.id);
     // Also get unmapped activities
-    const unmapped = await db.run(`
+    const unmapped = db.prepare(`
       SELECT DISTINCT source_activity_name FROM time_entries
       WHERE job_id = ? AND mapping_status = 'unmapped'
-    `, [req.params.id]);
+    `).all(req.params.id);
     res.json({ mappings, unmappedActivities: unmapped.map(r => r.source_activity_name) });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-app.put('/api/jobs/:id/activity-mappings', express.json(), async (req, res) => {
+app.put('/api/jobs/:id/activity-mappings', express.json(), (req, res) => {
   try {
     const jobId = req.params.id;
     const { mappings } = req.body; // array of { sourceActivityName, phaseCode, clientLabelEn, clientLabelFr, billable, showOnUpdate, sortOrder }
@@ -2430,7 +2692,7 @@ app.put('/api/jobs/:id/activity-mappings', express.json(), async (req, res) => {
 
     for (const m of mappings) {
       const id = uuidv4();
-      await db.all(`
+      db.prepare(`
         INSERT INTO job_activity_mappings (id, job_id, source_activity_name, phase_code, client_label_en, client_label_fr, billable, show_on_update, sort_order)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(job_id, source_activity_name) DO UPDATE SET
@@ -2440,19 +2702,19 @@ app.put('/api/jobs/:id/activity-mappings', express.json(), async (req, res) => {
           billable = excluded.billable,
           show_on_update = excluded.show_on_update,
           sort_order = excluded.sort_order
-      `, [id, jobId, m.sourceActivityName, m.phaseCode || 'other',
+      `).run(id, jobId, m.sourceActivityName, m.phaseCode || 'other',
         m.clientLabelEn || m.sourceActivityName, m.clientLabelFr || m.sourceActivityName,
-        m.billable !== false ? 1 : 0, m.showOnUpdate !== false ? 1 : 0, m.sortOrder || 100]);
+        m.billable !== false ? 1 : 0, m.showOnUpdate !== false ? 1 : 0, m.sortOrder || 100);
 
       // Retro-apply mapping to existing unmapped entries
-      await db.run(`
+      db.prepare(`
         UPDATE time_entries SET mapping_status = 'mapped',
           mapped_phase_code = ?, mapped_label_en = ?, mapped_label_fr = ?,
           billable_minutes = CASE WHEN ? = 1 THEN duration_minutes ELSE 0 END
         WHERE job_id = ? AND source_activity_name = ? AND mapping_status = 'unmapped'
-      `, [m.phaseCode || 'other', m.clientLabelEn || m.sourceActivityName,
+      `).run(m.phaseCode || 'other', m.clientLabelEn || m.sourceActivityName,
         m.clientLabelFr || m.sourceActivityName, m.billable !== false ? 1 : 0,
-        jobId, m.sourceActivityName]);
+        jobId, m.sourceActivityName);
     }
 
     res.json({ updated: mappings.length });
@@ -2462,9 +2724,9 @@ app.put('/api/jobs/:id/activity-mappings', express.json(), async (req, res) => {
 });
 
 // Get time entries for a job
-app.get('/api/jobs/:id/time-entries', async (req, res) => {
+app.get('/api/jobs/:id/time-entries', (req, res) => {
   try {
-    res.json(await getJobTimeEntries(req.params.id));
+    res.json(getJobTimeEntries(req.params.id));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -2475,9 +2737,9 @@ app.get('/api/jobs/:id/time-entries', async (req, res) => {
 // ============================================================
 
 // Generate a client update summary from mapped time entries
-app.post('/api/jobs/:id/updates/generate', express.json(), async (req, res) => {
+app.post('/api/jobs/:id/updates/generate', express.json(), (req, res) => {
   try {
-    const job = await getJob(req.params.id);
+    const job = getJob(req.params.id);
     if (!job) return res.status(404).json({ error: 'Job not found' });
 
     const { periodStart, periodEnd, language, notes } = req.body || {};
@@ -2490,7 +2752,7 @@ app.post('/api/jobs/:id/updates/generate', express.json(), async (req, res) => {
     if (periodEnd) { query += ' AND work_date <= ?'; params.push(periodEnd); }
     query += ' ORDER BY mapped_phase_code, source_activity_name, employee_name';
 
-    const entries = await db.all(query, params);
+    const entries = db.prepare(query).all(...params);
 
     if (entries.length === 0) {
       return res.status(400).json({ error: 'No mapped time entries found for this period' });
@@ -2530,11 +2792,11 @@ app.post('/api/jobs/:id/updates/generate', express.json(), async (req, res) => {
     }));
 
     // Get payments for context
-    const payments = await getJobPayments(job.id);
+    const payments = getJobPayments(job.id);
     const totalPaidCents = payments.reduce((sum, p) => sum + p.amount_cents, 0);
 
     const now = new Date().toISOString();
-    const sequenceNo = await db.get('SELECT COUNT(*) as count FROM client_updates WHERE job_id = ?', [job.id]).count + 1;
+    const sequenceNo = db.prepare('SELECT COUNT(*) as count FROM client_updates WHERE job_id = ?').get(job.id).count + 1;
     const updateId = uuidv4();
 
     const summary = {
@@ -2556,10 +2818,10 @@ app.post('/api/jobs/:id/updates/generate', express.json(), async (req, res) => {
     };
 
     // Save the update record
-    await db.run(`
+    db.prepare(`
       INSERT INTO client_updates (id, job_id, sequence_no, language, period_start, period_end, status, summary_json, html_snapshot, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, 'draft', ?, '', ?, ?)
-    `, [updateId, job.id, sequenceNo, lang, summary.periodStart, summary.periodEnd, JSON.stringify(summary), now, now]);
+    `).run(updateId, job.id, sequenceNo, lang, summary.periodStart, summary.periodEnd, JSON.stringify(summary), now, now);
 
     res.json({ updateId, summary });
   } catch (err) {
@@ -2568,9 +2830,9 @@ app.post('/api/jobs/:id/updates/generate', express.json(), async (req, res) => {
 });
 
 // Get all updates for a job
-app.get('/api/jobs/:id/updates', async (req, res) => {
+app.get('/api/jobs/:id/updates', (req, res) => {
   try {
-    const updates = await db.all('SELECT * FROM client_updates WHERE job_id = ? ORDER BY sequence_no DESC', [req.params.id]);
+    const updates = db.prepare('SELECT * FROM client_updates WHERE job_id = ? ORDER BY sequence_no DESC').all(req.params.id);
     res.json(updates.map(u => ({
       ...u,
       summaryJson: u.summary_json ? JSON.parse(u.summary_json) : null,
@@ -2581,9 +2843,9 @@ app.get('/api/jobs/:id/updates', async (req, res) => {
 });
 
 // Preview a client update as HTML
-app.get('/preview/update/:id', async (req, res) => {
+app.get('/preview/update/:id', (req, res) => {
   try {
-    const update = await db.get('SELECT * FROM client_updates WHERE id = ?', [req.params.id]);
+    const update = db.prepare('SELECT * FROM client_updates WHERE id = ?').get(req.params.id);
     if (!update) return res.status(404).send('Update not found');
 
     const summary = JSON.parse(update.summary_json);
@@ -2663,7 +2925,7 @@ app.get('/preview/update/:id', async (req, res) => {
 // Generate PDF from client update
 app.post('/api/updates/:id/pdf', async (req, res) => {
   try {
-    const update = await db.get('SELECT * FROM client_updates WHERE id = ?', [req.params.id]);
+    const update = db.prepare('SELECT * FROM client_updates WHERE id = ?').get(req.params.id);
     if (!update) return res.status(404).json({ error: 'Update not found' });
 
     const { chromium } = require('playwright');
@@ -2699,9 +2961,9 @@ app.post('/api/updates/:id/pdf', async (req, res) => {
 // ============================================================
 
 // Create a change order for a job
-app.post('/api/jobs/:id/change-orders', express.json(), async (req, res) => {
+app.post('/api/jobs/:id/change-orders', express.json(), (req, res) => {
   try {
-    const job = await getJob(req.params.id);
+    const job = getJob(req.params.id);
     if (!job) return res.status(404).json({ error: 'Job not found' });
 
     const { titleEn, titleFr, description, items } = req.body;
@@ -2711,15 +2973,15 @@ app.post('/api/jobs/:id/change-orders', express.json(), async (req, res) => {
     const id = uuidv4();
     const amountCents = (items || []).reduce((sum, i) => sum + (i.amountCents || 0), 0);
 
-    await db.run(`
+    db.prepare(`
       INSERT INTO job_change_orders (id, job_id, title_en, title_fr, description, amount_cents, status, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, 'draft', ?, ?)
-    `, [id, job.id, titleEn, titleFr || titleEn, description || '', amountCents, now, now]);
+    `).run(id, job.id, titleEn, titleFr || titleEn, description || '', amountCents, now, now);
 
     // Store items as JSON in description if provided
     if (items && items.length > 0) {
       const itemsJson = JSON.stringify(items);
-      await db.run('UPDATE job_change_orders SET description = ? WHERE id = ?', [itemsJson, id]);
+      db.prepare('UPDATE job_change_orders SET description = ? WHERE id = ?').run(itemsJson, id);
     }
 
     res.json({ id, amountCents, status: 'draft' });
@@ -2729,9 +2991,9 @@ app.post('/api/jobs/:id/change-orders', express.json(), async (req, res) => {
 });
 
 // List change orders for a job
-app.get('/api/jobs/:id/change-orders', async (req, res) => {
+app.get('/api/jobs/:id/change-orders', (req, res) => {
   try {
-    const orders = await db.all('SELECT * FROM job_change_orders WHERE job_id = ? ORDER BY created_at', [req.params.id]);
+    const orders = db.prepare('SELECT * FROM job_change_orders WHERE job_id = ? ORDER BY created_at').all(req.params.id);
     res.json(orders.map(o => {
       let items = [];
       try { items = JSON.parse(o.description); } catch(e) { items = o.description ? [{ description: o.description, amountCents: o.amount_cents }] : []; }
@@ -2743,7 +3005,7 @@ app.get('/api/jobs/:id/change-orders', async (req, res) => {
 });
 
 // Update change order status (approve/reject)
-app.patch('/api/change-orders/:id', express.json(), async (req, res) => {
+app.patch('/api/change-orders/:id', express.json(), (req, res) => {
   try {
     const { status } = req.body;
     if (!['draft', 'approved', 'rejected'].includes(status)) {
@@ -2751,7 +3013,8 @@ app.patch('/api/change-orders/:id', express.json(), async (req, res) => {
     }
     const now = new Date().toISOString();
     const approvedAt = status === 'approved' ? now : null;
-    await db.run('UPDATE job_change_orders SET status = ?, approved_at = ?, updated_at = ? WHERE id = ?', [status, approvedAt, now, req.params.id]);
+    db.prepare('UPDATE job_change_orders SET status = ?, approved_at = ?, updated_at = ? WHERE id = ?')
+      .run(status, approvedAt, now, req.params.id);
     res.json({ ok: true, status });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -2759,9 +3022,9 @@ app.patch('/api/change-orders/:id', express.json(), async (req, res) => {
 });
 
 // Preview change order as HTML (mini-quote format)
-app.get('/preview/change-order/:id', async (req, res) => {
+app.get('/preview/change-order/:id', (req, res) => {
   try {
-    const co = await db.get('SELECT co.*, j.client_name, j.address, j.job_number, j.language FROM job_change_orders co JOIN jobs j ON j.id = co.job_id WHERE co.id = ?', [req.params.id]);
+    const co = db.prepare('SELECT co.*, j.client_name, j.address, j.job_number, j.language FROM job_change_orders co JOIN jobs j ON j.id = co.job_id WHERE co.id = ?').get(req.params.id);
     if (!co) return res.status(404).send('Change order not found');
 
     const isFr = co.language === 'french';
@@ -2856,9 +3119,9 @@ app.get('/preview/change-order/:id', async (req, res) => {
 
 // Generate invoice draft combining quote + time entries + change orders
 // Returns an editable draft — user restructures sections before finalizing
-app.post('/api/jobs/:id/invoices/generate', express.json(), async (req, res) => {
+app.post('/api/jobs/:id/invoices/generate', express.json(), (req, res) => {
   try {
-    const job = await getJob(req.params.id);
+    const job = getJob(req.params.id);
     if (!job) return res.status(404).json({ error: 'Job not found' });
 
     const { language, issueDate, notes, sections: customSections } = req.body || {};
@@ -2868,7 +3131,7 @@ app.post('/api/jobs/:id/invoices/generate', express.json(), async (req, res) => 
     const invoiceId = uuidv4();
 
     const dateStr = (issueDate || now.slice(0, 10)).replace(/-/g, '');
-    const existingCount = await db.get('SELECT COUNT(*) as c FROM invoices WHERE job_id = ?', [job.id]).c;
+    const existingCount = db.prepare('SELECT COUNT(*) as c FROM invoices WHERE job_id = ?').get(job.id).c;
     const invoiceNumber = dateStr + '_' + String(existingCount + 1).padStart(2, '0');
 
     // === Build draft sections from all sources ===
@@ -2898,7 +3161,7 @@ app.post('/api/jobs/:id/invoices/generate', express.json(), async (req, res) => 
       }
 
       // Source 2: Approved change orders
-      const changeOrders = await db.all("SELECT * FROM job_change_orders WHERE job_id = ? AND status = 'approved' ORDER BY created_at", [job.id]);
+      const changeOrders = db.prepare("SELECT * FROM job_change_orders WHERE job_id = ? AND status = 'approved' ORDER BY created_at").all(job.id);
       for (const co of changeOrders) {
         let coItems = [];
         try { coItems = JSON.parse(co.description); } catch(e) {}
@@ -2918,13 +3181,13 @@ app.post('/api/jobs/:id/invoices/generate', express.json(), async (req, res) => 
       }
 
       // Source 3: Hourly work from mapped time entries (not in quote)
-      const timeEntries = await db.run(`
+      const timeEntries = db.prepare(`
         SELECT mapped_label_en, mapped_label_fr, mapped_phase_code,
           SUM(billable_minutes) as total_minutes, employee_name
         FROM time_entries WHERE job_id = ? AND mapping_status = 'mapped' AND billable_minutes > 0
         GROUP BY mapped_label_en, mapped_label_fr, mapped_phase_code
         ORDER BY mapped_phase_code
-      `, [job.id]);
+      `).all(job.id);
 
       if (timeEntries.length > 0) {
         // Group time entries into one "Hourly Work" section
@@ -2962,7 +3225,7 @@ app.post('/api/jobs/:id/invoices/generate', express.json(), async (req, res) => 
     const totalCents = subtotalCents + taxCents;
 
     // Get payments
-    const payments = await getJobPayments(job.id);
+    const payments = getJobPayments(job.id);
     const totalPaidCents = payments.reduce((sum, p) => sum + p.amount_cents, 0);
     const balanceDueCents = totalCents - totalPaidCents;
 
@@ -2990,11 +3253,11 @@ app.post('/api/jobs/:id/invoices/generate', express.json(), async (req, res) => 
       isDraft: true,
     };
 
-    await db.run(`
+    db.prepare(`
       INSERT INTO invoices (id, job_id, invoice_number, invoice_type, language, issue_date, status,
         subtotal_cents, tax_cents, total_cents, balance_due_cents, invoice_json, created_at, updated_at)
       VALUES (?, ?, ?, 'final', ?, ?, 'draft', ?, ?, ?, ?, ?, ?, ?)
-    `, [invoiceId, job.id, invoiceNumber, lang, invoiceJson.issueDate, subtotalCents, taxCents, totalCents, balanceDueCents, JSON.stringify(invoiceJson), now, now]);
+    `).run(invoiceId, job.id, invoiceNumber, lang, invoiceJson.issueDate, subtotalCents, taxCents, totalCents, balanceDueCents, JSON.stringify(invoiceJson), now, now);
 
     res.json({ invoiceId, invoiceNumber, invoiceJson });
   } catch (err) {
@@ -3003,9 +3266,9 @@ app.post('/api/jobs/:id/invoices/generate', express.json(), async (req, res) => 
 });
 
 // Update invoice sections (user edited the draft)
-app.put('/api/invoices/:id', express.json(), async (req, res) => {
+app.put('/api/invoices/:id', express.json(), (req, res) => {
   try {
-    const invoice = await db.get('SELECT * FROM invoices WHERE id = ?', [req.params.id]);
+    const invoice = db.prepare('SELECT * FROM invoices WHERE id = ?').get(req.params.id);
     if (!invoice) return res.status(404).json({ error: 'Invoice not found' });
 
     const existing = JSON.parse(invoice.invoice_json);
@@ -3023,10 +3286,10 @@ app.put('/api/invoices/:id', express.json(), async (req, res) => {
     if (notes !== undefined) existing.notes = notes;
 
     const now = new Date().toISOString();
-    await db.run(`
+    db.prepare(`
       UPDATE invoices SET invoice_json = ?, subtotal_cents = ?, tax_cents = ?, total_cents = ?, balance_due_cents = ?, updated_at = ?
       WHERE id = ?
-    `, [JSON.stringify(existing), existing.subtotalCents, existing.taxCents, existing.totalCents, existing.balanceDueCents, now, req.params.id]);
+    `).run(JSON.stringify(existing), existing.subtotalCents, existing.taxCents, existing.totalCents, existing.balanceDueCents, now, req.params.id);
 
     res.json({ ok: true, invoiceJson: existing });
   } catch (err) {
@@ -3035,18 +3298,18 @@ app.put('/api/invoices/:id', express.json(), async (req, res) => {
 });
 
 // Get invoices for a job
-app.get('/api/jobs/:id/invoices', async (req, res) => {
+app.get('/api/jobs/:id/invoices', (req, res) => {
   try {
-    res.json(await db.all('SELECT * FROM invoices WHERE job_id = ? ORDER BY created_at DESC', [req.params.id]));
+    res.json(db.prepare('SELECT * FROM invoices WHERE job_id = ? ORDER BY created_at DESC').all(req.params.id));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
 // Preview invoice as HTML
-app.get('/preview/invoice/:id', async (req, res) => {
+app.get('/preview/invoice/:id', (req, res) => {
   try {
-    const invoice = await db.get('SELECT * FROM invoices WHERE id = ?', [req.params.id]);
+    const invoice = db.prepare('SELECT * FROM invoices WHERE id = ?').get(req.params.id);
     if (!invoice) return res.status(404).send('Invoice not found');
 
     const inv = JSON.parse(invoice.invoice_json);
@@ -3144,7 +3407,7 @@ app.get('/preview/invoice/:id', async (req, res) => {
 // Generate invoice PDF
 app.post('/api/invoices/:id/pdf', async (req, res) => {
   try {
-    const invoice = await db.get('SELECT * FROM invoices WHERE id = ?', [req.params.id]);
+    const invoice = db.prepare('SELECT * FROM invoices WHERE id = ?').get(req.params.id);
     if (!invoice) return res.status(404).json({ error: 'Invoice not found' });
 
     const { chromium } = require('playwright');
@@ -3179,7 +3442,7 @@ app.post('/api/invoices/:id/pdf', async (req, res) => {
 // ============================================================
 
 // Download DB file for manual backup
-app.get('/api/backup/download', async (req, res) => {
+app.get('/api/backup/download', (req, res) => {
   if (!fs.existsSync(DB_PATH)) return res.status(404).json({ error: 'No database found' });
   res.setHeader('Content-Type', 'application/x-sqlite3');
   res.setHeader('Content-Disposition', 'attachment; filename=op-hub-sessions.db');
@@ -3197,7 +3460,7 @@ app.post('/api/backup', async (req, res) => {
 });
 
 // Version endpoint for deploy verification
-app.get('/api/version', async (req, res) => {
+app.get('/api/version', (req, res) => {
   res.json({ version: '2026-04-06', features: ['jobs', 'jibble-import', 'db-backup'] });
 });
 

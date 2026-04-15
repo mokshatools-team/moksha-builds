@@ -20,6 +20,7 @@
     "heic-convert": "^2.1.0",
     "multer": "^2.0.0",
     "nodemailer": "^8.0.1",
+    "pg": "^8.20.0",
     "playwright": "^1.44.0",
     "sharp": "^0.34.3",
     "uuid": "^9.0.1"
