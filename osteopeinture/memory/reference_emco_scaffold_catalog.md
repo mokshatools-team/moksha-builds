@@ -58,9 +58,36 @@ All prices CAD, exclude tax. Periods: Jour=24h, Sem.=7 days, Mois=28 days.
 | Personnel Lift 25' | $125 | $375 | $950 |
 | Towable Boom Lift 34' | $240 | $625 | $1,625 |
 
+## Extension Ladders (p.22)
+
+| Size | Jour | Sem. | Mois |
+|---|---|---|---|
+| 24ft | $20 | $50 | $140 |
+| 32ft | $22 | $60 | $150 |
+| 36ft | $25 | $75 | $160 |
+| 40ft | $28 | $85 | $175 |
+| 60ft | $40 | $120 | $275 |
+
+## Step Ladders (p.22)
+
+| Size | Jour | Sem. | Mois |
+|---|---|---|---|
+| 6ft | $12 | $35 | $75 |
+| 10ft | $18 | $50 | $120 |
+| 12ft | $20 | $60 | $135 |
+| 14ft | $24 | $75 | $175 |
+| 16ft | $30 | $100 | $225 |
+
+## Ladder Accessories (p.22)
+
+| Item | Jour | Sem. | Mois |
+|---|---|---|---|
+| Ladder Jacks (set of 2) | $15 | $45 | $100 |
+| Ladder-Aide (staircase use) | $10 | $30 | $75 |
+
 ## Notes
 - EMCO is primary scaffold supplier for OstéoPeinture
-- GAMMA is secondary supplier for lifts (prices TBD)
+- GAMMA is primary supplier for lifts (see reference_gamma_lift_catalog.md)
 - Delivery: $100/trip, standard 2 trips per job (deliver + pickup)
 - Pulley rope: 50ft standard. Above 5 levels (25ft), need 100ft rope — must specify in rental order.
 - Half-height frames: 5ft wide only, same price as standard

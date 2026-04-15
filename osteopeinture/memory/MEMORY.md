@@ -34,6 +34,7 @@
 ## Scaffold Module
 - [Scaffold module — scope & logic](project_scaffold_module.md) — new OP Hub module, calculates scaffold component quantities + rental costs from job dimensions
 - [EMCO 2025 scaffold rental catalog](reference_emco_scaffold_catalog.md) — full price list: frames, braces, platforms, boards, accessories, lifts (Jan 2025)
+- [GAMMA 2025 lift rental catalog](reference_gamma_lift_catalog.md) — Z34/Z45/Z60 boom lifts, delivery $165/way, harness w/ sling
 
 ## References
 - [Tiller Master Sheet](reference_tiller_master.md) — AutoCat rules source (ID: 12FT0agrTeIdrC929n-vjEWLG9Uxbf136VxpESs-Kcsc)

@@ -19,7 +19,34 @@ const EMCO_CATALOG = {
   tie_in:           { daily: null, weekly: 6,    monthly: 15   },
   rope_clamp:       { daily: 8,    weekly: 20,   monthly: 45   },
   safety_harness:   { daily: 15,   weekly: 35,   monthly: 60   },
+  // Extension ladders
+  ladder_24ft:      { daily: 20,   weekly: 50,   monthly: 140  },
+  ladder_32ft:      { daily: 22,   weekly: 60,   monthly: 150  },
+  ladder_36ft:      { daily: 25,   weekly: 75,   monthly: 160  },
+  ladder_40ft:      { daily: 28,   weekly: 85,   monthly: 175  },
+  ladder_60ft:      { daily: 40,   weekly: 120,  monthly: 275  },
+  // Step ladders
+  step_ladder_6ft:  { daily: 12,   weekly: 35,   monthly: 75   },
+  step_ladder_10ft: { daily: 18,   weekly: 50,   monthly: 120  },
+  step_ladder_12ft: { daily: 20,   weekly: 60,   monthly: 135  },
+  step_ladder_14ft: { daily: 24,   weekly: 75,   monthly: 175  },
+  step_ladder_16ft: { daily: 30,   weekly: 100,  monthly: 225  },
+  // Ladder accessories
+  ladder_jacks:     { daily: 15,   weekly: 45,   monthly: 100  },
+  ladder_aide:      { daily: 10,   weekly: 30,   monthly: 75   },
 };
+
+// GAMMA LIFT CATALOG (boom lifts)
+// Source: Loric's notes from GAMMA (Montreal), April 2025
+// Prices CAD, exclude tax + gas. Month = 28 days.
+const GAMMA_CATALOG = {
+  z34:              { daily: 435,  weekly: 1300, monthly: 3100 },
+  z45:              { daily: 600,  weekly: 1425, monthly: 3400 },
+  z60:              { daily: 800,  weekly: 2200, monthly: 5600 },
+  gamma_harness:    { daily: 20,   weekly: 60,   monthly: 150  },
+};
+
+const GAMMA_DELIVERY_PER_TRIP = 165;
 
 const DELIVERY_PER_TRIP = 100;
 const STANDARD_TRIPS = 2;

@@ -1,7 +1,7 @@
 # OSTÉOPEINTURE — QUOTING LOGIC
 # Main estimating brain for interior and exterior quotes.
 # Last updated: April 8, 2026
-# Version: v3 — added §30-34 scaffold access quoting (EMCO catalog, component formulas, ladder table, labor phases)
+# Version: v4 — added EMCO ladder prices, GAMMA lift catalog §34, operational notes, renumbered to §35 labor
 
 ---
 ---
@@ -830,20 +830,83 @@ Prices CAD, exclude tax. Weekly = 7 days, Monthly = 28 days.
 
 ## 33. LADDERS
 
-| Ladder | Vertical Reach | Owned/Rented | Transport |
-|---|---|---|---|
-| 21ft | ~17ft | Owned | Roof rack |
-| 24ft | ~20ft | Rent (EMCO) | Roof rack |
-| 28ft | ~24ft | Rent (EMCO) | Roof rack (max carry) |
-| 32ft | ~27ft | Rent (EMCO) | Needs delivery — bundle with scaffold |
-| 36ft+ | ~30ft+ | Rent (EMCO) | Needs delivery — bundle with scaffold |
+### Owned
+- 21ft extension ladder (~17ft vertical reach) — NOT included in rental orders
 
-The owned 21ft ladder is NOT included in rental orders.
-32ft+ ladders need EMCO delivery — add to scaffold delivery if applicable.
+### EMCO Extension Ladder Rentals
+
+| Size | Vertical Reach | Daily | Weekly | Monthly | Transport |
+|---|---|---|---|---|---|
+| 24ft | ~20ft | $20 | $50 | $140 | Roof rack |
+| 28ft | ~24ft | — | — | — | Roof rack (max carry) |
+| 32ft | ~27ft | $22 | $60 | $150 | Needs EMCO delivery |
+| 36ft | ~30ft | $25 | $75 | $160 | Needs EMCO delivery |
+| 40ft | ~33ft | $28 | $85 | $175 | Needs EMCO delivery |
+| 60ft | ~50ft | $40 | $120 | $275 | Needs EMCO delivery |
+
+Note: 28ft is available from EMCO but not individually listed in their booklet — confirm rate when ordering.
+
+### EMCO Step Ladder Rentals
+
+| Size | Daily | Weekly | Monthly |
+|---|---|---|---|
+| 6ft | $12 | $35 | $75 |
+| 10ft | $18 | $50 | $120 |
+| 12ft | $20 | $60 | $135 |
+| 14ft | $24 | $75 | $175 |
+| 16ft | $30 | $100 | $225 |
+
+### Ladder Accessories (EMCO)
+
+| Item | Daily | Weekly | Monthly |
+|---|---|---|---|
+| Ladder Jacks (set of 2, for planks) | $15 | $45 | $100 |
+| Ladder-Aide (staircase use) | $10 | $30 | $75 |
+
+### Rules
+- 32ft+ ladders need EMCO delivery — bundle with scaffold delivery if applicable
+- 32ft ladders are rare and don't feel safe — suggest scaffold or lift for sustained work at that height
+- Can carry up to 28ft ladder on roof rack
 
 ---
 
-## 34. SCAFFOLD LABOR
+## 34. GAMMA LIFT RENTALS
+
+Supplier: GAMMA (Montreal) — primary supplier for boom lifts.
+Prices CAD, exclude tax AND gas. Month = 28 days.
+
+### Boom Lifts
+
+| Equipment | Daily | Weekly | Monthly |
+|---|---|---|---|
+| Z34 (34ft boom) | $435 | $1,300 | $3,100 |
+| Z45 (45ft boom) | $600 | $1,425 | $3,400 |
+| Z60 (60ft boom) | $800 | $2,200 | $5,600 |
+
+### Harness (comes with sling/lanyard)
+
+| Daily | Weekly | Monthly |
+|---|---|---|
+| $20 | $60 | $150 |
+
+### Delivery
+- $165 each way, standard 2 trips = $330
+
+### Operational costs (NOT included in rental price)
+- **Gas/fuel** — renter pays for fuel consumption during use
+- **Refill** — lift must be returned with full tank or refill fee applies
+- **Driveway protection** — lifts are heavy; plywood or mats needed to protect driveways, lawns, and soft surfaces
+- **Setup time** — positioning, leveling, and securing the lift on site takes time (factor into labor estimate)
+- **Terrain** — lifts need relatively flat, firm ground; soft or sloped terrain may require extra prep
+
+### When to use a lift vs scaffold
+- **Lift preferred:** Very high work (>35ft), limited ground footprint, short duration, isolated areas
+- **Scaffold preferred:** Sustained multi-day access, wide facades, multiple workers simultaneously, overhangs needed
+- **Cost comparison:** A Z34 for 1 week ($1,300) costs more than most scaffold setups — but saves all the setup/teardown labor. Factor both rental + labor when comparing.
+
+---
+
+## 35. SCAFFOLD & ACCESS LABOR
 
 No standard benchmarks yet — estimator provides hours per tower.
 
