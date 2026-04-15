@@ -966,9 +966,9 @@ body { background:#e8e8e8; font-family:'Montserrat',sans-serif; padding:40px 20p
 .sig-grid { display:grid; grid-template-columns:1fr 1fr; }
 .sig-cell { padding:10px 14px; font-size:8px; font-weight:600; min-height:70px; display:flex; flex-direction:column; align-items:flex-start; }
 .footer { text-align:center; margin-top:36px; }
-.footer-logo { text-align:center; margin-bottom:8px; }
-.footer-logo img { height:22px; }
-.footer-info { font-size:7.5px; color:#666; line-height:1.8; }
+.footer-logo { text-align:center; margin-bottom:6px; }
+.footer-logo img { height:20px; }
+.footer-info { font-size:6.5px; color:#888; line-height:1.7; letter-spacing:0.02em; }
 @media print { body { background:white; padding:0; } .page { box-shadow:none; width:100%; padding:32px 40px; } }
 </style>
 </head>
@@ -1476,6 +1476,18 @@ app.patch('/api/sessions/:id/name', express.json(), async (req, res) => {
   session.projectId = name.trim();
   await saveSession(session);
   res.json({ ok: true, projectId: session.projectId });
+});
+
+// Update session status
+app.patch('/api/sessions/:id/status', express.json(), async (req, res) => {
+  const session = await getSession(req.params.id);
+  if (!session) return res.status(404).json({ error: 'Session not found' });
+  const allowed = ['gathering', 'quote_ready', 'sent', 'declined', 'archived'];
+  const { status } = req.body;
+  if (!status || !allowed.includes(status)) return res.status(400).json({ error: 'Invalid status' });
+  session.status = status;
+  await saveSession(session);
+  res.json({ ok: true, status });
 });
 
 // Get quoting logic file

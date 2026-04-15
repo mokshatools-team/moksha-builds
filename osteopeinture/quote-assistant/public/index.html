@@ -2203,7 +2203,7 @@ async function loadSidebar() {
         <span class="sidebar-item-id">${esc(subLabel)}</span>
         <span class="sidebar-item-total">${total}</span>
       </div>
-      <span class="sidebar-status ${statusClass}">${statusLabel}</span>
+      <span class="sidebar-status ${statusClass}" onclick="event.stopPropagation();cycleSessionStatus('${s.id}','${effectiveStatus}')" title="Click to change status">${statusLabel}</span>
     </div>`;
   }).join('');
 }
@@ -3485,6 +3485,30 @@ async function applySmartPaste(overwrite) {
     alert(summary);
     closeSmartPaste();
     openJobDetail(smartPasteJobId);
+  } catch (err) {
+    alert('Error: ' + err.message);
+  }
+}
+
+async function cycleSessionStatus(sessionId, current) {
+  const options = ['gathering', 'quote_ready', 'sent', 'declined', 'archived'];
+  const labels = { gathering: 'In Progress', quote_ready: 'Ready', sent: 'Sent', declined: 'Declined', archived: 'Archived' };
+  const choice = prompt(
+    'Set status to:\n' +
+    options.map((o, i) => `  ${i+1}. ${labels[o]}${o === current ? ' (current)' : ''}`).join('\n') +
+    '\n\nEnter number (1-5):'
+  );
+  if (!choice) return;
+  const idx = parseInt(choice) - 1;
+  if (idx < 0 || idx >= options.length) return;
+  const newStatus = options[idx];
+  try {
+    await fetch('/api/sessions/' + sessionId + '/status', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: newStatus }),
+    });
+    loadSidebar();
   } catch (err) {
     alert('Error: ' + err.message);
   }
