@@ -85,6 +85,14 @@ async function getSession(id) {
   if (!row) return null;
   return {
     ...row,
+    // Alias snake_case DB columns to camelCase used by the app code.
+    // Without this, saveSession() reads undefined camelCase fields and
+    // wipes the DB values on every subsequent save.
+    clientName: row.client_name,
+    projectId: row.project_id,
+    totalAmount: row.total_amount,
+    createdAt: row.created_at,
+    emailRecipient: row.email_recipient,
     messages: JSON.parse(row.messages || '[]'),
     quoteJson: row.quote_json ? JSON.parse(row.quote_json) : null,
     emailMeta: row.email_meta ? JSON.parse(row.email_meta) : {},
