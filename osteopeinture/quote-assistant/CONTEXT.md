@@ -14,6 +14,26 @@ Read those first for context on how this build fits into the broader OP ecosyste
 
 ---
 
+## STATE AS OF 2026-04-14
+
+### Supabase Migration — COMPLETE (2026-04-14)
+
+**Database is now Supabase Postgres.** SQLite on Railway volume is no longer used.
+
+- Connection: Session Pooler at `aws-1-ca-central-1.pooler.supabase.com:5432` (IPv4 compatible)
+- Direct connection (`db.qvxdzoysfmgekdcvhhzu.supabase.co`) does NOT work — IPv6 only, fails on Railway and local networks
+- Railway env var `DATABASE_URL` must use the pooler URL — confirmed working
+- `db.js` wrapper handles connection pool, `?` → `$1,$2...` placeholder conversion, and transactions
+- `server.sqlite.js` archived in the repo — swap back to `server.js` and redeploy if Supabase doesn't work out
+- Data migrated: 2 sessions, 1 job (LACHANCE_01), 1 payment — verified on live app
+- Backup: Supabase free tier has automated daily backups, 7-day retention
+- The `/api/backup/download` endpoint will return 404 (no local SQLite file) — this is expected
+- Commit: `825c20e`
+
+**Phase 0 is DONE.** This was the single prerequisite blocking everything else in the ecosystem plan. Next: Phase 1 smoke test on a real job, then Phase 2 (app split).
+
+---
+
 ## STATE AS OF 2026-04-10
 
 ### Session D — Scaffold Module (2026-04-10)
