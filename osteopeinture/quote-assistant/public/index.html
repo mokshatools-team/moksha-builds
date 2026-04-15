@@ -3174,7 +3174,7 @@ async function openJobDetail(jobId) {
           <div><strong>Address:</strong> ${esc(job.address)}</div>
           <div><strong>Type:</strong> ${job.project_type}${isCash ? ' — Cash (no taxes)' : ' — Declared'}</div>
           <div><strong>Status:</strong> ${job.status}</div>
-          ${isCash ? '<div style="margin-top:6px"><strong>Agreed Total:</strong> <input type="number" value="' + effectiveTotal + '" style="width:120px;padding:4px 8px;background:var(--surface-1);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:13px" onblur="updateAgreedTotal(\\'' + job.id + '\\', this.value)"> <span style="font-size:11px;color:var(--text-3)">(editable)</span></div>' : ''}
+          ${isCash ? '<div style="margin-top:6px"><strong>Agreed Total:</strong> <input type="number" value="' + effectiveTotal + '" style="width:120px;padding:4px 8px;background:var(--surface-1);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:13px" onblur="updateAgreedTotal(\'' + job.id + '\', this.value)"> <span style="font-size:11px;color:var(--text-3)">(editable)</span></div>' : ''}
           ${job.internal_notes ? '<div style="margin-top:8px;padding:8px;background:var(--surface-2);border-radius:4px;font-size:12px">' + esc(job.internal_notes) + '</div>' : ''}
         </div>
       </div>
