@@ -2174,8 +2174,9 @@ async function loadSidebar() {
   list.innerHTML = sessions.map(s => {
     const date = new Date(s.updated_at).toLocaleDateString('fr-CA', { month: 'short', day: 'numeric' });
     const client = s.project_id || s.client_name || 'New Quote';
-    // Sub-label: show client name if project_id is the main label, otherwise show date
-    const subLabel = s.project_id && s.client_name ? s.client_name : date;
+    // Sub-label: show street address if available (already have LASTNAME in the title), otherwise date
+    const shortAddress = s.address ? s.address.split(',')[0].trim() : null;
+    const subLabel = shortAddress || date;
     const total = s.total_amount ? formatMoney(s.total_amount) + ' $' : '—';
     const active = s.id === currentSessionId ? 'active' : '';
     const statusLabel = { gathering: 'In progress', quote_ready: 'Ready', sent: 'Sent' }[s.status] || s.status;
