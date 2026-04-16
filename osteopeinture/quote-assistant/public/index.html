@@ -1806,6 +1806,68 @@
   </div>
 </div>
 
+<!-- PAYMENT MODAL -->
+<div id="payment-modal" onclick="handlePaymentBackdrop(event)" style="display:none;position:fixed;inset:0;z-index:600;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px);align-items:center;justify-content:center">
+  <div id="payment-panel" style="background:var(--surface-1);border:1px solid var(--border);border-radius:var(--radius-lg);width:min(420px,92vw);box-shadow:0 24px 64px rgba(0,0,0,0.6);overflow:hidden;animation:modalIn 0.2s ease both">
+    <div style="padding:16px 20px;border-bottom:1px solid var(--border-soft)">
+      <div style="font-family:var(--font-serif);font-size:16px;font-weight:600;color:var(--text)">Record payment</div>
+      <div id="payment-modal-subtitle" style="font-size:11px;color:var(--text-3);margin-top:2px"></div>
+    </div>
+    <div style="padding:18px 20px;display:flex;flex-direction:column;gap:14px">
+      <div>
+        <label style="display:block;font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--text-4);margin-bottom:5px;font-family:var(--font-sans)">Amount ($)</label>
+        <input id="payment-amount" type="number" inputmode="decimal" step="0.01" placeholder="0.00"
+          style="width:100%;padding:10px 12px;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:16px;font-family:var(--font-sans);box-sizing:border-box">
+      </div>
+      <div>
+        <label style="display:block;font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--text-4);margin-bottom:5px;font-family:var(--font-sans)">Method</label>
+        <div id="payment-method-buttons" style="display:flex;gap:6px">
+          <button type="button" data-method="e_transfer" onclick="selectPaymentMethod('e_transfer')" class="payment-method-btn">e-transfer</button>
+          <button type="button" data-method="cash" onclick="selectPaymentMethod('cash')" class="payment-method-btn">cash</button>
+          <button type="button" data-method="cheque" onclick="selectPaymentMethod('cheque')" class="payment-method-btn">cheque</button>
+        </div>
+      </div>
+      <div>
+        <label style="display:block;font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--text-4);margin-bottom:5px;font-family:var(--font-sans)">Date</label>
+        <input id="payment-date" type="date"
+          style="width:100%;padding:10px 12px;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:14px;font-family:var(--font-sans);box-sizing:border-box">
+      </div>
+      <div>
+        <label style="display:block;font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--text-4);margin-bottom:5px;font-family:var(--font-sans)">Reference (optional)</label>
+        <input id="payment-reference" type="text" placeholder="cheque #, e-transfer ref, etc."
+          style="width:100%;padding:10px 12px;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;font-family:var(--font-sans);box-sizing:border-box">
+      </div>
+    </div>
+    <div style="padding:12px 20px;border-top:1px solid var(--border-soft);display:flex;gap:8px;justify-content:flex-end">
+      <button onclick="closePaymentModal()" style="background:transparent;border:1px solid var(--border);color:var(--text-2);border-radius:var(--radius-sm);padding:8px 16px;font-size:13px;font-family:var(--font-sans);cursor:pointer">Cancel</button>
+      <button id="payment-save-btn" onclick="submitPaymentModal()" style="background:var(--accent);color:#fff;border:none;border-radius:var(--radius-sm);padding:8px 18px;font-size:13px;font-weight:600;font-family:var(--font-sans);cursor:pointer">Save</button>
+    </div>
+  </div>
+</div>
+
+<style>
+  .payment-method-btn {
+    flex: 1;
+    padding: 10px 8px;
+    background: var(--surface-2);
+    color: var(--text-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: var(--font-sans);
+    cursor: pointer;
+    transition: all 0.12s;
+  }
+  .payment-method-btn:hover { border-color: var(--accent); color: var(--text); }
+  .payment-method-btn:active { transform: scale(0.97); }
+  .payment-method-btn.selected {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+    font-weight: 600;
+  }
+</style>
+
 <!-- RULES MODAL -->
 <div id="rules-modal" onclick="handleModalBackdrop(event)">
   <div id="rules-panel">
@@ -3215,6 +3277,43 @@ function mobileNavTo(view) {
 let currentJobId = null;
 let convertingSessionId = null;
 
+// Classify a job as ACTIVE / UPCOMING / PAST based on dates + status.
+// PAST = completion_date set, OR status archived/completed/cancelled.
+// UPCOMING = start_date set AND in the future.
+// ACTIVE = everything else (started, no end yet — the default working set).
+function classifyJob(j) {
+  const today = new Date().toISOString().slice(0, 10);
+  if (j.completion_date) return 'past';
+  if (j.status && /^(archived|completed|cancelled|closed|declined)$/i.test(j.status)) return 'past';
+  if (j.start_date && j.start_date > today) return 'upcoming';
+  return 'active';
+}
+
+function renderJobCard(j) {
+  const isCash = j.payment_type === 'cash';
+  const effectiveTotal = isCash && j.agreed_total_cents ? j.agreed_total_cents : j.quote_total_cents;
+  const total = (effectiveTotal / 100).toLocaleString('fr-CA', {maximumFractionDigits:0});
+  const paid = ((j.total_paid_cents || 0) / 100).toLocaleString('fr-CA', {maximumFractionDigits:0});
+  const balance = ((effectiveTotal - (j.total_paid_cents || 0)) / 100).toLocaleString('fr-CA', {maximumFractionDigits:0});
+  const typeLabel = isCash ? ' · CASH' : '';
+  // Lead with the project ID — it's the primary identifier Loric uses
+  return `<div class="job-card" onclick="openJobDetail('${j.id}','dashboard')">
+    <div class="job-card-header">
+      <span class="job-card-client">${esc(j.job_number)}</span>
+      <span class="job-card-status ${j.status}">${j.status}${typeLabel}</span>
+    </div>
+    <div class="job-card-address">${esc(j.client_name)} — ${esc(j.address)}</div>
+    <div class="job-card-footer">
+      <span>Paid: $${paid} / $${total}</span>
+      <span class="job-card-amount">Balance: $${balance}</span>
+    </div>
+  </div>`;
+}
+
+function jobsSectionHeader(label, count) {
+  return `<div style="padding:14px 4px 6px;font-size:10px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--text-4);font-family:var(--font-sans)">${label} <span style="color:var(--text-3);font-weight:500">(${count})</span></div>`;
+}
+
 async function loadJobs() {
   const list = document.getElementById('jobs-list');
   list.innerHTML = '<div style="text-align:center;color:var(--text-3);padding:20px">Loading jobs...</div>';
@@ -3225,31 +3324,31 @@ async function loadJobs() {
       list.innerHTML = '<div style="text-align:center;color:var(--text-3);padding:40px 20px"><p>No jobs yet.</p><p style="font-size:12px;margin-top:8px">Convert a quote to a job to get started.</p></div>';
       return;
     }
-    list.innerHTML = jobs.map(j => {
-      const isCash = j.payment_type === 'cash';
-      const effectiveTotal = isCash && j.agreed_total_cents ? j.agreed_total_cents : j.quote_total_cents;
-      const total = (effectiveTotal / 100).toLocaleString('fr-CA', {maximumFractionDigits:0});
-      const paid = ((j.total_paid_cents || 0) / 100).toLocaleString('fr-CA', {maximumFractionDigits:0});
-      const balance = ((effectiveTotal - (j.total_paid_cents || 0)) / 100).toLocaleString('fr-CA', {maximumFractionDigits:0});
-      const typeLabel = isCash ? ' · CASH' : '';
-      return `<div class="job-card" onclick="openJobDetail('${j.id}')">
-        <div class="job-card-header">
-          <span class="job-card-client">${esc(j.client_name)}</span>
-          <span class="job-card-status ${j.status}">${j.status}${typeLabel}</span>
-        </div>
-        <div class="job-card-address">${esc(j.address)} — ${esc(j.job_number)}</div>
-        <div class="job-card-footer">
-          <span>Paid: $${paid} / $${total}</span>
-          <span class="job-card-amount">Balance: $${balance}</span>
-        </div>
-      </div>`;
-    }).join('');
+    const buckets = { active: [], upcoming: [], past: [] };
+    for (const j of jobs) buckets[classifyJob(j)].push(j);
+    // Sort: active by updated_at desc; upcoming by start_date asc (soonest first); past by completion_date desc
+    buckets.active.sort((a, b) => (b.updated_at || '').localeCompare(a.updated_at || ''));
+    buckets.upcoming.sort((a, b) => (a.start_date || '').localeCompare(b.start_date || ''));
+    buckets.past.sort((a, b) => (b.completion_date || b.updated_at || '').localeCompare(a.completion_date || a.updated_at || ''));
+
+    let html = '';
+    if (buckets.active.length) html += jobsSectionHeader('Active', buckets.active.length) + buckets.active.map(renderJobCard).join('');
+    if (buckets.upcoming.length) html += jobsSectionHeader('Upcoming', buckets.upcoming.length) + buckets.upcoming.map(renderJobCard).join('');
+    if (buckets.past.length) html += jobsSectionHeader('Past', buckets.past.length) + buckets.past.map(renderJobCard).join('');
+    list.innerHTML = html;
   } catch (err) {
     list.innerHTML = '<div style="color:var(--accent);padding:20px">Error loading jobs: ' + esc(err.message) + '</div>';
   }
 }
 
-async function openJobDetail(jobId) {
+// Tracks how the job-detail was opened so closeJobDetail() can return to the
+// right surface. Set by the entry-point onclicks ('dashboard' from job cards,
+// 'sidebar' from sidebar items). Internal refresh calls (after save, sync,
+// etc.) omit the param so the existing source is preserved.
+let jobOpenedFrom = null;
+
+async function openJobDetail(jobId, source) {
+  if (source) jobOpenedFrom = source;
   currentJobId = jobId;
   const detail = document.getElementById('job-detail');
   const content = document.getElementById('job-detail-content');
@@ -3325,7 +3424,7 @@ async function openJobDetail(jobId) {
             <button onclick="editPayment('${p.id}','${p.payment_date}',${p.amount_cents},'${p.method}')" style="background:transparent;border:none;color:var(--text-4);cursor:pointer;font-size:11px;padding:2px 4px" title="Edit">✎</button>
           </div>
         `).join('')}
-        <button onclick="recordPayment('${job.id}')" style="margin-top:8px;padding:6px 12px;background:var(--surface-2);border:1px solid var(--border);border-radius:4px;color:var(--text-2);font-size:12px;cursor:pointer;font-family:var(--font-sans)">+ Record Payment</button>
+        <button onclick="recordPayment('${job.id}', '${esc(job.job_number || '')}')" style="margin-top:8px;padding:6px 12px;background:var(--surface-2);border:1px solid var(--border);border-radius:4px;color:var(--text-2);font-size:12px;cursor:pointer;font-family:var(--font-sans)">+ Record Payment</button>
       </div>
 
       <!-- NOTES (scratchpad) -->
@@ -3362,6 +3461,15 @@ async function openJobDetail(jobId) {
 function closeJobDetail() {
   document.getElementById('job-detail').classList.remove('visible');
   currentJobId = null;
+  // Land back where the user came from. If they opened the job from the
+  // Jobs dashboard, refresh and show it. If they opened it from the chat
+  // sidebar (desktop or mobile), leave the dashboard alone — they'll
+  // return to whatever was underneath (chat / quote / sidebar list).
+  if (jobOpenedFrom === 'dashboard') {
+    document.getElementById('jobs-panel').classList.add('visible');
+    loadJobs();
+  }
+  jobOpenedFrom = null;
 }
 
 // ── STANDALONE EMAIL DRAFT (job-context, no quote session needed) ───────
@@ -3683,7 +3791,7 @@ async function loadJobsSidebar() {
       const isCash = j.payment_type === 'cash';
       const effectiveTotal = isCash && j.agreed_total_cents ? j.agreed_total_cents : j.quote_total_cents;
       const totalStr = effectiveTotal ? '$' + (effectiveTotal / 100).toLocaleString('fr-CA', {maximumFractionDigits:0}) : '';
-      html += `<div class="sidebar-item" onclick="openJobDetail('${j.id}');closeSidebar();" style="cursor:pointer">
+      html += `<div class="sidebar-item" onclick="openJobDetail('${j.id}','sidebar');closeSidebar();" style="cursor:pointer">
         <div class="sidebar-item-client">${esc(j.job_number)}</div>
         <div class="sidebar-item-meta">
           <span class="sidebar-item-id">${esc(shortAddr)}</span>
@@ -3695,7 +3803,7 @@ async function loadJobsSidebar() {
       html += '<div style="padding:14px 16px 6px;font-size:9px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--text-4);font-family:var(--font-sans);">Closed</div>';
       for (const j of closed) {
         const shortAddr = j.address ? j.address.split(',')[0].trim() : '';
-        html += `<div class="sidebar-item" onclick="openJobDetail('${j.id}');closeSidebar();" style="cursor:pointer;opacity:0.6">
+        html += `<div class="sidebar-item" onclick="openJobDetail('${j.id}','sidebar');closeSidebar();" style="cursor:pointer;opacity:0.6">
           <div class="sidebar-item-client">${esc(j.job_number)}</div>
           <div class="sidebar-item-meta"><span class="sidebar-item-id">${esc(shortAddr)}</span></div>
         </div>`;
@@ -4353,29 +4461,73 @@ async function deleteJob(jobId, clientName) {
   }
 }
 
-async function recordPayment(jobId) {
-  const amount = prompt('Payment amount ($):');
-  if (!amount) return;
-  const method = prompt('Method (e_transfer, cash, cheque):', 'e_transfer');
-  if (!method) return;
-  const date = prompt('Payment date (YYYY-MM-DD):', new Date().toISOString().slice(0,10));
-  if (!date) return;
-  const reference = prompt('Reference (optional):');
+// ── PAYMENT MODAL ─────────────────────────────────────────────────────
+// Replaces the old chain of prompt() dialogs (which forced typing on
+// mobile) with a single form: amount input + method buttons + date +
+// optional reference. After save, reuses the existing confirm() preview
+// to gate the finance-sheet write.
+let paymentModalJobId = null;
+let paymentModalJobNumber = '';
+let paymentModalMethod = 'e_transfer';
+
+function openPaymentModal(jobId, jobNumber) {
+  paymentModalJobId = jobId;
+  paymentModalJobNumber = jobNumber || '';
+  paymentModalMethod = 'e_transfer';
+  document.getElementById('payment-modal-subtitle').textContent = jobNumber ? `Job: ${jobNumber}` : '';
+  document.getElementById('payment-amount').value = '';
+  document.getElementById('payment-date').value = new Date().toISOString().slice(0, 10);
+  document.getElementById('payment-reference').value = '';
+  selectPaymentMethod('e_transfer');
+  document.getElementById('payment-modal').style.display = 'flex';
+  // Don't auto-focus on mobile (would pop the keyboard immediately)
+  if (window.innerWidth > 768) setTimeout(() => document.getElementById('payment-amount').focus(), 50);
+}
+
+function closePaymentModal() {
+  document.getElementById('payment-modal').style.display = 'none';
+  paymentModalJobId = null;
+}
+
+function handlePaymentBackdrop(e) {
+  if (e.target === document.getElementById('payment-modal')) closePaymentModal();
+}
+
+function selectPaymentMethod(method) {
+  paymentModalMethod = method;
+  document.querySelectorAll('.payment-method-btn').forEach((b) => {
+    b.classList.toggle('selected', b.dataset.method === method);
+  });
+}
+
+async function submitPaymentModal() {
+  const jobId = paymentModalJobId;
+  if (!jobId) return;
+  const amount = parseFloat(document.getElementById('payment-amount').value);
+  const date = document.getElementById('payment-date').value;
+  const method = paymentModalMethod;
+  const reference = document.getElementById('payment-reference').value.trim();
+  if (!amount || amount <= 0) { alert('Enter a valid amount.'); return; }
+  if (!date) { alert('Pick a date.'); return; }
+
+  const saveBtn = document.getElementById('payment-save-btn');
+  saveBtn.disabled = true;
+  saveBtn.textContent = 'Saving…';
 
   try {
     const res = await fetch('/api/jobs/' + jobId + '/payments', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ amount: parseFloat(amount), date, method, reference }),
+      body: JSON.stringify({ amount, date, method, reference }),
     });
     const data = await res.json();
     if (!res.ok) {
       alert(data.error || 'Failed');
       return;
     }
+    closePaymentModal();
 
-    // Payment is saved. Now show the finance sheet sync preview and require
-    // explicit confirmation before the write fires.
+    // Confirm finance-sheet write (same preview-then-sync flow as before)
     const p = data.sync_preview || {};
     const previewText = [
       'Payment saved. Write to finance sheet?',
@@ -4405,11 +4557,20 @@ async function recordPayment(jobId) {
     } else {
       alert('Payment saved. Finance sheet write skipped — marked as pending.');
     }
-
     openJobDetail(jobId);
   } catch (err) {
     alert('Error: ' + err.message);
+  } finally {
+    saveBtn.disabled = false;
+    saveBtn.textContent = 'Save';
   }
+}
+
+// Thin shim so existing onclick="recordPayment('id', 'JOB_NUMBER')" call
+// sites keep working. The job_number is passed in by the caller (it's
+// already in scope wherever the button is rendered) — no extra fetch.
+function recordPayment(jobId, jobNumber) {
+  openPaymentModal(jobId, jobNumber || '');
 }
 
 // ── INIT ─────────────────────────────────────────────

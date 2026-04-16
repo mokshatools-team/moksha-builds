@@ -2382,7 +2382,9 @@ app.post('/api/jobs/:id/payments', express.json(), async (req, res) => {
         amount: Number(amount),
         amount_formatted: '$' + Number(amount).toLocaleString('fr-CA'),
         method: resolvedMethod,
-        job_name: job.client_name + (job.project_title ? ` — ${job.project_title}` : ''),
+        // Show the project ID (e.g. LACHANCE_01), not the client name —
+        // the project ID is what gets written to the finance sheet.
+        job_name: job.job_number,
         job_number: job.job_number,
         category: 'Contract Revenue',
         reference: reference || null,
