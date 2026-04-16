@@ -235,6 +235,23 @@ async function convertSessionToJob(sessionId, overrides = {}) {
     now, now
   ]);
 
+  // Pre-populate the Products section from the quote's paints array
+  // so the user opens the new job with the paint list ready to edit.
+  const paints = session.quoteJson && Array.isArray(session.quoteJson.paints) ? session.quoteJson.paints : [];
+  if (paints.length) {
+    const productsLines = paints.map(p => {
+      const parts = [];
+      if (p.type) parts.push(p.type + ':');
+      if (p.product) parts.push(p.product);
+      if (p.finish) parts.push('— ' + p.finish);
+      if (p.color) parts.push('— ' + p.color);
+      return parts.join(' ');
+    }).filter(Boolean).join('\n');
+    if (productsLines) {
+      await db.run('UPDATE jobs SET job_sections = ? WHERE id = ?', [JSON.stringify({ products: productsLines }), jobId]);
+    }
+  }
+
   // Mark session as converted
   await db.run('UPDATE sessions SET converted_job_id = ?, accepted_at = ? WHERE id = ?', [jobId, now, sessionId]);
 
@@ -2392,6 +2409,10 @@ app.post('/api/jobs/:id/smart-paste', express.json(), async (req, res) => {
       '  "payments": [',
       '    { "date": "YYYY-MM-DD"|null, "amount": number, "method": "cash"|"e_transfer"|"cheque"|null, "note": string|null }',
       '  ],',
+      '  "todo": string,',
+      '  "toClarify": string,',
+      '  "toBring": string,',
+      '  "products": string,',
       '  "remainder": string',
       '}',
       '',
@@ -2402,8 +2423,17 @@ app.post('/api/jobs/:id/smart-paste', express.json(), async (req, res) => {
       '- Ignore lines that have a ✅ or check mark — those are already-confirmed, still include them as payments.',
       '- If "deposit" or "dépôt" is mentioned, it is a payment.',
       '- balance/BALANCE is NOT a payment — it is what is still owing. Skip it.',
-      '- Everything that is not a structured field goes into "remainder", preserving line breaks and order. Door codes, to-dos, dimensions, product lists, notes — all into remainder.',
-      '- If a structured field is not present, use null (do not omit the key).',
+      '',
+      'SECTION ROUTING (each is a multi-line string preserving the original lines):',
+      '- "todo": tasks, room status, action items, things still to be done. Lines like "SUNROOM — standby", "TODO: ...", "À faire", "to do".',
+      '- "toClarify": questions, unknowns, things to ask the client. Lines like "TO CLARIFY", "À clarifier", "?".',
+      '- "toBring": tools, equipment, materials to bring on site. Lines like "TO BRING", "À apporter", @mentions of crew bringing things ("@Lubo hammer drill").',
+      '- "products": paint, primer, stain, consumables — anything paint-product related. Lines like "PAINT", "BM ORDERS", "WALLS: 19 gal BM Regal", "Trim - advance OC-17", "ceiling 4 gal", or any line mentioning paint brand names (BM, SW, Regal, Advance, Duration, Ultra Spec, etc.) or quantities in gallons.',
+      '- "remainder": EVERYTHING ELSE that is not a structured field above — door codes, lockboxes, free-form notes, addresses for context, dates, etc.',
+      '',
+      '- Each section string preserves line breaks. Empty section = empty string "" (NOT null).',
+      '- A line goes to ONLY ONE section — pick the best fit.',
+      '- If a structured top-level field (clientName, etc.) is not present, use null.',
       '- Return ONLY the JSON object. No markdown fence, no prose before or after.',
       '',
       'Here is the note:',
@@ -2485,7 +2515,27 @@ app.post('/api/jobs/:id/smart-paste/apply', express.json(), async (req, res) => 
       applied.push('contract_total');
     }
 
-    // Remainder → scratchpad. Append if scratchpad already has content and !overwrite.
+    // Sections: route extracted content to job_sections JSON keys instead of scratchpad
+    const existingSections = job.job_sections
+      ? (typeof job.job_sections === 'string' ? JSON.parse(job.job_sections) : job.job_sections)
+      : {};
+    const newSections = { ...existingSections };
+    let sectionsChanged = false;
+    const SECTION_KEYS = ['todo', 'toClarify', 'toBring', 'products'];
+    for (const key of SECTION_KEYS) {
+      const incoming = (typeof extracted[key] === 'string' ? extracted[key] : '').trim();
+      if (!incoming) continue;
+      const existing = (existingSections[key] || '').trim();
+      newSections[key] = existing && !overwrite ? existing + '\n\n' + incoming : incoming;
+      sectionsChanged = true;
+      applied.push(key);
+    }
+    if (sectionsChanged) {
+      updates.push('job_sections = ?');
+      params.push(JSON.stringify(newSections));
+    }
+
+    // Remainder → scratchpad (only stuff that didn't fit into a section)
     if (typeof extracted.remainder === 'string' && extracted.remainder.trim()) {
       const incoming = extracted.remainder.trim();
       const existing = (job.scratchpad || '').trim();
