@@ -1396,6 +1396,7 @@ ${rules}
   - Paint tier: use High-end products (Duration Home for walls) or Standard products (SuperPaint for walls) from §6
   - Paint prices: if "hide", set approxCost to 0 in the paints array (the renderer will omit the price column). If "show", include real approxCost values.
 - Do NOT ask the user about language, interior/exterior, or paint tier if the toggles already specify them. Just use the toggle values.
+- You have access to 80 past OstéoPeinture quotes (2024-2025) in the database. When the user asks about similar past jobs, mentions a client name, or when a price reference would be helpful, search the past quotes and cite them with the date: "For [client] at [address] in [Month Year], you quoted $X." Always include the date to avoid stale pricing confusion. Never guess — only cite actual data from past quotes.
 - For EXTERIOR jobs: never calculate labour hours from benchmarks — the estimator provides hours manually. Only calculate product quantities for decks and large stucco where sqft was collected.
 - For EXTERIOR jobs: always include the estimateDisclaimer field. Always include a Repairs section with excluded: true. Always round section totals to nearest $50.
 - For EXTERIOR jobs: before generating, sanity-check zone totals against §27 benchmark ranges. Flag anything significantly off but never block — estimator has final say.
@@ -1593,6 +1594,27 @@ app.post('/api/scaffold/calculate', express.json(), async (req, res) => {
   }
 });
 
+// Past quotes search tool for Claude
+const PAST_QUOTES_TOOL = {
+  name: 'search_past_quotes',
+  description: 'Search past OstéoPeinture quotes from 2024-2025. Use when the user asks about similar past jobs, mentions a client name, or when a historical price reference would help build the current quote. Returns structured data with room breakdowns, prices, paint products, and dates.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      query: {
+        type: 'string',
+        description: 'Search term: client name, address, or project ID (e.g. "Sinclair", "Murray Hill", "CHAUT_01")',
+      },
+      type: {
+        type: 'string',
+        enum: ['interior', 'exterior', 'both'],
+        description: 'Filter by job type. Omit to search all types.',
+      },
+    },
+    required: ['query'],
+  },
+};
+
 // Scaffold tool definition for Claude tool use
 const SCAFFOLD_TOOL = {
   name: 'calculate_scaffold',
@@ -1674,20 +1696,41 @@ async function handleSessionMessage(req, res) {
       system: buildSystemPrompt(),
       messages,
     };
+    // Always provide past quotes search; scaffold only for exterior sessions
+    apiParams.tools = [PAST_QUOTES_TOOL];
     if (isExteriorSession) {
-      apiParams.tools = [SCAFFOLD_TOOL];
+      apiParams.tools.push(SCAFFOLD_TOOL);
     }
     let response = await anthropic.messages.create(apiParams);
 
-    // Handle tool use loop (scaffold calculations)
+    // Handle tool use loop (scaffold + past quotes search)
     let assistantContent = response.content;
     while (response.stop_reason === 'tool_use') {
       const toolBlock = assistantContent.find(b => b.type === 'tool_use');
-      if (!toolBlock || toolBlock.name !== 'calculate_scaffold') break;
+      if (!toolBlock) break;
 
       let toolResult;
       try {
-        toolResult = calculateScaffold(toolBlock.input);
+        if (toolBlock.name === 'calculate_scaffold') {
+          toolResult = calculateScaffold(toolBlock.input);
+        } else if (toolBlock.name === 'search_past_quotes') {
+          const { query, type } = toolBlock.input || {};
+          const searchParams = [query ? '%' + query + '%' : '%'];
+          let sql = 'SELECT client_name, project_id, address, date, year, job_type, subtotal, grand_total, deposit, duration, sections_json, paints_json FROM past_quotes WHERE (client_name ILIKE $1 OR project_id ILIKE $1 OR address ILIKE $1)';
+          if (type) { sql += ' AND job_type = $2'; searchParams.push(type); }
+          sql += ' ORDER BY date DESC LIMIT 5';
+          const { getPool } = require('./db');
+          const { rows } = await getPool().query(sql, searchParams);
+          toolResult = rows.map(r => ({
+            ...r,
+            sections: r.sections_json ? JSON.parse(r.sections_json) : null,
+            paints: r.paints_json ? JSON.parse(r.paints_json) : null,
+            sections_json: undefined,
+            paints_json: undefined,
+          }));
+        } else {
+          break;
+        }
       } catch (err) {
         toolResult = { error: err.message };
       }
@@ -3242,6 +3285,44 @@ app.post('/api/backup', async (req, res) => {
 });
 
 // Version endpoint for deploy verification
+// ── PAST QUOTES SEARCH ─────────────────────────────────────────────────
+// Searches the past_quotes table for historical quote data. Used by
+// the Claude tool to reference past pricing during new quote conversations.
+app.get('/api/past-quotes/search', async (req, res) => {
+  try {
+    const { q, type, limit } = req.query;
+    const maxResults = Math.min(parseInt(limit) || 5, 10);
+    let sql = 'SELECT * FROM past_quotes WHERE 1=1';
+    const params = [];
+    let paramIdx = 0;
+    if (q) {
+      paramIdx++;
+      sql += ` AND (client_name ILIKE $${paramIdx} OR project_id ILIKE $${paramIdx} OR address ILIKE $${paramIdx})`;
+      params.push('%' + q + '%');
+    }
+    if (type) {
+      paramIdx++;
+      sql += ` AND job_type = $${paramIdx}`;
+      params.push(type);
+    }
+    paramIdx++;
+    sql += ` ORDER BY date DESC LIMIT $${paramIdx}`;
+    params.push(maxResults);
+    // Use raw pool.query since we have $N placeholders already
+    const { getPool } = require('./db');
+    const { rows } = await getPool().query(sql, params);
+    // Parse JSON fields for the response
+    const results = rows.map(r => ({
+      ...r,
+      sections: r.sections_json ? JSON.parse(r.sections_json) : null,
+      paints: r.paints_json ? JSON.parse(r.paints_json) : null,
+    }));
+    res.json(results);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/version', async (req, res) => {
   res.json({ version: '2026-04-06', features: ['jobs', 'jibble-import', 'db-backup'] });
 });
