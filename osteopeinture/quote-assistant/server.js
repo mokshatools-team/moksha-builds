@@ -886,7 +886,9 @@ function renderQuoteHTML(data, options = {}) {
     paintHtml += `<tr><td class="col-product"><strong>${esc(type)}:</strong> ${esc(product)}</td><td class="col-finish">${cost}${esc(color)}${finish ? ' — ' + esc(finish) : ''}</td></tr>`;
   }
   const paintTotal = data.paintTotal || paints.reduce((s, p) => s + (p.approxCost || 0), 0);
-  paintHtml += `<tr><td class="col-product">${t.paintTotal}</td><td class="col-finish">~ ${fmt(paintTotal)}</td></tr>`;
+  if (paintTotal > 0) {
+    paintHtml += `<tr><td class="col-product">${t.paintTotal}</td><td class="col-finish">~ ${fmt(paintTotal)}</td></tr>`;
+  }
 
   // Modalities
   const mod = data.modalities || {};
@@ -1388,6 +1390,12 @@ ${rules}
 - When the user mentions glossy surfaces, recommend Extreme Bond (not Extreme Block)
 - When the user mentions oil-based paint history or heavy stains, recommend Extreme Block (not Extreme Bond)
 - After confirmation, output ONLY the raw JSON — no text before or after, no markdown code fences
+- The user's message may end with toggle settings like [Language: French] [Scope: Interior] [Paint tier: High-end] [Paint prices in quote: hide]. ALWAYS respect these:
+  - Language: write ALL text in the specified language (projectType, terms, descriptions, modalities)
+  - Scope: use interior quoting rules (§1-22) or exterior quoting rules (§23-29) accordingly
+  - Paint tier: use High-end products (Duration Home for walls) or Standard products (SuperPaint for walls) from §6
+  - Paint prices: if "hide", set approxCost to 0 in the paints array (the renderer will omit the price column). If "show", include real approxCost values.
+- Do NOT ask the user about language, interior/exterior, or paint tier if the toggles already specify them. Just use the toggle values.
 - For EXTERIOR jobs: never calculate labour hours from benchmarks — the estimator provides hours manually. Only calculate product quantities for decks and large stucco where sqft was collected.
 - For EXTERIOR jobs: always include the estimateDisclaimer field. Always include a Repairs section with excluded: true. Always round section totals to nearest $50.
 - For EXTERIOR jobs: before generating, sanity-check zone totals against §27 benchmark ranges. Flag anything significantly off but never block — estimator has final say.

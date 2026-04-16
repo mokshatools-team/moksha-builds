@@ -199,6 +199,8 @@
   #sidebar-footer {
     padding: 10px 16px;
     border-top: 1px solid var(--border-soft);
+    margin-top: auto;
+    flex-shrink: 0;
   }
 
   #rules-btn {
@@ -224,6 +226,28 @@
     color: var(--text-2);
     background: var(--surface-2);
   }
+
+  /* ─── QUOTE TOGGLES ─── */
+  .qtoggle {
+    padding: 4px 10px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--surface-1);
+    color: var(--text-3);
+    font-family: var(--font-sans);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: .03em;
+    cursor: pointer;
+    transition: all .15s;
+    white-space: nowrap;
+  }
+  .qtoggle.active {
+    background: var(--accent-dim);
+    color: var(--accent);
+    border-color: var(--accent-dim);
+  }
+  .qtoggle:hover { border-color: var(--accent); }
 
   /* ─── RULES MODAL ─── */
   #rules-modal {
@@ -1826,6 +1850,12 @@
       <div id="status-dot"></div>
       <span id="status-text">Ready</span>
     </div>
+    <div id="quote-toggles" style="display:flex;gap:6px;padding:6px 12px;flex-wrap:wrap;border-top:1px solid var(--border-soft);align-items:center;">
+      <button class="qtoggle active" id="toggle-lang" onclick="cycleToggle('lang',['FR','EN'])" title="Language">FR</button>
+      <button class="qtoggle active" id="toggle-scope" onclick="cycleToggle('scope',['Interior','Exterior'])" title="Interior / Exterior">Interior</button>
+      <button class="qtoggle active" id="toggle-tier" onclick="cycleToggle('tier',['High-end','Standard'])" title="Paint tier">High-end</button>
+      <button class="qtoggle" id="toggle-prices" onclick="cycleToggle('prices',['Prices','No prices'])" title="Show paint prices in quote">No prices</button>
+    </div>
     <div id="input-area">
       <div id="image-preview-bar"></div>
       <div id="input-row">
@@ -2370,7 +2400,10 @@ async function sendMessage() {
   setSendingState(true);
 
   const formData = new FormData();
-  if (text) formData.append('message', text);
+  // Append toggle context so Claude knows the user's settings
+  const toggleCtx = getToggleContext();
+  const fullMessage = text ? text + '\n\n' + toggleCtx : '';
+  if (fullMessage) formData.append('message', fullMessage);
   for (const f of filesToSend) formData.append('images', f);
 
   const typingId = 'typing-' + Date.now();
@@ -2918,6 +2951,36 @@ function setStatus(status) {
 }
 
 // ── HELPERS ──────────────────────────────────────────
+
+// ── QUOTE TOGGLES ────────────────────────────────────────────────────────
+const quoteToggles = { lang: 'FR', scope: 'Interior', tier: 'High-end', prices: 'No prices' };
+
+function cycleToggle(key, options) {
+  const current = quoteToggles[key];
+  const idx = options.indexOf(current);
+  const next = options[(idx + 1) % options.length];
+  quoteToggles[key] = next;
+  const btn = document.getElementById('toggle-' + key);
+  btn.textContent = next;
+  // Active styling for non-default states
+  const isDefault = (key === 'lang' && next === 'FR') ||
+                    (key === 'scope' && next === 'Interior') ||
+                    (key === 'tier' && next === 'High-end') ||
+                    (key === 'prices' && next === 'No prices');
+  btn.classList.toggle('active', !isDefault || key === 'lang' || key === 'scope' || key === 'tier');
+  // Prices toggle: active when showing prices
+  if (key === 'prices') btn.classList.toggle('active', next === 'Prices');
+}
+
+function getToggleContext() {
+  // Returns a string injected into user messages so Claude knows the settings
+  const parts = [];
+  parts.push(`[Language: ${quoteToggles.lang === 'FR' ? 'French' : 'English'}]`);
+  parts.push(`[Scope: ${quoteToggles.scope}]`);
+  parts.push(`[Paint tier: ${quoteToggles.tier}]`);
+  parts.push(`[Paint prices in quote: ${quoteToggles.prices === 'Prices' ? 'show' : 'hide'}]`);
+  return parts.join(' ');
+}
 
 function handleKey(e) {
   // On mobile: Enter creates a new line. Only the Send button sends.
