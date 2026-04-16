@@ -1,24 +1,25 @@
 ---
-name: Email drafts need Claude-generation, not templates — top priority for next session
-description: User rejected hardcoded scenario bodies as unnatural and templated. Rewrite to use Claude for initial draft generation, not just refinement.
+name: Email drafts now Claude-generated and tone-matched to past emails (DONE)
+description: Email draft generator now produces natural Loric-voice drafts via Claude + 3 real past sent emails as tone references. Replaces the rejected template-based drafts.
 type: project
 ---
 
-**Problem (2026-04-15):** Loric tested the email drafting (both session-based and standalone from job) and found the output "really sucks, arent natural at all."
+**Status (2026-04-16): SHIPPED — both phases complete.**
 
-**Root cause:** `buildScenarioBody()` in server.js uses hardcoded French/English paragraphs per scenario (quote_send, quote_revision, quote_follow_up, quote_promise, decline, lead_more_info, lead_follow_up, project_update). They're pre-written templates that can't adapt to the specific context, relationship, or history with the client.
+**Phase 1 — Claude generation (earlier April 2026):** `/api/email/standalone-draft` rewritten to use Claude with EMAIL_LOGIC.md as system prompt + scenario/signer/language/tone as user instructions. Replaced the hardcoded `buildScenarioBody()` templates that Loric had called "translated-sounding."
 
-**What exists:**
-- `EMAIL_LOGIC.md` — the tone/scenario/signer rules (good, keep)
-- `POST /api/email/standalone-refine` — already uses Claude for refinement (good pattern)
-- `POST /api/email/standalone-draft` — currently calls `buildScenarioBody()` (the problem)
+**Phase 2 — Past-email tone matching (2026-04-16):** Added 193 real past sent emails to Supabase `past_emails` table (98 EN / 92 FR / 3 unknown), tagged by signer + scenario + language at import. The standalone-draft endpoint now fetches 3 matching examples and injects them as `<example>` blocks in the Claude prompt so output matches actual OstéoPeinture phrasing.
 
-**The fix:** rewrite `/api/email/standalone-draft` and the session-based draft generation to:
-1. Pass EMAIL_LOGIC.md as system prompt context
-2. Pass the session/job data (client, address, scope, recent conversation)
-3. Pass the scenario + signer + language + detail level as user instructions
-4. Let Claude write the draft naturally, with access to quoting context for specificity
+**Files:**
+- `server.js` `getPastEmailExamples(signer, scenario, language, limit)` — 3-tier fallback: signer+scenario+lang → signer+lang → scenario+lang+other-signer
+- `server.js` standalone-draft: tone-reference block wrapped in `<example>` delimiters with REFERENCE-ONLY guard against prompt injection
+- `scripts/import-past-emails.js` — idempotent UPSERT, signer/scenario/language classifiers
+- Source: `past-quotes/email-history/messages.json` (847 messages scraped April 1, 197 sent, 193 with body >50 chars)
 
-**Nice to have (for later):** scrape past sent emails from Gmail (the April 1 spec exists but was never run) so Claude learns the actual tone from real history. For now, EMAIL_LOGIC.md + live context is enough.
+**Verified live (op-quote-assistant.up.railway.app):**
+- FR: "Salut X, Voici la soumission. Hésite pas si tu as des ajustements à faire. Fais-moi signe quand tu es prêt à aller de l'avant avec le dépôt…"
+- EN: "Hi X, Here's the quote attached. Let me know if anything needs adjusting…"
 
-**Next session:** rewrite the email draft endpoints to generate via Claude, then test quote_send in French on FICCA_04 or HETU_01.
+**Commit:** `63f1b5e`
+
+**Future enhancement (not blocking):** the scenario classifier in import-past-emails.js is keyword-based and coarse (~40% of emails are tagged `other`). Could be re-tagged via a Claude pass for better matching, but current distribution already gives Loric+quote_send 11 FR + 20 EN examples — plenty for the 3-example injection.

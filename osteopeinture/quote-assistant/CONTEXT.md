@@ -1,6 +1,27 @@
 # CONTEXT.md — OstéoPeinture OP Hub (fka Quote Assistant)
-# Last updated: April 10, 2026
-# Session: D — Scaffold access quoting module built and deployed
+# Last updated: April 16, 2026
+# Session: F — Email drafts now tone-matched to 193 real past sent emails
+
+---
+
+## STATE AS OF 2026-04-16
+
+### Session F — Past-email tone reference for drafts (2026-04-16)
+
+Email drafts were AI-generic; Loric flagged them as "translated-sounding."
+Now `/api/email/standalone-draft` fetches 3 real past emails matching
+**signer + scenario + language** and injects them as `<example>` blocks
+in the Claude prompt — drafts now match Loric's actual phrasing.
+
+**What shipped:**
+- `past_emails` Supabase table populated with 193 sent emails (98 EN / 92 FR / 3 unknown)
+- `scripts/import-past-emails.js` — idempotent UPSERT, tags signer/scenario/language at import
+- `getPastEmailExamples(signer, scenario, language, limit)` helper in server.js with 3-tier fallback
+- Prompt-injection mitigation: examples wrapped in `<example>` delimiters, REFERENCE ONLY label
+- Live deploy verified: FR draft "Salut X, Voici la soumission. Hésite pas si tu as des ajustements…", EN draft "Hi X, Here's the quote attached. Let me know if anything needs adjusting…"
+- Commit: `63f1b5e`
+
+**Live URL:** https://op-quote-assistant.up.railway.app
 
 ---
 

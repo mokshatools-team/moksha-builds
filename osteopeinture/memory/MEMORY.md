@@ -37,7 +37,8 @@
 - [Smart paste should route paint to Products section](feedback_smart_paste_paint_routing.md) — PAINT blocks go to job_sections.products, not scratchpad
 
 ## Email / Communication
-- [Email drafts need Claude-generation](project_email_drafts_claude_rewrite.md) — hardcoded scenario templates feel unnatural, rewrite to use Claude with EMAIL_LOGIC.md context
+- [Email drafts — Claude + past-email tone matching SHIPPED](project_email_drafts_claude_rewrite.md) — Claude + 3 real past sent emails injected as tone reference, both phases live
+- [past_emails Supabase table](reference_past_emails_table.md) — 193 real sent emails tagged by signer/scenario/language for tone matching
 
 ## Scaffold Module
 - [Scaffold module — scope & logic](project_scaffold_module.md) — new OP Hub module, calculates scaffold component quantities + rental costs from job dimensions
