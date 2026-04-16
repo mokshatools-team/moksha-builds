@@ -1691,7 +1691,8 @@
       flex-shrink: 0;
       z-index: 2;
     }
-    #email-form { position: relative; }
+    /* Email form stays position: fixed (set at line ~1643) so it fills
+       the entire screen as its own tab, independent of the quote panel. */
     #email-form-header { padding-right: 110px; }
 
     /* Mobile email close button */
@@ -1744,9 +1745,14 @@
     }
     #image-preview-bar::-webkit-scrollbar { display: none; }
 
-    /* Bottom nav bar */
+    /* Bottom nav bar — visible by default on mobile, hidden when in Jobs
+       interface via .jobs-mode-hidden class. No !important so JS can
+       toggle the class without specificity fights. */
     #mobile-nav {
-      display: flex !important;
+      display: flex;
+    }
+    #mobile-nav.jobs-mode-hidden {
+      display: none;
     }
 
     /* Adjust chat panel to leave room for bottom nav */
@@ -3206,7 +3212,11 @@ function mobileNavTo(view) {
     jobDetail.classList.remove('visible');
     loadJobs();
   } else if (view === 'email') {
-    quotePanel.classList.add('mobile-open');
+    // Email is its own full-screen tab on mobile — don't open the quote
+    // panel behind it. The email form is position:fixed and covers the
+    // full viewport independently. User switches to QUOTE tab to see
+    // the quote, and EMAIL tab to see only the email.
+    quotePanel.classList.remove('mobile-open');
     emailForm.classList.add('open');
     emailForm.classList.remove('minimized');
     jobsPanel.classList.remove('visible');
@@ -3748,6 +3758,8 @@ function switchSidebarMode(mode) {
   const tabJ = document.getElementById('mode-tab-jobs');
   const footer = document.getElementById('sidebar-footer');
 
+  const mobileNav = document.getElementById('mobile-nav');
+
   if (mode === 'jobs') {
     quotesMode.style.display = 'none';
     jobsMode.style.display = '';
@@ -3757,6 +3769,13 @@ function switchSidebarMode(mode) {
     tabJ.style.color = '#fff';
     if (footer) footer.style.display = 'none';
     loadJobsSidebar();
+    // Jobs = its own interface. Hide the Chat/Quote/Email bottom nav —
+    // those tabs only apply to the quoting workflow. The jobs dashboard
+    // fills the screen. User returns to quotes via the sidebar toggle.
+    if (mobileNav) mobileNav.classList.add('jobs-mode-hidden');
+    // Hide any quoting surfaces that might be open
+    document.getElementById('quote-panel').classList.remove('mobile-open');
+    document.getElementById('email-form').classList.remove('open');
     // Show jobs panel in main area and populate the dashboard
     document.getElementById('jobs-panel').classList.add('visible');
     loadJobs();
@@ -3769,6 +3788,8 @@ function switchSidebarMode(mode) {
     tabJ.style.background = 'var(--surface-1)';
     tabJ.style.color = 'var(--text-3)';
     if (footer) footer.style.display = '';
+    // Restore the Chat/Quote/Email bottom nav for the quoting workflow
+    if (mobileNav) mobileNav.classList.remove('jobs-mode-hidden');
     // Hide jobs panel, show chat/quote
     document.getElementById('jobs-panel').classList.remove('visible');
     document.getElementById('job-detail').classList.remove('visible');
