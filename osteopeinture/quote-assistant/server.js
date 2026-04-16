@@ -2211,6 +2211,30 @@ app.post('/api/jobs/:id/payments', express.json(), async (req, res) => {
 // Confirm and execute the finance sheet sync for a previously recorded payment.
 // Called after the user reviews and approves the preview returned by the
 // record-payment endpoint.
+// Edit a payment (date, amount, method, reference, notes)
+app.patch('/api/payments/:id', express.json(), async (req, res) => {
+  try {
+    const payment = await db.get('SELECT * FROM payments WHERE id = ?', [req.params.id]);
+    if (!payment) return res.status(404).json({ error: 'Payment not found' });
+    const updates = [];
+    const params = [];
+    const allowed = ['payment_date', 'amount_cents', 'method', 'reference', 'notes'];
+    for (const [key, value] of Object.entries(req.body || {})) {
+      if (allowed.includes(key)) {
+        updates.push(`${key} = ?`);
+        params.push(value);
+      }
+    }
+    if (!updates.length) return res.status(400).json({ error: 'No valid fields to update' });
+    params.push(req.params.id);
+    await db.run(`UPDATE payments SET ${updates.join(', ')} WHERE id = ?`, params);
+    const updated = await db.get('SELECT * FROM payments WHERE id = ?', [req.params.id]);
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/api/payments/:id/sync', express.json(), async (req, res) => {
   try {
     const payment = await db.get('SELECT * FROM payments WHERE id = ?', [req.params.id]);

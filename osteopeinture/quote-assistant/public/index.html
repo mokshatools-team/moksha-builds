@@ -1555,9 +1555,11 @@
     /* Safe area top — prevents status bar overlap in PWA standalone mode */
     #chat-header {
       padding-top: max(14px, env(safe-area-inset-top));
+      padding-right: 60px; /* clear space for floating hamburger top-right */
     }
     #quote-header {
       padding-top: max(12px, env(safe-area-inset-top));
+      padding-right: 60px; /* clear space for floating hamburger top-right */
     }
     #panel-divider { display: none; }
     #email-divider { display: none !important; }
@@ -1627,17 +1629,9 @@
     #quote-frame-container {
       overflow: auto;
       -webkit-overflow-scrolling: touch;
-      position: relative;
     }
-    /* Swipe overlay: captures horizontal swipes on the quote panel
-       so the tab-switching gesture works even over the iframe */
-    #quote-frame-container::after {
-      content: '';
-      position: absolute;
-      inset: 0;
-      z-index: 5;
-      touch-action: pan-y; /* allow vertical scroll, capture horizontal */
-    }
+    /* No swipe overlay on the quote — pinch-to-zoom takes priority.
+       Tab switching on the quote page is done via the bottom tab bar. */
     #quote-frame {
       width: 920px;
       height: 300%;
@@ -2139,10 +2133,6 @@
   <button class="mobile-nav-tab" id="nav-quote" onclick="mobileNavTo('quote')">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="7" y1="8" x2="17" y2="8"/><line x1="7" y1="12" x2="14" y2="12"/><line x1="7" y1="16" x2="11" y2="16"/></svg>
     Quote
-  </button>
-  <button class="mobile-nav-tab" id="nav-email" onclick="mobileNavTo('email')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="4" width="20" height="16" rx="2"/><polyline points="22,7 12,13 2,7"/></svg>
-    Email
   </button>
 </div>
 
@@ -3134,7 +3124,7 @@ function mobileNavTo(view) {
 // ── SWIPE GESTURES — swipe through all 4 tabs continuously ──────────
 (function initSwipeGestures() {
   const THRESHOLD = 60;
-  const TAB_ORDER = ['chat', 'quote', 'email'];
+  const TAB_ORDER = ['chat', 'quote'];
   let touchStartX = 0;
   let touchStartY = 0;
   let swiping = false;
@@ -3286,11 +3276,11 @@ async function openJobDetail(jobId) {
             <div style="font-size:18px;font-weight:600;color:${balance > 0 ? 'var(--accent)' : 'var(--sage)'}">$${formatMoney(balance)}</div>
           </div>
         </div>
-        ${isCash ? '<div style="font-size:12px;color:var(--text-3);margin-bottom:8px">Agreed total: <input type="number" value="' + effectiveTotal + '" style="width:100px;padding:3px 6px;background:var(--surface-1);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:12px" onblur="updateAgreedTotal(\'' + job.id + '\', this.value)"></div>' : ''}
         ${job.payments.map(p => `
-          <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border-soft);font-size:13px">
-            <span style="color:var(--text-2)">${p.payment_date} — ${p.method}</span>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border-soft);font-size:13px;gap:8px">
+            <span style="color:var(--text-2);flex:1">${p.payment_date} — ${p.method}</span>
             <span style="font-family:var(--font-mono);color:var(--sage)">$${(p.amount_cents/100).toLocaleString('fr-CA')}</span>
+            <button onclick="editPayment('${p.id}','${p.payment_date}',${p.amount_cents},'${p.method}')" style="background:transparent;border:none;color:var(--text-4);cursor:pointer;font-size:11px;padding:2px 4px" title="Edit">✎</button>
           </div>
         `).join('')}
         <button onclick="recordPayment('${job.id}')" style="margin-top:8px;padding:6px 12px;background:var(--surface-2);border:1px solid var(--border);border-radius:4px;color:var(--text-2);font-size:12px;cursor:pointer;font-family:var(--font-sans)">+ Record Payment</button>
@@ -3313,6 +3303,7 @@ async function openJobDetail(jobId) {
           <button class="job-action-btn" onclick="createChangeOrder('${job.id}')" style="font-size:11px;padding:8px 10px">Change Order</button>
           <button class="job-action-btn" onclick="generateClientUpdate('${job.id}')" style="font-size:11px;padding:8px 10px">Client Update</button>
           <button class="job-action-btn" onclick="importJibbleCSV('${job.id}')" style="font-size:11px;padding:8px 10px">Import Jibble</button>
+          <button class="job-action-btn" onclick="promptUpdateTotal('${job.id}', ${effectiveTotal})" style="font-size:11px;padding:8px 10px;grid-column:1/-1">Update ${isCash ? 'Agreed' : 'Quote'} Total</button>
         </div>
       </div>
 
@@ -3765,6 +3756,57 @@ async function saveJobField(el) {
     });
   } catch (err) {
     console.error('Field save failed:', err.message);
+  }
+}
+
+async function promptUpdateTotal(jobId, currentTotal) {
+  const newVal = prompt('New total ($):\n\nCurrent: $' + currentTotal, String(currentTotal));
+  if (!newVal) return;
+  const amount = parseFloat(newVal);
+  if (!amount || amount <= 0) { alert('Invalid amount'); return; }
+  const cents = Math.round(amount * 100);
+  try {
+    // Fetch job to determine if it's cash or declared
+    const res = await fetch('/api/jobs/' + jobId);
+    const job = await res.json();
+    const isCash = job.payment_type === 'cash';
+    const body = isCash
+      ? { agreed_total_cents: cents }
+      : { quote_subtotal_cents: cents, quote_tax_cents: Math.round(cents * 0.14975), quote_total_cents: cents + Math.round(cents * 0.14975) };
+    await fetch('/api/jobs/' + jobId, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    openJobDetail(jobId);
+  } catch (err) {
+    alert('Error: ' + err.message);
+  }
+}
+
+async function editPayment(paymentId, currentDate, currentAmountCents, currentMethod) {
+  const newDate = prompt('Payment date (YYYY-MM-DD):', currentDate);
+  if (!newDate) return;
+  const newAmount = prompt('Amount ($):', String(currentAmountCents / 100));
+  if (!newAmount) return;
+  const newMethod = prompt('Method (cash / e_transfer / cheque):', currentMethod);
+  if (!newMethod) return;
+  const cents = Math.round(parseFloat(newAmount) * 100);
+  if (!cents || cents <= 0) { alert('Invalid amount'); return; }
+  try {
+    const res = await fetch('/api/payments/' + paymentId, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ payment_date: newDate, amount_cents: cents, method: newMethod }),
+    });
+    if (res.ok) {
+      openJobDetail(currentJobId);
+    } else {
+      const data = await res.json();
+      alert('Edit failed: ' + (data.error || 'unknown'));
+    }
+  } catch (err) {
+    alert('Error: ' + err.message);
   }
 }
 
