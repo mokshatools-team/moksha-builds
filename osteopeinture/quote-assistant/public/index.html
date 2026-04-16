@@ -243,9 +243,9 @@
     white-space: nowrap;
   }
   .qtoggle.active {
-    background: var(--accent-dim);
-    color: var(--accent);
-    border-color: var(--accent-dim);
+    background: var(--accent);
+    color: #000;
+    border-color: var(--accent);
   }
   .qtoggle:hover { border-color: var(--accent); }
 
@@ -1584,17 +1584,22 @@
     /* Hamburger button */
     #mobile-menu-btn {
       display: flex;
+      position: fixed;
+      top: calc(env(safe-area-inset-top, 0px) + 8px);
+      left: 10px;
+      z-index: 310;
       align-items: center;
       justify-content: center;
-      background: transparent;
-      border: none;
+      background: var(--surface-1);
+      border: 1px solid var(--border);
       color: var(--text-2);
       cursor: pointer;
-      padding: 6px 8px 6px 0;
-      border-radius: var(--radius-sm);
+      padding: 8px;
+      border-radius: 6px;
       flex-shrink: 0;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
     }
-    #mobile-menu-btn:active { color: var(--accent); }
+    #mobile-menu-btn:active { color: var(--accent); background: var(--surface-2); }
 
     /* Chat panel takes full width */
     #chat-panel {
@@ -2148,13 +2153,13 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="7" y1="8" x2="17" y2="8"/><line x1="7" y1="12" x2="14" y2="12"/><line x1="7" y1="16" x2="11" y2="16"/></svg>
     Quote
   </button>
-  <button class="mobile-nav-tab" id="nav-jobs" onclick="switchSidebarMode(currentSidebarMode === 'jobs' ? 'quotes' : 'jobs')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
-    Jobs
-  </button>
   <button class="mobile-nav-tab" id="nav-email" onclick="mobileNavTo('email')">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="4" width="20" height="16" rx="2"/><polyline points="22,7 12,13 2,7"/></svg>
     Email
+  </button>
+  <button class="mobile-nav-tab" id="nav-jobs" onclick="switchSidebarMode(currentSidebarMode === 'jobs' ? 'quotes' : 'jobs')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
+    Jobs
   </button>
 </div>
 
@@ -3243,43 +3248,43 @@ async function openJobDetail(jobId) {
     const paid = (job.totalPaidCents / 100);
     const balance = (job.balanceRemainingCents / 100);
 
-    // Parse sections or init empty
+    // Parse sections — simple text strings per section, not arrays
     const sec = job.job_sections ? (typeof job.job_sections === 'string' ? JSON.parse(job.job_sections) : job.job_sections) : {};
-    const lists = { todo: sec.todo || [], toClarify: sec.toClarify || [], toBring: sec.toBring || [], toBuy: sec.toBuy || [], products: sec.products || [] };
 
-    function renderChecklist(key, label) {
-      const items = lists[key] || [];
-      const itemsHtml = items.map((item, i) => `
-        <div style="display:flex;align-items:flex-start;gap:8px;padding:4px 0;">
-          <span onclick="toggleCheckItem('${job.id}','${key}',${i})" style="cursor:pointer;font-size:16px;line-height:1;flex-shrink:0;margin-top:1px">${item.done ? '&#9989;' : '&#9675;'}</span>
-          <span style="font-size:13px;color:${item.done ? 'var(--text-4)' : 'var(--text)'};${item.done ? 'text-decoration:line-through;' : ''}line-height:1.4">${esc(item.text)}</span>
-        </div>
-      `).join('');
+    function sectionTextarea(key, label, placeholder) {
+      const val = sec[key] || '';
       return `
-        <div style="margin-bottom:20px;">
-          <h3 style="font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-2);margin-bottom:8px;font-family:var(--font-sans)">${label}</h3>
-          ${itemsHtml}
-          <div style="display:flex;gap:6px;margin-top:4px;">
-            <input type="text" placeholder="+ Add..." id="add-${key}" style="flex:1;padding:5px 8px;background:var(--surface-1);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:12px;font-family:var(--font-sans)" onkeydown="if(event.key==='Enter'){addCheckItem('${job.id}','${key}',this.value);this.value='';}">
-          </div>
+        <div style="margin-bottom:16px;">
+          <div style="font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin-bottom:6px;font-family:var(--font-sans)">${label}</div>
+          <textarea data-section-key="${key}" data-job-id="${job.id}" onblur="saveJobSection(this)"
+            placeholder="${placeholder || ''}"
+            style="width:100%;min-height:60px;padding:10px;background:var(--surface-1);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--font-sans);font-size:13px;line-height:1.5;resize:vertical;box-sizing:border-box">${esc(val)}</textarea>
         </div>`;
     }
 
     content.innerHTML = `
-      <!-- HEADER: client info + access notes -->
-      <div style="padding:0 0 16px;border-bottom:1px solid var(--border-soft);margin-bottom:12px;">
-        <div style="font-size:14px;color:var(--text-2)">${esc(job.address)}</div>
-        <div style="font-size:13px;color:var(--text-2)">${esc(job.client_name)}</div>
-        ${job.client_phone ? '<a href="tel:' + esc(job.client_phone) + '" style="font-size:13px;color:var(--accent);text-decoration:none">' + esc(job.client_phone) + '</a>' : ''}
-        ${job.client_email ? '<div style="font-size:12px;color:var(--text-3)">' + esc(job.client_email) + '</div>' : ''}
+      <!-- HEADER: editable client info -->
+      <div style="padding:0 0 14px;border-bottom:1px solid var(--border-soft);margin-bottom:14px;font-size:13px;color:var(--text-2);line-height:1.6">
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:4px">
+          <input type="text" value="${esc(job.address || '')}" placeholder="Address" data-field="address" data-job-id="${job.id}" onblur="saveJobField(this)" style="flex:1;padding:4px 8px;background:transparent;border:1px solid transparent;border-radius:4px;color:var(--text);font-size:14px;font-family:var(--font-sans)">
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:2px">
+          <input type="text" value="${esc(job.client_name || '')}" placeholder="Client name" data-field="client_name" data-job-id="${job.id}" onblur="saveJobField(this)" style="flex:1;padding:3px 8px;background:transparent;border:1px solid transparent;border-radius:4px;color:var(--text-2);font-size:13px;font-family:var(--font-sans)">
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:2px">
+          <input type="tel" value="${esc(job.client_phone || '')}" placeholder="Phone" data-field="client_phone" data-job-id="${job.id}" onblur="saveJobField(this)" style="flex:1;padding:3px 8px;background:transparent;border:1px solid transparent;border-radius:4px;color:var(--accent);font-size:13px;font-family:var(--font-sans)">
+          ${job.client_phone ? '<a href="tel:' + esc(job.client_phone) + '" style="font-size:12px;color:var(--text-3);text-decoration:none">call</a>' : ''}
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input type="email" value="${esc(job.client_email || '')}" placeholder="Email" data-field="client_email" data-job-id="${job.id}" onblur="saveJobField(this)" style="flex:1;padding:3px 8px;background:transparent;border:1px solid transparent;border-radius:4px;color:var(--text-3);font-size:12px;font-family:var(--font-sans)">
+        </div>
       </div>
 
-      <!-- CHECKLISTS -->
-      ${renderChecklist('todo', 'To Do')}
-      ${renderChecklist('toClarify', 'To Clarify')}
-      ${renderChecklist('toBring', 'To Bring')}
-      ${renderChecklist('toBuy', 'To Buy')}
-      ${renderChecklist('products', 'Products')}
+      <!-- SECTIONS: simple textareas, Apple Notes style — instant, no round-trips -->
+      ${sectionTextarea('todo', 'To Do', 'Tasks, room status, next steps...')}
+      ${sectionTextarea('toClarify', 'To Clarify', 'Questions for client, unknowns...')}
+      ${sectionTextarea('toBring', 'To Bring', 'Tools, equipment, @person...')}
+      ${sectionTextarea('products', 'Products', 'Paint orders, quantities, colors...')}
 
       <!-- FINANCES -->
       <div style="margin-bottom:20px;">
@@ -3740,36 +3745,39 @@ async function convertViaStatusBadge(sessionId) {
   }
 }
 
-// ── JOB CHECKLIST SECTIONS ───────────────────────────────────────────────
-async function getJobSections(jobId) {
-  const res = await fetch('/api/jobs/' + jobId);
-  const job = await res.json();
-  return job.job_sections ? (typeof job.job_sections === 'string' ? JSON.parse(job.job_sections) : job.job_sections) : {};
+// ── JOB SECTION SAVE (simple text per section — no round-trips, no reload) ──
+async function saveJobSection(el) {
+  const jobId = el.getAttribute('data-job-id');
+  const key = el.getAttribute('data-section-key');
+  if (!jobId || !key) return;
+  // Read current sections from the page, update just this one, save
+  const allTextareas = document.querySelectorAll('[data-section-key][data-job-id="' + jobId + '"]');
+  const sections = {};
+  allTextareas.forEach(ta => { sections[ta.getAttribute('data-section-key')] = ta.value; });
+  try {
+    await fetch('/api/jobs/' + jobId, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ job_sections: JSON.stringify(sections) }),
+    });
+  } catch (err) {
+    console.error('Section save failed:', err.message);
+  }
 }
 
-async function saveJobSections(jobId, sections) {
-  await fetch('/api/jobs/' + jobId, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ job_sections: JSON.stringify(sections) }),
-  });
-}
-
-async function toggleCheckItem(jobId, key, index) {
-  const sec = await getJobSections(jobId);
-  if (!sec[key] || !sec[key][index]) return;
-  sec[key][index].done = !sec[key][index].done;
-  await saveJobSections(jobId, sec);
-  openJobDetail(jobId);
-}
-
-async function addCheckItem(jobId, key, text) {
-  if (!text || !text.trim()) return;
-  const sec = await getJobSections(jobId);
-  if (!sec[key]) sec[key] = [];
-  sec[key].push({ text: text.trim(), done: false });
-  await saveJobSections(jobId, sec);
-  openJobDetail(jobId);
+async function saveJobField(el) {
+  const jobId = el.getAttribute('data-job-id');
+  const field = el.getAttribute('data-field');
+  if (!jobId || !field) return;
+  try {
+    await fetch('/api/jobs/' + jobId, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ [field]: el.value }),
+    });
+  } catch (err) {
+    console.error('Field save failed:', err.message);
+  }
 }
 
 async function updateAgreedTotal(jobId, value) {
