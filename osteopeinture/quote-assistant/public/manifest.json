@@ -4,7 +4,7 @@
   "description": "OstéoPeinture operations hub — jobs, payments, invoices, time tracking",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#0F0D0B",
+  "background_color": "#FFFFFF",
   "theme_color": "#0F0D0B",
   "start_url": "/",
   "icons": [

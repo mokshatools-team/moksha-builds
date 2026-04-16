@@ -2083,7 +2083,7 @@ app.patch('/api/jobs/:id', express.json(), async (req, res) => {
       const col = key.replace(/([A-Z])/g, '_$1').toLowerCase();
       if (['client_name','client_email','client_phone','language','address','project_title',
            'project_type','status','payment_terms_text','start_date','target_end_date',
-           'completion_date','internal_notes','scratchpad','payment_type','agreed_total_cents'].includes(col)) {
+           'completion_date','internal_notes','scratchpad','payment_type','agreed_total_cents','job_sections'].includes(col)) {
         updates.push(`${col} = ?`);
         params.push(value);
       }

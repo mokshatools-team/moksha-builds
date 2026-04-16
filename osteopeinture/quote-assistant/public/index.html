@@ -3236,96 +3236,97 @@ async function openJobDetail(jobId) {
   try {
     const res = await fetch('/api/jobs/' + jobId);
     const job = await res.json();
-    title.textContent = job.client_name;
+    title.textContent = job.job_number || job.client_name;
 
     const isCash = job.payment_type === 'cash';
     const effectiveTotal = (job.effectiveTotalCents || job.quote_total_cents || 0) / 100;
     const paid = (job.totalPaidCents / 100);
     const balance = (job.balanceRemainingCents / 100);
-    const quoteOriginal = (job.quote_total_cents / 100);
 
-    const financeSummary = isCash
-      ? `<div class="job-stat"><div class="job-stat-label">Original Quote</div><div class="job-stat-value" style="font-size:13px;color:var(--text-3);text-decoration:line-through">$${formatMoney(quoteOriginal)}</div></div>
-         <div class="job-stat"><div class="job-stat-label">Agreed Total (Cash)</div><div class="job-stat-value" style="color:var(--sage)">$${formatMoney(effectiveTotal)}</div></div>`
-      : `<div class="job-stat"><div class="job-stat-label">Quote Total</div><div class="job-stat-value">$${formatMoney(effectiveTotal)}</div></div>`;
+    // Parse sections or init empty
+    const sec = job.job_sections ? (typeof job.job_sections === 'string' ? JSON.parse(job.job_sections) : job.job_sections) : {};
+    const lists = { todo: sec.todo || [], toClarify: sec.toClarify || [], toBring: sec.toBring || [], toBuy: sec.toBuy || [], products: sec.products || [] };
+
+    function renderChecklist(key, label) {
+      const items = lists[key] || [];
+      const itemsHtml = items.map((item, i) => `
+        <div style="display:flex;align-items:flex-start;gap:8px;padding:4px 0;">
+          <span onclick="toggleCheckItem('${job.id}','${key}',${i})" style="cursor:pointer;font-size:16px;line-height:1;flex-shrink:0;margin-top:1px">${item.done ? '&#9989;' : '&#9675;'}</span>
+          <span style="font-size:13px;color:${item.done ? 'var(--text-4)' : 'var(--text)'};${item.done ? 'text-decoration:line-through;' : ''}line-height:1.4">${esc(item.text)}</span>
+        </div>
+      `).join('');
+      return `
+        <div style="margin-bottom:20px;">
+          <h3 style="font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-2);margin-bottom:8px;font-family:var(--font-sans)">${label}</h3>
+          ${itemsHtml}
+          <div style="display:flex;gap:6px;margin-top:4px;">
+            <input type="text" placeholder="+ Add..." id="add-${key}" style="flex:1;padding:5px 8px;background:var(--surface-1);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:12px;font-family:var(--font-sans)" onkeydown="if(event.key==='Enter'){addCheckItem('${job.id}','${key}',this.value);this.value='';}">
+          </div>
+        </div>`;
+    }
 
     content.innerHTML = `
-      <div class="job-detail-section">
-        <h3>Summary${isCash ? ' <span style="font-size:11px;color:var(--accent);font-weight:500;letter-spacing:.05em;text-transform:uppercase;margin-left:8px">Cash</span>' : ''}</h3>
-        <div class="job-stat-grid">
-          ${financeSummary}
-          <div class="job-stat"><div class="job-stat-label">Paid</div><div class="job-stat-value">$${formatMoney(paid)}</div></div>
-          <div class="job-stat"><div class="job-stat-label">Balance</div><div class="job-stat-value" style="color:${balance > 0 ? 'var(--accent)' : 'var(--sage)'}">$${formatMoney(balance)}</div></div>
-          <div class="job-stat"><div class="job-stat-label">Time Entries</div><div class="job-stat-value">${job.timeEntryCount}${job.unmappedCount > 0 ? ' <span style="color:var(--accent);font-size:12px">('+job.unmappedCount+' unmapped)</span>' : ''}</div></div>
+      <!-- HEADER: client info + access notes -->
+      <div style="padding:0 0 16px;border-bottom:1px solid var(--border-soft);margin-bottom:12px;">
+        <div style="font-size:14px;color:var(--text-2)">${esc(job.address)}</div>
+        <div style="font-size:13px;color:var(--text-2)">${esc(job.client_name)}</div>
+        ${job.client_phone ? '<a href="tel:' + esc(job.client_phone) + '" style="font-size:13px;color:var(--accent);text-decoration:none">' + esc(job.client_phone) + '</a>' : ''}
+        ${job.client_email ? '<div style="font-size:12px;color:var(--text-3)">' + esc(job.client_email) + '</div>' : ''}
+      </div>
+
+      <!-- CHECKLISTS -->
+      ${renderChecklist('todo', 'To Do')}
+      ${renderChecklist('toClarify', 'To Clarify')}
+      ${renderChecklist('toBring', 'To Bring')}
+      ${renderChecklist('toBuy', 'To Buy')}
+      ${renderChecklist('products', 'Products')}
+
+      <!-- FINANCES -->
+      <div style="margin-bottom:20px;">
+        <h3 style="font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-2);margin-bottom:8px;font-family:var(--font-sans)">Finances${isCash ? ' <span style="color:var(--accent);font-size:10px;font-weight:500">CASH</span>' : ''}</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+          <div style="background:var(--surface-1);border:1px solid var(--border);border-radius:6px;padding:10px 12px">
+            <div style="font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--text-4);margin-bottom:4px">${isCash ? 'Agreed Total' : 'Quote Total'}</div>
+            <div style="font-size:18px;font-weight:600;color:var(--sage)">$${formatMoney(effectiveTotal)}</div>
+          </div>
+          <div style="background:var(--surface-1);border:1px solid var(--border);border-radius:6px;padding:10px 12px">
+            <div style="font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--text-4);margin-bottom:4px">Balance</div>
+            <div style="font-size:18px;font-weight:600;color:${balance > 0 ? 'var(--accent)' : 'var(--sage)'}">$${formatMoney(balance)}</div>
+          </div>
         </div>
-      </div>
-      <div class="job-detail-section">
-        <h3>Details</h3>
-        <div style="font-size:13px;color:var(--text-2);line-height:1.6">
-          <div><strong>Job #:</strong> ${esc(job.job_number)}</div>
-          <div><strong>Address:</strong> ${esc(job.address)}</div>
-          <div><strong>Type:</strong> ${job.project_type}${isCash ? ' — Cash (no taxes)' : ' — Declared'}</div>
-          <div><strong>Status:</strong> ${job.status}</div>
-          ${isCash ? '<div style="margin-top:6px"><strong>Agreed Total:</strong> <input type="number" value="' + effectiveTotal + '" style="width:120px;padding:4px 8px;background:var(--surface-1);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:13px" onblur="updateAgreedTotal(\'' + job.id + '\', this.value)"> <span style="font-size:11px;color:var(--text-3)">(editable)</span></div>' : ''}
-          ${job.internal_notes ? '<div style="margin-top:8px;padding:8px;background:var(--surface-2);border-radius:4px;font-size:12px">' + esc(job.internal_notes) + '</div>' : ''}
-        </div>
-      </div>
-      <div class="job-detail-section">
-        <h3>Actions</h3>
-        <button class="job-action-btn" onclick="importJibbleCSV('${job.id}')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-          Import Jibble CSV
-        </button>
-        <button class="job-action-btn" onclick="openMappingScreen('${job.id}')" ${job.unmappedCount > 0 ? 'style="border-color:var(--accent)"' : ''}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18"/><path d="M3 12h18"/><circle cx="12" cy="12" r="3"/></svg>
-          Map Activities ${job.unmappedCount > 0 ? '<span style="color:var(--accent);font-size:12px">(' + job.unmappedCount + ' unmapped)</span>' : ''}
-        </button>
-        <button class="job-action-btn" onclick="generateInvoice('${job.id}')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
-          Create Invoice
-        </button>
-        <button class="job-action-btn" onclick="createChangeOrder('${job.id}')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-          Add Change Order
-        </button>
-        <button class="job-action-btn" onclick="generateClientUpdate('${job.id}')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-          Generate Client Update
-        </button>
-        <button class="job-action-btn" onclick="recordPayment('${job.id}')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-          Record Payment
-        </button>
-        <button class="job-action-btn" onclick="openSmartPaste('${job.id}')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="2" width="6" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M9 14l2 2 4-4"/></svg>
-          Paste from Apple Notes
-        </button>
-        <button class="job-action-btn" onclick="openStandaloneEmail('${job.id}')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><polyline points="22,7 12,13 2,7"/></svg>
-          Draft Email
-        </button>
-        <button class="job-action-btn" onclick="deleteJob('${job.id}', '${esc(job.client_name || '')}')" style="color:#c94a4a;border-color:rgba(201,74,74,0.3)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg>
-          Delete Job
-        </button>
-      </div>
-      ${job.payments.length > 0 ? `
-      <div class="job-detail-section">
-        <h3>Payments</h3>
+        ${isCash ? '<div style="font-size:12px;color:var(--text-3);margin-bottom:8px">Agreed total: <input type="number" value="' + effectiveTotal + '" style="width:100px;padding:3px 6px;background:var(--surface-1);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:12px" onblur="updateAgreedTotal(\'' + job.id + '\', this.value)"></div>' : ''}
         ${job.payments.map(p => `
-          <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px">
+          <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border-soft);font-size:13px">
             <span style="color:var(--text-2)">${p.payment_date} — ${p.method}</span>
             <span style="font-family:var(--font-mono);color:var(--sage)">$${(p.amount_cents/100).toLocaleString('fr-CA')}</span>
           </div>
         `).join('')}
-      </div>` : ''}
+        <button onclick="recordPayment('${job.id}')" style="margin-top:8px;padding:6px 12px;background:var(--surface-2);border:1px solid var(--border);border-radius:4px;color:var(--text-2);font-size:12px;cursor:pointer;font-family:var(--font-sans)">+ Record Payment</button>
+      </div>
 
-      <div class="job-detail-section">
-        <h3>Scratchpad</h3>
-        <textarea id="job-scratchpad"
-                  data-job-id="${job.id}"
-                  onblur="saveScratchpad(this)"
-                  style="width:100%;min-height:200px;padding:12px;background:var(--surface-1);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:var(--font-mono);font-size:13px;line-height:1.55;resize:vertical;box-sizing:border-box">${esc(job.scratchpad || '')}</textarea>
+      <!-- NOTES (scratchpad) -->
+      <div style="margin-bottom:20px;">
+        <h3 style="font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-2);margin-bottom:8px;font-family:var(--font-sans)">Notes</h3>
+        <textarea id="job-scratchpad" data-job-id="${job.id}" onblur="saveScratchpad(this)"
+          style="width:100%;min-height:150px;padding:12px;background:var(--surface-1);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--font-mono);font-size:13px;line-height:1.55;resize:vertical;box-sizing:border-box">${esc(job.scratchpad || '')}</textarea>
+      </div>
+
+      <!-- ACTIONS (compact grid) -->
+      <div style="margin-bottom:20px;">
+        <h3 style="font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-2);margin-bottom:8px;font-family:var(--font-sans)">Actions</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+          <button class="job-action-btn" onclick="openStandaloneEmail('${job.id}')" style="font-size:11px;padding:8px 10px">Draft Email</button>
+          <button class="job-action-btn" onclick="openSmartPaste('${job.id}')" style="font-size:11px;padding:8px 10px">Paste Apple Note</button>
+          <button class="job-action-btn" onclick="generateInvoice('${job.id}')" style="font-size:11px;padding:8px 10px">Create Invoice</button>
+          <button class="job-action-btn" onclick="createChangeOrder('${job.id}')" style="font-size:11px;padding:8px 10px">Change Order</button>
+          <button class="job-action-btn" onclick="generateClientUpdate('${job.id}')" style="font-size:11px;padding:8px 10px">Client Update</button>
+          <button class="job-action-btn" onclick="importJibbleCSV('${job.id}')" style="font-size:11px;padding:8px 10px">Import Jibble</button>
+        </div>
+      </div>
+
+      <!-- DELETE -->
+      <div style="padding-top:16px;border-top:1px solid var(--border-soft);">
+        <button onclick="deleteJob('${job.id}', '${esc(job.client_name || '')}')" style="color:#c94a4a;background:none;border:1px solid rgba(201,74,74,0.3);border-radius:4px;padding:6px 12px;font-size:11px;cursor:pointer;font-family:var(--font-sans)">Delete Job</button>
       </div>
     `;
   } catch (err) {
@@ -3737,6 +3738,38 @@ async function convertViaStatusBadge(sessionId) {
   } catch (err) {
     alert('Error: ' + err.message);
   }
+}
+
+// ── JOB CHECKLIST SECTIONS ───────────────────────────────────────────────
+async function getJobSections(jobId) {
+  const res = await fetch('/api/jobs/' + jobId);
+  const job = await res.json();
+  return job.job_sections ? (typeof job.job_sections === 'string' ? JSON.parse(job.job_sections) : job.job_sections) : {};
+}
+
+async function saveJobSections(jobId, sections) {
+  await fetch('/api/jobs/' + jobId, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ job_sections: JSON.stringify(sections) }),
+  });
+}
+
+async function toggleCheckItem(jobId, key, index) {
+  const sec = await getJobSections(jobId);
+  if (!sec[key] || !sec[key][index]) return;
+  sec[key][index].done = !sec[key][index].done;
+  await saveJobSections(jobId, sec);
+  openJobDetail(jobId);
+}
+
+async function addCheckItem(jobId, key, text) {
+  if (!text || !text.trim()) return;
+  const sec = await getJobSections(jobId);
+  if (!sec[key]) sec[key] = [];
+  sec[key].push({ text: text.trim(), done: false });
+  await saveJobSections(jobId, sec);
+  openJobDetail(jobId);
 }
 
 async function updateAgreedTotal(jobId, value) {
