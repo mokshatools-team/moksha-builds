@@ -66,6 +66,12 @@ if (!fs.existsSync(EMAIL_LOGIC_PATH) && fs.existsSync(EMAIL_LOGIC_SEED)) {
   fs.copyFileSync(EMAIL_LOGIC_SEED, EMAIL_LOGIC_PATH);
 }
 
+function getEmailLogic() {
+  if (fs.existsSync(EMAIL_LOGIC_PATH)) return fs.readFileSync(EMAIL_LOGIC_PATH, 'utf8');
+  if (fs.existsSync(EMAIL_LOGIC_SEED)) return fs.readFileSync(EMAIL_LOGIC_SEED, 'utf8');
+  return '';
+}
+
 function getQuotingLogic() {
   if (fs.existsSync(QUOTING_LOGIC_PATH)) return fs.readFileSync(QUOTING_LOGIC_PATH, 'utf8');
   if (fs.existsSync(QUOTING_LOGIC_SEED)) return fs.readFileSync(QUOTING_LOGIC_SEED, 'utf8');
@@ -1984,7 +1990,7 @@ app.post('/api/sessions/:id/email/refine', express.json(), async (req, res) => {
 // updates from a job context (or with no context at all).
 app.post('/api/email/standalone-draft', express.json(), async (req, res) => {
   try {
-    const { jobId, scenario, signer, language, detailLevel, clientName, address, recipient } = req.body || {};
+    const { jobId, sessionId, scenario, signer, language, detailLevel, clientName, address, recipient } = req.body || {};
     const allowedScenarios = new Set([
       'quote_send', 'quote_revision', 'quote_follow_up', 'quote_promise',
       'decline', 'lead_more_info', 'lead_follow_up', 'project_update',
@@ -1993,34 +1999,109 @@ app.post('/api/email/standalone-draft', express.json(), async (req, res) => {
       return res.status(400).json({ error: 'Invalid or missing scenario' });
     }
 
-    // Build a pseudo-session from the provided context or a job record.
-    const pseudo = {
+    // Resolve context from job, session, or raw fields
+    let ctx = {
       clientName: clientName || '',
+      clientFirstName: '',
       address: address || '',
       projectId: null,
-      emailRecipient: recipient || '',
-      quoteJson: null,
-      emailMeta: {
-        scenario,
-        signer: ['Loric', 'Graeme', 'Lubo'].includes(signer) ? signer : 'Loric',
-        language: ['english', 'french'].includes(language) ? language : 'english',
-        detailLevel: ['minimal', 'standard', 'detailed'].includes(detailLevel) ? detailLevel : 'standard',
-        scenarioManual: true,
-      },
+      recipient: recipient || '',
+      total: null,
+      scopeSummary: '',
+      lastMessages: '',
     };
 
     if (jobId) {
       const job = await getJob(jobId);
       if (!job) return res.status(404).json({ error: 'Job not found' });
-      pseudo.clientName = pseudo.clientName || job.client_name || '';
-      pseudo.address = pseudo.address || job.address || '';
-      pseudo.projectId = job.project_title || job.job_number || null;
-      pseudo.emailRecipient = pseudo.emailRecipient || job.client_email || '';
+      ctx.clientName = ctx.clientName || job.client_name || '';
+      ctx.address = ctx.address || job.address || '';
+      ctx.projectId = job.project_title || job.job_number || null;
+      ctx.recipient = ctx.recipient || job.client_email || '';
+      const isCash = job.payment_type === 'cash';
+      const totalCents = isCash && job.agreed_total_cents ? job.agreed_total_cents : job.quote_total_cents;
+      if (totalCents) ctx.total = '$' + (totalCents / 100).toLocaleString('fr-CA', { maximumFractionDigits: 0 });
+    } else if (sessionId) {
+      const session = await getSession(sessionId);
+      if (session) {
+        const qj = session.quoteJson;
+        ctx.clientName = ctx.clientName || (qj && qj.clientName) || session.clientName || '';
+        ctx.address = ctx.address || (qj && qj.address) || session.address || '';
+        ctx.projectId = (qj && qj.projectId) || session.projectId || null;
+        ctx.recipient = ctx.recipient || session.emailRecipient || '';
+        if (qj && qj.sections) {
+          const subtotal = qj.sections.reduce((s, sec) => s + (sec.excluded || sec.optional ? 0 : (sec.total || 0)), 0);
+          if (subtotal) ctx.total = '$' + (subtotal * 1.14975).toLocaleString('fr-CA', { maximumFractionDigits: 0 });
+          // Quick scope summary from section names/titles
+          ctx.scopeSummary = qj.sections.slice(0, 6).map(s => s.name || s.title || '').filter(Boolean).join(', ');
+        }
+      }
     }
 
-    const draft = buildEmailDraft(pseudo);
-    if (!draft) return res.status(400).json({ error: 'Not enough context to build draft' });
-    res.json(draft);
+    ctx.clientFirstName = (ctx.clientName || '').trim().split(/\s+/)[0] || '';
+    const lang = ['english', 'french'].includes(language) ? language : 'english';
+    const sgnr = ['Loric', 'Graeme', 'Lubo'].includes(signer) ? signer : 'Loric';
+    const dtl = ['minimal', 'standard', 'detailed'].includes(detailLevel) ? detailLevel : 'standard';
+
+    const SCENARIO_LABEL = {
+      quote_send: 'sending the quote (attached as PDF)',
+      quote_revision: 'sending a revised quote',
+      quote_follow_up: 'follow-up after a quote was sent',
+      quote_promise: 'reassuring the client that the quote is coming',
+      decline: 'declining the job politely',
+      lead_more_info: 'asking for more info before estimating',
+      lead_follow_up: 'lightly following up on a lead that went quiet',
+      project_update: 'sending a project / cost update during the work',
+    };
+
+    const userPrompt = [
+      `Write the body of an email for OstéoPeinture.`,
+      ``,
+      `Scenario: ${SCENARIO_LABEL[scenario]}`,
+      `Language: ${lang === 'french' ? 'French (use vous, formal)' : 'English'}`,
+      `Signer: ${sgnr}`,
+      `Detail level: ${dtl}`,
+      ``,
+      `Context:`,
+      ctx.clientFirstName ? `- Client: ${ctx.clientName} (use first name "${ctx.clientFirstName}" in greeting)` : `- Client: unknown — use a generic greeting`,
+      ctx.address ? `- Address: ${ctx.address}` : null,
+      ctx.projectId ? `- Project ID: ${ctx.projectId}` : null,
+      ctx.total ? `- Quote total: ${ctx.total}` : null,
+      ctx.scopeSummary ? `- Scope: ${ctx.scopeSummary}` : null,
+      ``,
+      `Output ONLY the email body (greeting through sign-off). No subject line, no metadata, no markdown, no quotes around it. Follow EMAIL_LOGIC.md exactly — match the tone, signer style, length for the chosen detail level. Do not invent facts. If the context is sparse, keep the email short.`,
+    ].filter(Boolean).join('\n');
+
+    const response = await anthropic.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 1024,
+      system: getEmailLogic(),
+      messages: [{ role: 'user', content: userPrompt }],
+    });
+
+    const body = response.content
+      .filter(p => p.type === 'text')
+      .map(p => p.text)
+      .join('\n')
+      .trim();
+
+    // Subject still uses the existing helper for now — it's already bilingual
+    // and structurally fine. Loric can edit it freely in the form.
+    const pseudoForSubject = {
+      clientName: ctx.clientName,
+      address: ctx.address,
+      projectId: ctx.projectId,
+      emailMeta: { scenario, signer: sgnr, language: lang, detailLevel: dtl },
+    };
+    const subject = buildEmailSubject(pseudoForSubject, pseudoForSubject.emailMeta);
+
+    res.json({
+      subject,
+      body,
+      recipient: ctx.recipient,
+      language: lang,
+      settings: { scenario, signer: sgnr, language: lang, detailLevel: dtl },
+    });
   } catch (err) {
     console.error('[standalone-draft] Failed:', err.message);
     res.status(500).json({ error: err.message });

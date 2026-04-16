@@ -1945,7 +1945,8 @@
         <div class="form-label">Message</div>
         <textarea class="form-textarea" id="email-body"></textarea>
       </div>
-      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px;">
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px;flex-wrap:wrap">
+        <button id="generate-session-email-btn" onclick="generateSessionEmail()" style="background:var(--accent-dim);border:1px solid var(--accent);color:var(--accent);padding:6px 12px;border-radius:var(--radius-sm);font-size:12px;cursor:pointer;font-weight:600">Generate with AI</button>
         <button onclick="refineSessionEmail()" style="background:var(--surface-2);border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:var(--radius-sm);font-size:12px;cursor:pointer;">Refine with instructions…</button>
       </div>
       <button id="email-send-btn" onclick="sendEmail()">Send Email with PDF</button>
@@ -3340,8 +3341,7 @@ async function openStandaloneEmail(jobId) {
   document.getElementById('stdemail-subject').value = '';
   document.getElementById('stdemail-body').value = '';
   document.getElementById('stdemail-modal').style.display = 'flex';
-  // Auto-generate on open
-  generateStandaloneEmail();
+  // No auto-generation — user clicks "Generate" when ready (each call hits Claude)
 }
 function closeStandaloneEmail() {
   document.getElementById('stdemail-modal').style.display = 'none';
@@ -3356,6 +3356,10 @@ async function generateStandaloneEmail() {
     language: document.getElementById('stdemail-language').value,
     detailLevel: document.getElementById('stdemail-detail').value,
   };
+  // Find the Generate button via the bound handler
+  const btn = Array.from(document.querySelectorAll('#stdemail-modal button')).find(b => /Generate/.test(b.textContent));
+  const originalText = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Generating…'; }
   try {
     const res = await fetch('/api/email/standalone-draft', {
       method: 'POST',
@@ -3368,6 +3372,8 @@ async function generateStandaloneEmail() {
     document.getElementById('stdemail-body').value = data.body || '';
   } catch (err) {
     alert('Error: ' + err.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = originalText; }
   }
 }
 
@@ -3403,6 +3409,40 @@ async function copyStandaloneEmail() {
 }
 
 // Refine for the existing session-based email form (quote context).
+async function generateSessionEmail() {
+  if (!currentSessionId) { alert('No active session.'); return; }
+  const payload = {
+    sessionId: currentSessionId,
+    scenario: document.getElementById('email-scenario').value,
+    signer: document.getElementById('email-signer').value,
+    language: document.getElementById('email-language').value,
+    detailLevel: document.getElementById('email-detail-level').value,
+    recipient: document.getElementById('email-to').value.trim() || undefined,
+  };
+  const btn = document.getElementById('generate-session-email-btn');
+  const originalText = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Generating…'; }
+  try {
+    const res = await fetch('/api/email/standalone-draft', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) { alert('Generate failed: ' + (data.error || 'unknown')); return; }
+    document.getElementById('email-subject').value = data.subject || '';
+    document.getElementById('email-body').value = data.body || '';
+    // Mark fields as dirty so the template prefill doesn't overwrite our generated draft
+    const state = getEmailDraftState(currentSessionId);
+    state.subjectDirty = true;
+    state.bodyDirty = true;
+  } catch (err) {
+    alert('Error: ' + err.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = originalText; }
+  }
+}
+
 async function refineSessionEmail() {
   if (!currentSessionId) { alert('No active session.'); return; }
   const currentDraft = document.getElementById('email-body').value.trim();
