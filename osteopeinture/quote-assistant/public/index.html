@@ -1655,7 +1655,13 @@
       /* Bottom padding accounts for the 48px mobile nav bar + safe area
          so the Message textarea isn't hidden behind it */
       padding-bottom: calc(56px + env(safe-area-inset-bottom));
+      padding-top: calc(env(safe-area-inset-top, 0px) + 14px);
       overflow-y: auto;
+      background: var(--bg);
+    }
+    /* Larger message textarea on mobile so the body has real room */
+    #email-form .form-textarea {
+      min-height: 280px;
     }
     #email-form.open {
       display: flex;
