@@ -1990,7 +1990,7 @@ app.post('/api/sessions/:id/email/refine', express.json(), async (req, res) => {
 // updates from a job context (or with no context at all).
 app.post('/api/email/standalone-draft', express.json(), async (req, res) => {
   try {
-    const { jobId, sessionId, scenario, signer, language, detailLevel, clientName, address, recipient } = req.body || {};
+    const { jobId, sessionId, scenario, signer, language, detailLevel, tone, clientName, address, recipient } = req.body || {};
     const allowedScenarios = new Set([
       'quote_send', 'quote_revision', 'quote_follow_up', 'quote_promise',
       'decline', 'lead_more_info', 'lead_follow_up', 'project_update',
@@ -2042,6 +2042,7 @@ app.post('/api/email/standalone-draft', express.json(), async (req, res) => {
     const lang = ['english', 'french'].includes(language) ? language : 'english';
     const sgnr = ['Loric', 'Graeme', 'Lubo'].includes(signer) ? signer : 'Loric';
     const dtl = ['minimal', 'standard', 'detailed'].includes(detailLevel) ? detailLevel : 'standard';
+    const tn = ['informal', 'formal'].includes(tone) ? tone : 'informal';
 
     const SCENARIO_LABEL = {
       quote_send: 'sending the quote (attached as PDF)',
@@ -2054,26 +2055,34 @@ app.post('/api/email/standalone-draft', express.json(), async (req, res) => {
       project_update: 'sending a project / cost update during the work',
     };
 
+    const toneInstruction = lang === 'french'
+      ? (tn === 'formal' ? 'Use vous (formal you). Polite but not stiff.' : 'Use tu (informal you). Casual, like texting a colleague — short, warm, direct.')
+      : (tn === 'formal' ? 'Polite/formal English.' : 'Casual English, like a quick note to someone you know.');
+
     const userPrompt = [
       `Write the body of an email for OstéoPeinture.`,
       ``,
       `Scenario: ${SCENARIO_LABEL[scenario]}`,
-      `Language: ${lang === 'french' ? 'French (use vous, formal but not stiff)' : 'English'}`,
+      `Language: ${lang === 'french' ? 'French' : 'English'}`,
+      `Tone: ${toneInstruction}`,
       `Signer: ${sgnr}`,
       `Detail level: ${dtl}`,
       ``,
       `Context:`,
       ctx.clientFirstName ? `- Client first name: ${ctx.clientFirstName}` : `- Client: unknown — use a generic greeting`,
-      ctx.address ? `- Address: ${ctx.address}` : null,
-      ctx.scopeSummary ? `- Scope (for your reference, do not list in email): ${ctx.scopeSummary}` : null,
+      ctx.scopeSummary ? `- Scope (for your reference only, do NOT list in email): ${ctx.scopeSummary}` : null,
       ``,
       `STRICT RULES:`,
-      `- NEVER include the dollar total or any prices in the email body. The PDF has the numbers. The email refers to it.`,
-      `- NEVER use corporate clichés. Forbidden phrases include: "N'hésitez pas à nous contacter", "Do not hesitate to contact us", "Please find attached", "Veuillez trouver ci-joint", "We look forward to hearing from you", "Should you have any questions", "Dans le cas contraire", "faites-nous signe", "aller de l'avant".`,
-      `- Sound like a real person sending a quick email, not a form letter. Short, direct, human.`,
-      `- Default to 2-4 short sentences max. Detailed mode = 4-6 sentences max.`,
-      `- Greeting uses just the first name. Sign-off matches the signer's actual style per EMAIL_LOGIC.md.`,
-      `- French: write in natural Quebec French — direct, not translated-sounding. Use simple verbs.`,
+      `- NEVER include the dollar total or any prices in the email body. The PDF has the numbers.`,
+      `- NEVER mention the address in the email body. The PDF has it. The subject line has it.`,
+      `- NEVER list the scope of work or rooms in the email body. The PDF has it.`,
+      `- The email refers to the attached PDF — it does not duplicate what's in it.`,
+      `- AVOID translated-sounding corporate French. Forbidden: "Veuillez trouver ci-joint", "N'hésitez pas à nous contacter si vous avez des questions" (the corporate version with vous + the wordy framing). The casual versions like "Hésite pas si tu as des ajustements" or "fais moi signe quand t'es prêt" are GOOD.`,
+      `- AVOID corporate English: "Please find attached", "Do not hesitate to contact us", "We look forward to hearing from you", "Should you have any questions".`,
+      `- Sound like a real person sending a quick email. Short, direct, human.`,
+      `- Default 2-4 sentences. Detailed mode 4-6 sentences max.`,
+      `- For quote_send: a good CTA pattern mentions both adjustments AND the deposit/calendar slot. Example (informal FR): "Hésite pas si tu as des ajustements à faire. Fais-moi signe quand t'es prêt à aller de l'avant avec le dépôt pour qu'on te réserve la place dans notre calendrier."`,
+      `- Sign-off matches the signer per EMAIL_LOGIC.md. Loric usually closes with "Merci," or just his name on a new line. For informal it's even shorter.`,
       ``,
       `Output ONLY the email body (greeting through sign-off). No subject line, no markdown, no quotes around it.`,
     ].filter(Boolean).join('\n');

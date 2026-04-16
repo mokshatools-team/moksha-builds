@@ -1930,6 +1930,13 @@
           </select>
         </div>
         <div class="form-row">
+          <div class="form-label">Tone</div>
+          <select class="form-input" id="email-tone">
+            <option value="informal" selected>Informal (tu)</option>
+            <option value="formal">Formal (vous)</option>
+          </select>
+        </div>
+        <div class="form-row">
           <div class="form-label">Language</div>
           <select class="form-input" id="email-language" onchange="refreshEmailDraftFromSettings('language')">
             <option value="english">English</option>
@@ -2078,6 +2085,13 @@
         <select id="stdemail-language" style="width:100%;padding:8px;background:var(--surface-1);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px;">
           <option value="english">English</option>
           <option value="french">French</option>
+        </select>
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--text-3);margin-bottom:4px;letter-spacing:.06em;text-transform:uppercase;">Tone</div>
+        <select id="stdemail-tone" style="width:100%;padding:8px;background:var(--surface-1);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px;">
+          <option value="informal" selected>Informal (tu)</option>
+          <option value="formal">Formal (vous)</option>
         </select>
       </div>
     </div>
@@ -3355,6 +3369,7 @@ async function generateStandaloneEmail() {
     signer: document.getElementById('stdemail-signer').value,
     language: document.getElementById('stdemail-language').value,
     detailLevel: document.getElementById('stdemail-detail').value,
+    tone: document.getElementById('stdemail-tone').value,
   };
   // Find the Generate button via the bound handler
   const btn = Array.from(document.querySelectorAll('#stdemail-modal button')).find(b => /Generate/.test(b.textContent));
@@ -3417,6 +3432,7 @@ async function generateSessionEmail() {
     signer: document.getElementById('email-signer').value,
     language: document.getElementById('email-language').value,
     detailLevel: document.getElementById('email-detail-level').value,
+    tone: (document.getElementById('email-tone') || {}).value || 'informal',
     recipient: document.getElementById('email-to').value.trim() || undefined,
   };
   const btn = document.getElementById('generate-session-email-btn');
