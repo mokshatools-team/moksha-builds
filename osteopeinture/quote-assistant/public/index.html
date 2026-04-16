@@ -1586,7 +1586,7 @@
       display: flex;
       position: fixed;
       top: calc(env(safe-area-inset-top, 0px) + 8px);
-      left: 10px;
+      right: 10px;
       z-index: 310;
       align-items: center;
       justify-content: center;
@@ -2156,10 +2156,6 @@
   <button class="mobile-nav-tab" id="nav-email" onclick="mobileNavTo('email')">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="4" width="20" height="16" rx="2"/><polyline points="22,7 12,13 2,7"/></svg>
     Email
-  </button>
-  <button class="mobile-nav-tab" id="nav-jobs" onclick="switchSidebarMode(currentSidebarMode === 'jobs' ? 'quotes' : 'jobs')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
-    Jobs
   </button>
 </div>
 
@@ -3163,7 +3159,7 @@ function mobileNavTo(view) {
 // ── SWIPE GESTURES — swipe through all 4 tabs continuously ──────────
 (function initSwipeGestures() {
   const THRESHOLD = 60;
-  const TAB_ORDER = ['chat', 'quote', 'email', 'jobs'];
+  const TAB_ORDER = ['chat', 'quote', 'email'];
   let touchStartX = 0;
   let touchStartY = 0;
   let swiping = false;
