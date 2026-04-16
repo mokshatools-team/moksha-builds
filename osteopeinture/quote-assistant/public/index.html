@@ -1652,7 +1652,10 @@
       border-top: none;
       border-radius: 0;
       padding: 14px 16px;
-      padding-bottom: max(14px, env(safe-area-inset-bottom));
+      /* Bottom padding accounts for the 48px mobile nav bar + safe area
+         so the Message textarea isn't hidden behind it */
+      padding-bottom: calc(56px + env(safe-area-inset-bottom));
+      overflow-y: auto;
     }
     #email-form.open {
       display: flex;
@@ -3144,8 +3147,18 @@ function mobileNavTo(view) {
   let touchStartY = 0;
   let swiping = false;
 
+  function isFormElement(target) {
+    if (!target) return false;
+    const tag = (target.tagName || '').toLowerCase();
+    return tag === 'input' || tag === 'textarea' || tag === 'select' || tag === 'button' ||
+           target.isContentEditable ||
+           !!target.closest('input, textarea, select, button, [contenteditable]');
+  }
+
   document.addEventListener('touchstart', (e) => {
     if (window.innerWidth > 768) return;
+    // Skip swipe handling when interacting with form inputs (typing, selecting, etc.)
+    if (isFormElement(e.target)) { swiping = false; return; }
     touchStartX = e.touches[0].clientX;
     touchStartY = e.touches[0].clientY;
     swiping = true;
@@ -3154,6 +3167,7 @@ function mobileNavTo(view) {
   document.addEventListener('touchend', (e) => {
     if (!swiping || window.innerWidth > 768) return;
     swiping = false;
+    if (isFormElement(e.target)) return;
     const dx = e.changedTouches[0].clientX - touchStartX;
     const dy = e.changedTouches[0].clientY - touchStartY;
     // Only trigger on horizontal swipes (not vertical scroll)
