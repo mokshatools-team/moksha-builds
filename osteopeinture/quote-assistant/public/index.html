@@ -3445,6 +3445,26 @@ async function openJobDetail(jobId, source) {
           style="width:100%;min-height:150px;padding:12px;background:var(--surface-1);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--font-mono);font-size:13px;line-height:1.55;resize:vertical;box-sizing:border-box">${esc(job.scratchpad || '')}</textarea>
       </div>
 
+      <!-- CHANGE ORDERS (only rendered if any exist) -->
+      ${(job.changeOrders && job.changeOrders.length) ? `
+      <div style="margin-bottom:20px;">
+        <h3 style="font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-2);margin-bottom:8px;font-family:var(--font-sans)">Change Orders</h3>
+        ${job.changeOrders.map(co => {
+          const amt = (co.amount_cents / 100).toLocaleString('fr-CA', {maximumFractionDigits:0});
+          const statusColor = co.status === 'approved' ? 'var(--sage)' : (co.status === 'rejected' ? '#c94a4a' : 'var(--text-3)');
+          const statusBg = co.status === 'approved' ? 'var(--sage-dim)' : (co.status === 'rejected' ? 'rgba(201,74,74,0.1)' : 'var(--surface-2)');
+          return \`<div style="background:var(--surface-1);border:1px solid var(--border);border-radius:6px;padding:10px 12px;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between;gap:8px">
+            <div style="flex:1;min-width:0">
+              <div style="font-size:13px;font-weight:600;color:var(--text);font-family:var(--font-sans)">\${esc(co.title_en || co.title_fr || 'Change order')}</div>
+              <div style="font-size:11px;color:var(--text-3);margin-top:2px">\${co.created_at ? co.created_at.slice(0,10) : ''}</div>
+            </div>
+            <div style="font-size:14px;font-weight:600;color:var(--text);white-space:nowrap">$\${amt}</div>
+            <span style="font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;padding:2px 6px;border-radius:3px;background:\${statusBg};color:\${statusColor}">\${co.status}</span>
+            <a href="/preview/change-order/\${co.id}" target="_blank" style="font-size:11px;color:var(--accent);text-decoration:none;white-space:nowrap">view</a>
+          </div>\`;
+        }).join('')}
+      </div>` : ''}
+
       <!-- ACTIONS (compact grid) -->
       <div style="margin-bottom:20px;">
         <h3 style="font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-2);margin-bottom:8px;font-family:var(--font-sans)">Actions</h3>

@@ -2268,6 +2268,7 @@ app.get('/api/jobs/:id', async (req, res) => {
     const totalPaidCents = payments.reduce((sum, p) => sum + p.amount_cents, 0);
     const timeEntries = await getJobTimeEntries(job.id);
     const mappings = await getJobActivityMappings(job.id);
+    const changeOrders = await db.all('SELECT * FROM job_change_orders WHERE job_id = ? ORDER BY created_at', [job.id]);
     // Cash jobs: balance is based on agreed_total, no taxes.
     // Declared jobs: balance is based on quote_total (includes taxes).
     const effectiveTotalCents = job.payment_type === 'cash' && job.agreed_total_cents
@@ -2283,6 +2284,7 @@ app.get('/api/jobs/:id', async (req, res) => {
       timeEntryCount: timeEntries.length,
       unmappedCount: timeEntries.filter(e => e.mapping_status === 'unmapped').length,
       activityMappings: mappings,
+      changeOrders,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
