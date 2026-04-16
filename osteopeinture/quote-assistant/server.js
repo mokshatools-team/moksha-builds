@@ -769,6 +769,11 @@ const WORD_LOGO_PATH = path.join(__dirname, 'public', 'logo-word-brown.jpg');
 if (fs.existsSync(WORD_LOGO_PATH)) {
   LOGO_WORD_B64 = fs.readFileSync(WORD_LOGO_PATH).toString('base64');
 }
+let SIGNATURE_LORIC_B64 = '';
+const SIG_PATH = path.join(__dirname, 'public', 'signature-loric-sm.png');
+if (fs.existsSync(SIG_PATH)) {
+  SIGNATURE_LORIC_B64 = fs.readFileSync(SIG_PATH).toString('base64');
+}
 
 // ============================================================
 // QUOTE HTML RENDERER
@@ -1030,7 +1035,8 @@ body { background:#e8e8e8; font-family:'Montserrat',sans-serif; padding:40px 20p
 .legal-block { text-align:center; padding:8px 14px; font-size:7.5px; color:#333; border-bottom:1.5px solid #1a1a1a; line-height:1.7; }
 .legal-block strong { font-weight:700; }
 .sig-grid { display:grid; grid-template-columns:1fr 1fr; }
-.sig-cell { padding:10px 14px; font-size:8px; font-weight:600; min-height:70px; display:flex; flex-direction:column; align-items:flex-start; }
+.sig-cell { padding:10px 14px; font-size:8px; font-weight:600; min-height:70px; display:flex; flex-direction:column; justify-content:flex-end; align-items:flex-start; }
+.sig-cell img.sig-img { height:50px; width:auto; margin-bottom:4px; }
 .footer { text-align:center; margin-top:36px; }
 .footer-logo { text-align:center; margin-bottom:6px; }
 .footer-logo img { height:20px; }
@@ -1086,7 +1092,7 @@ body { background:#e8e8e8; font-family:'Montserrat',sans-serif; padding:40px 20p
   </div>
   ${branded ? `<div class="sig-grid">
     <div class="sig-cell">${t.clientSignature}</div>
-    <div class="sig-cell">${t.representative}</div>
+    <div class="sig-cell">${SIGNATURE_LORIC_B64 ? `<img class="sig-img" src="data:image/png;base64,${SIGNATURE_LORIC_B64}" alt="Loric St-Onge">` : ''}${t.representative}</div>
   </div>
   <div class="footer">
     <div class="footer-logo">${LOGO_WORD_B64 ? `<img src="data:image/jpeg;base64,${LOGO_WORD_B64}" alt="Ostéopeinture">` : 'Ostéopeinture'}</div>
