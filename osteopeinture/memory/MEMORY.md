@@ -34,6 +34,10 @@
 
 ## UX Feedback
 - [Mobile UX must be instant](feedback_mobile_ux_speed.md) — no round-trips per interaction, textareas over checkboxes, Enter=newline on mobile, hamburger always visible
+- [Smart paste should route paint to Products section](feedback_smart_paste_paint_routing.md) — PAINT blocks go to job_sections.products, not scratchpad
+
+## Email / Communication
+- [Email drafts need Claude-generation](project_email_drafts_claude_rewrite.md) — hardcoded scenario templates feel unnatural, rewrite to use Claude with EMAIL_LOGIC.md context
 
 ## Scaffold Module
 - [Scaffold module — scope & logic](project_scaffold_module.md) — new OP Hub module, calculates scaffold component quantities + rental costs from job dimensions
