@@ -3403,12 +3403,17 @@ async function openJobDetail(jobId, source) {
 
     function sectionTextarea(key, label, placeholder) {
       const val = sec[key] || '';
+      const hasContent = val.trim().length > 0;
       return `
-        <div style="margin-bottom:16px;">
-          <div style="font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin-bottom:6px;font-family:var(--font-sans)">${label}</div>
+        <div style="margin-bottom:16px;" data-section-wrapper="${key}">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;cursor:pointer" onclick="toggleJobSection('${key}')">
+            <div style="font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);font-family:var(--font-sans)">${label}</div>
+            <button data-section-toggle="${key}" style="background:transparent;border:none;color:var(--text-3);font-size:16px;font-weight:600;cursor:pointer;padding:0 4px;font-family:var(--font-sans);line-height:1">−</button>
+          </div>
           <textarea data-section-key="${key}" data-job-id="${job.id}" onblur="saveJobSection(this)"
+            oninput="autoExpandSection(this)"
             placeholder="${placeholder || ''}"
-            style="width:100%;min-height:60px;padding:10px;background:var(--surface-1);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--font-sans);font-size:13px;line-height:1.5;resize:vertical;box-sizing:border-box">${esc(val)}</textarea>
+            style="width:100%;min-height:40px;padding:10px;background:var(--surface-1);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--font-sans);font-size:13px;line-height:1.5;resize:none;box-sizing:border-box;overflow:hidden">${esc(val)}</textarea>
         </div>`;
     }
 
@@ -3489,6 +3494,8 @@ async function openJobDetail(jobId, source) {
         <button onclick="deleteJob('${job.id}', '${esc(job.client_name || '')}')" style="color:#c94a4a;background:none;border:1px solid rgba(201,74,74,0.3);border-radius:4px;padding:6px 12px;font-size:11px;cursor:pointer;font-family:var(--font-sans)">Delete Job</button>
       </div>
     `;
+    // Auto-expand all section textareas to fit their content
+    setTimeout(autoExpandAllSections, 0);
   } catch (err) {
     content.innerHTML = '<div style="color:var(--accent);padding:20px">Error: ' + esc(err.message) + '</div>';
   }
@@ -3964,6 +3971,37 @@ async function convertViaStatusBadge(sessionId) {
 }
 
 // ── JOB SECTION SAVE (simple text per section — no round-trips, no reload) ──
+// Auto-expand a textarea to fit its content (no scrollbar, no extra space).
+// Called on input and on page load for each section textarea.
+function autoExpandSection(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.max(40, el.scrollHeight) + 'px';
+}
+
+// Collapse / expand a job section. The toggle button shows − (expanded)
+// or + (collapsed). The textarea is hidden when collapsed.
+function toggleJobSection(key) {
+  const wrapper = document.querySelector('[data-section-wrapper="' + key + '"]');
+  if (!wrapper) return;
+  const ta = wrapper.querySelector('textarea');
+  const btn = wrapper.querySelector('[data-section-toggle]');
+  if (!ta) return;
+  const isCollapsed = ta.style.display === 'none';
+  if (isCollapsed) {
+    ta.style.display = '';
+    if (btn) btn.textContent = '−';
+    autoExpandSection(ta);
+  } else {
+    ta.style.display = 'none';
+    if (btn) btn.textContent = '+';
+  }
+}
+
+// After job detail renders, auto-expand all section textareas to fit content
+function autoExpandAllSections() {
+  document.querySelectorAll('[data-section-key]').forEach(autoExpandSection);
+}
+
 async function saveJobSection(el) {
   const jobId = el.getAttribute('data-job-id');
   const key = el.getAttribute('data-section-key');
