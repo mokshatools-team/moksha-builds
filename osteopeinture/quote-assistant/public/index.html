@@ -2221,11 +2221,14 @@ const MAX_CLIENT_IMAGE_COUNT = 15;
 
 async function loadSidebar() {
   const res = await fetch('/api/sessions');
-  const sessions = await res.json();
+  const allSessions = await res.json();
+  // Hide quotes that have been converted to jobs — they live in the Jobs sidebar now.
+  // Also hide archived ones from the main view (could surface in an Archive section later).
+  const sessions = allSessions.filter(s => !s.converted_job_id && s.status !== 'archived');
   const list = document.getElementById('sidebar-list');
 
   if (!sessions.length) {
-    list.innerHTML = '<div class="sidebar-empty">No quotes yet.<br>Start a new one above.</div>';
+    list.innerHTML = '<div class="sidebar-empty">No active quotes.<br>Start a new one above.</div>';
     return;
   }
 
