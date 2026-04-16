@@ -1757,18 +1757,27 @@
     <div class="brand-wordmark">Ostéopeinture</div>
     <div class="brand-sub">OP Hub</div>
   </div>
-  <div id="sidebar-controls">
-    <button id="new-quote-btn" onclick="startNewSession()">
-      <span class="new-btn-icon">+</span> New Quote
-    </button>
-    <button id="jobs-btn" onclick="toggleJobsView()" style="width:100%;padding:8px 14px;margin-top:6px;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;color:var(--text-2);font-family:var(--font-sans);font-size:12px;font-weight:500;cursor:pointer;text-align:left;display:flex;align-items:center;gap:8px">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
-      Jobs
-    </button>
+  <!-- Mode toggle: Quotes / Jobs -->
+  <div id="sidebar-mode-toggle" style="display:flex;margin:0 16px 0;border:1px solid var(--border);border-radius:6px;overflow:hidden;">
+    <button class="mode-tab active" id="mode-tab-quotes" onclick="switchSidebarMode('quotes')" style="flex:1;padding:8px 0;border:none;font-family:var(--font-sans);font-size:11px;font-weight:600;letter-spacing:.04em;cursor:pointer;transition:all .15s;background:var(--accent);color:#fff;">Quotes</button>
+    <button class="mode-tab" id="mode-tab-jobs" onclick="switchSidebarMode('jobs')" style="flex:1;padding:8px 0;border:none;border-left:1px solid var(--border);font-family:var(--font-sans);font-size:11px;font-weight:600;letter-spacing:.04em;cursor:pointer;transition:all .15s;background:var(--surface-1);color:var(--text-3);">Jobs</button>
   </div>
-  <div id="sidebar-section-label">Past Quotes</div>
-  <div id="sidebar-list">
-    <div class="sidebar-empty">No quotes yet.<br>Start a new one above.</div>
+  <!-- Quotes mode content -->
+  <div id="sidebar-quotes-mode">
+    <div id="sidebar-controls" style="padding:12px 16px;border-bottom:1px solid var(--border-soft);">
+      <button id="new-quote-btn" onclick="startNewSession()">
+        <span class="new-btn-icon">+</span> New Quote
+      </button>
+    </div>
+    <div id="sidebar-section-label">Past Quotes</div>
+    <div id="sidebar-list">
+      <div class="sidebar-empty">No quotes yet.<br>Start a new one above.</div>
+    </div>
+  </div>
+  <!-- Jobs mode content -->
+  <div id="sidebar-jobs-mode" style="display:none;flex:1;overflow-y:auto;">
+    <div id="sidebar-section-label-jobs" style="padding:14px 16px 6px;font-size:9px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--text-4);font-family:var(--font-sans);">Active Jobs</div>
+    <div id="sidebar-jobs-list"></div>
   </div>
   <div id="sidebar-footer">
     <button id="rules-btn" onclick="openRulesModal()">
@@ -2109,7 +2118,7 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="7" y1="8" x2="17" y2="8"/><line x1="7" y1="12" x2="14" y2="12"/><line x1="7" y1="16" x2="11" y2="16"/></svg>
     Quote
   </button>
-  <button class="mobile-nav-tab" id="nav-jobs" onclick="mobileNavTo('jobs')">
+  <button class="mobile-nav-tab" id="nav-jobs" onclick="switchSidebarMode(currentSidebarMode === 'jobs' ? 'quotes' : 'jobs')">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
     Jobs
   </button>
@@ -3487,6 +3496,83 @@ async function applySmartPaste(overwrite) {
     openJobDetail(smartPasteJobId);
   } catch (err) {
     alert('Error: ' + err.message);
+  }
+}
+
+// ── SIDEBAR MODE TOGGLE (Quotes / Jobs) ─────────────────────────────────
+let currentSidebarMode = 'quotes';
+
+function switchSidebarMode(mode) {
+  currentSidebarMode = mode;
+  const quotesMode = document.getElementById('sidebar-quotes-mode');
+  const jobsMode = document.getElementById('sidebar-jobs-mode');
+  const tabQ = document.getElementById('mode-tab-quotes');
+  const tabJ = document.getElementById('mode-tab-jobs');
+  const footer = document.getElementById('sidebar-footer');
+
+  if (mode === 'jobs') {
+    quotesMode.style.display = 'none';
+    jobsMode.style.display = '';
+    tabQ.style.background = 'var(--surface-1)';
+    tabQ.style.color = 'var(--text-3)';
+    tabJ.style.background = 'var(--accent)';
+    tabJ.style.color = '#fff';
+    if (footer) footer.style.display = 'none';
+    loadJobsSidebar();
+    // Show jobs panel in main area
+    document.getElementById('jobs-panel').classList.add('visible');
+  } else {
+    quotesMode.style.display = '';
+    jobsMode.style.display = 'none';
+    tabQ.style.background = 'var(--accent)';
+    tabQ.style.color = '#fff';
+    tabJ.style.background = 'var(--surface-1)';
+    tabJ.style.color = 'var(--text-3)';
+    if (footer) footer.style.display = '';
+    // Hide jobs panel, show chat/quote
+    document.getElementById('jobs-panel').classList.remove('visible');
+    document.getElementById('job-detail').classList.remove('visible');
+  }
+}
+
+async function loadJobsSidebar() {
+  const list = document.getElementById('sidebar-jobs-list');
+  try {
+    const res = await fetch('/api/jobs');
+    const jobs = await res.json();
+    if (!jobs.length) {
+      list.innerHTML = '<div style="padding:16px;color:var(--text-3);font-size:12px;text-align:center;">No jobs yet.<br>Convert a quote to get started.</div>';
+      return;
+    }
+    const active = jobs.filter(j => j.status === 'active');
+    const closed = jobs.filter(j => j.status !== 'active');
+    let html = '';
+    for (const j of active) {
+      const shortAddr = j.address ? j.address.split(',')[0].trim() : '';
+      const isCash = j.payment_type === 'cash';
+      const effectiveTotal = isCash && j.agreed_total_cents ? j.agreed_total_cents : j.quote_total_cents;
+      const totalStr = effectiveTotal ? '$' + (effectiveTotal / 100).toLocaleString('fr-CA', {maximumFractionDigits:0}) : '';
+      html += `<div class="sidebar-item" onclick="openJobDetail('${j.id}');closeSidebar();" style="cursor:pointer">
+        <div class="sidebar-item-client">${esc(j.job_number)}</div>
+        <div class="sidebar-item-meta">
+          <span class="sidebar-item-id">${esc(shortAddr)}</span>
+          <span class="sidebar-item-total">${totalStr}${isCash ? ' <span style="font-size:9px;color:var(--text-4)">cash</span>' : ''}</span>
+        </div>
+      </div>`;
+    }
+    if (closed.length > 0) {
+      html += '<div style="padding:14px 16px 6px;font-size:9px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--text-4);font-family:var(--font-sans);">Closed</div>';
+      for (const j of closed) {
+        const shortAddr = j.address ? j.address.split(',')[0].trim() : '';
+        html += `<div class="sidebar-item" onclick="openJobDetail('${j.id}');closeSidebar();" style="cursor:pointer;opacity:0.6">
+          <div class="sidebar-item-client">${esc(j.job_number)}</div>
+          <div class="sidebar-item-meta"><span class="sidebar-item-id">${esc(shortAddr)}</span></div>
+        </div>`;
+      }
+    }
+    list.innerHTML = html;
+  } catch (err) {
+    list.innerHTML = '<div style="padding:16px;color:var(--accent)">Error: ' + esc(err.message) + '</div>';
   }
 }
 
