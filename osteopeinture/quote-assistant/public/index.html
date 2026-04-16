@@ -243,8 +243,8 @@
     white-space: nowrap;
   }
   .qtoggle.active {
-    background: var(--accent);
-    color: #000;
+    background: var(--surface-2);
+    color: var(--accent);
     border-color: var(--accent);
   }
   .qtoggle:hover { border-color: var(--accent); }
@@ -1627,6 +1627,16 @@
     #quote-frame-container {
       overflow: auto;
       -webkit-overflow-scrolling: touch;
+      position: relative;
+    }
+    /* Swipe overlay: captures horizontal swipes on the quote panel
+       so the tab-switching gesture works even over the iframe */
+    #quote-frame-container::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      z-index: 5;
+      touch-action: pan-y; /* allow vertical scroll, capture horizontal */
     }
     #quote-frame {
       width: 920px;
@@ -1709,31 +1719,8 @@
     }
     #mobile-back-btn:active { color: var(--accent); }
 
-    /* Floating quote toggle — top-right, keyboard-safe (no bottom anchoring) */
-    #mobile-quote-btn {
-      display: none;
-      position: fixed;
-      top: calc(env(safe-area-inset-top, 0px) + 10px);
-      right: 12px;
-      width: 44px;
-      height: 44px;
-      align-items: center;
-      justify-content: center;
-      background: var(--accent);
-      color: #fff;
-      border: none;
-      border-radius: 50%;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
-      cursor: pointer;
-      z-index: 310;
-      transition: background 0.15s, transform 0.15s;
-      padding: 0;
-      font-size: 0; /* hide any text fallback */
-    }
-    #mobile-quote-btn svg { width: 20px; height: 20px; display: block; }
-    #mobile-quote-btn.visible { display: flex; }
-    #mobile-quote-btn.active { background: var(--surface-2); color: var(--accent); }
-    #mobile-quote-btn:active { transform: scale(0.92); }
+    /* Quote floating icon removed — swipe replaces it */
+    #mobile-quote-btn { display: none !important; }
 
     /* Prevent iOS zoom on input focus */
     #message-input { font-size: 16px; }
@@ -1859,7 +1846,7 @@
       <button class="qtoggle active" id="toggle-lang" onclick="cycleToggle('lang',['FR','EN'])" title="Language">FR</button>
       <button class="qtoggle active" id="toggle-scope" onclick="cycleToggle('scope',['Interior','Exterior'])" title="Interior / Exterior">Interior</button>
       <button class="qtoggle active" id="toggle-tier" onclick="cycleToggle('tier',['High-end','Standard'])" title="Paint tier">High-end</button>
-      <button class="qtoggle" id="toggle-prices" onclick="cycleToggle('prices',['Prices','No prices'])" title="Show paint prices in quote">No prices</button>
+      <button class="qtoggle active" id="toggle-prices" onclick="cycleToggle('prices',['Paint prices','No prices'])" title="Show paint prices in quote">Paint prices</button>
     </div>
     <div id="input-area">
       <div id="image-preview-bar"></div>
@@ -2350,14 +2337,7 @@ async function loadSession(id) {
 
   setStatus(session.status);
 
-  const badge = document.getElementById('session-badge');
-  if (session.project_id) {
-    badge.textContent = session.project_id;
-    badge.style.display = '';
-  } else {
-    badge.style.display = 'none';
-  }
-
+  document.getElementById('session-badge').style.display = 'none';
   document.getElementById('chat-header-title').textContent = session.project_id || session.client_name || 'New Quote';
   updateConvertButton(session);
   loadSidebar();
@@ -2954,7 +2934,7 @@ function setStatus(status) {
 // ── HELPERS ──────────────────────────────────────────
 
 // ── QUOTE TOGGLES ────────────────────────────────────────────────────────
-const quoteToggles = { lang: 'FR', scope: 'Interior', tier: 'High-end', prices: 'No prices' };
+const quoteToggles = { lang: 'FR', scope: 'Interior', tier: 'High-end', prices: 'Paint prices' };
 
 function cycleToggle(key, options) {
   const current = quoteToggles[key];
@@ -2963,14 +2943,9 @@ function cycleToggle(key, options) {
   quoteToggles[key] = next;
   const btn = document.getElementById('toggle-' + key);
   btn.textContent = next;
-  // Active styling for non-default states
-  const isDefault = (key === 'lang' && next === 'FR') ||
-                    (key === 'scope' && next === 'Interior') ||
-                    (key === 'tier' && next === 'High-end') ||
-                    (key === 'prices' && next === 'No prices');
-  btn.classList.toggle('active', !isDefault || key === 'lang' || key === 'scope' || key === 'tier');
-  // Prices toggle: active when showing prices
-  if (key === 'prices') btn.classList.toggle('active', next === 'Prices');
+  // All toggles always show active styling (orange text) — the label
+  // itself communicates the state, no need for active/inactive distinction
+  btn.classList.add('active');
 }
 
 function getToggleContext() {
@@ -2979,7 +2954,7 @@ function getToggleContext() {
   parts.push(`[Language: ${quoteToggles.lang === 'FR' ? 'French' : 'English'}]`);
   parts.push(`[Scope: ${quoteToggles.scope}]`);
   parts.push(`[Paint tier: ${quoteToggles.tier}]`);
-  parts.push(`[Paint prices in quote: ${quoteToggles.prices === 'Prices' ? 'show' : 'hide'}]`);
+  parts.push(`[Paint prices in quote: ${quoteToggles.prices === 'Paint prices' ? 'show' : 'hide'}]`);
   return parts.join(' ');
 }
 
