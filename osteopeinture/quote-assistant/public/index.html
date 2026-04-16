@@ -1895,6 +1895,10 @@
         <button id="mobile-email-close" onclick="toggleEmailForm()" title="Close">✕</button>
         <button id="email-minimize-btn" onclick="minimizeEmailForm()" title="Minimize">−</button>
       </div>
+      <div style="display:flex;gap:8px;padding:6px 0 10px;flex-wrap:wrap;border-bottom:1px solid var(--border-soft);margin-bottom:10px">
+        <button id="generate-session-email-btn" onclick="generateSessionEmail()" style="flex:1;background:var(--accent-dim);border:1px solid var(--accent);color:var(--accent);padding:8px 12px;border-radius:var(--radius-sm);font-size:13px;cursor:pointer;font-weight:600">Generate</button>
+        <button onclick="refineSessionEmail()" style="flex:1;background:var(--surface-2);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:var(--radius-sm);font-size:13px;cursor:pointer;">Refine…</button>
+      </div>
       <div class="email-settings-grid">
         <div class="form-row">
           <div class="form-label">Type</div>
@@ -1944,10 +1948,6 @@
       <div class="form-row form-row-flex">
         <div class="form-label">Message</div>
         <textarea class="form-textarea" id="email-body"></textarea>
-      </div>
-      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px;flex-wrap:wrap">
-        <button id="generate-session-email-btn" onclick="generateSessionEmail()" style="background:var(--accent-dim);border:1px solid var(--accent);color:var(--accent);padding:6px 12px;border-radius:var(--radius-sm);font-size:12px;cursor:pointer;font-weight:600">Generate</button>
-        <button onclick="refineSessionEmail()" style="background:var(--surface-2);border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:var(--radius-sm);font-size:12px;cursor:pointer;">Refine with instructions…</button>
       </div>
       <button id="email-send-btn" onclick="sendEmail()">Send Email with PDF</button>
     </div>
