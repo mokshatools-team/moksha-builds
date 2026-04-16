@@ -24,6 +24,7 @@
 - [Never ask Loric to manually categorize](feedback_automate_categorization.md) — Auto-categorize imports via autocat-rules.json
 - [Overestimate consumables](feedback_overestimate_consumables.md) — Per-job supplies allocations historically underestimated, overestimate going forward
 - [Railway CLI drifts between projects](feedback_railway_cli_drift.md) — Always chain `railway link` + `railway up` in one shell; verify build log URL contains project `2049a8ed-...`
+- [Never bare `railway up` for OP Hub](feedback_never_bare_railway_up.md) — Use `npm run deploy` which runs scripts/deploy.sh with project verification
 - [Bump # Version line when editing QUOTING_LOGIC.md](feedback_quoting_logic_version_bump.md) — Force-reseed only fires when the version header changes; forgetting = silent no-op on deploy
 - [Supabase — always use Session Pooler](feedback_supabase_pooler_only.md) — direct connection is IPv6-only, fails on Railway and local networks
 

@@ -1,10 +1,30 @@
 # CONTEXT.md — OstéoPeinture OP Hub (fka Quote Assistant)
 # Last updated: April 16, 2026
-# Session: F — Email drafts now tone-matched to 193 real past sent emails
+# Session: G — Payment modal, jobs dashboard, deploy safeguard
 
 ---
 
-## STATE AS OF 2026-04-16
+## STATE AS OF 2026-04-16 (Session G)
+
+### Payment + Jobs UX (mobile-first refinements)
+- Payment confirm dialog now shows project ID (LACHANCE_01) instead of client name
+- Method input replaced with selectable buttons (e-transfer / cash / cheque) — no more typing on mobile
+- New payment modal: amount + method buttons + date + optional reference, single form
+- Jobs dashboard groups by **Active / Upcoming / Past** with counts (uses `start_date` + `completion_date` + status)
+- Back-from-job lands on dashboard if opened from dashboard, else returns to previous surface (`jobOpenedFrom` flag)
+
+### Deploy safeguard (incident 2026-04-16)
+- Earlier this session, a bare `railway up` deployed OP Hub code to `text-overlay-assistant` (Fidelio project) because the Railway CLI had drifted. Build failed → no live damage.
+- New `scripts/deploy.sh` (run via `npm run deploy`) hard-codes project + service IDs, verifies the link via `railway status --json`, aborts if mismatch, then runs `railway up`.
+- Preflight checks for railway/node CLIs; streams stdin to handle multi-chunk JSON.
+- **Always use `npm run deploy`, never bare `railway up`.**
+
+**Live URL:** https://op-quote-assistant.up.railway.app
+**Commits:** `9fd4f1f`
+
+---
+
+## STATE AS OF 2026-04-16 (Session F)
 
 ### Session F — Past-email tone reference for drafts (2026-04-16)
 
