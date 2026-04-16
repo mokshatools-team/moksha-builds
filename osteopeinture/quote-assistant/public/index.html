@@ -3351,6 +3351,28 @@ async function loadJobs() {
   }
 }
 
+function renderChangeOrders(orders) {
+  if (!orders || !orders.length) return '';
+  let html = '<div style="margin-bottom:20px;">';
+  html += '<h3 style="font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-2);margin-bottom:8px;font-family:var(--font-sans)">Change Orders</h3>';
+  for (const co of orders) {
+    const amt = (co.amount_cents / 100).toLocaleString('fr-CA', {maximumFractionDigits:0});
+    const statusColor = co.status === 'approved' ? 'var(--sage)' : (co.status === 'rejected' ? '#c94a4a' : 'var(--text-3)');
+    const statusBg = co.status === 'approved' ? 'var(--sage-dim)' : (co.status === 'rejected' ? 'rgba(201,74,74,0.1)' : 'var(--surface-2)');
+    html += '<div style="background:var(--surface-1);border:1px solid var(--border);border-radius:6px;padding:10px 12px;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between;gap:8px">';
+    html += '<div style="flex:1;min-width:0">';
+    html += '<div style="font-size:13px;font-weight:600;color:var(--text);font-family:var(--font-sans)">' + esc(co.title_en || co.title_fr || 'Change order') + '</div>';
+    html += '<div style="font-size:11px;color:var(--text-3);margin-top:2px">' + (co.created_at ? co.created_at.slice(0,10) : '') + '</div>';
+    html += '</div>';
+    html += '<div style="font-size:14px;font-weight:600;color:var(--text);white-space:nowrap">$' + amt + '</div>';
+    html += '<span style="font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;padding:2px 6px;border-radius:3px;background:' + statusBg + ';color:' + statusColor + '">' + co.status + '</span>';
+    html += '<a href="/preview/change-order/' + co.id + '" target="_blank" style="font-size:11px;color:var(--accent);text-decoration:none;white-space:nowrap">view</a>';
+    html += '</div>';
+  }
+  html += '</div>';
+  return html;
+}
+
 // Tracks how the job-detail was opened so closeJobDetail() can return to the
 // right surface. Set by the entry-point onclicks ('dashboard' from job cards,
 // 'sidebar' from sidebar items). Internal refresh calls (after save, sync,
@@ -3446,24 +3468,7 @@ async function openJobDetail(jobId, source) {
       </div>
 
       <!-- CHANGE ORDERS (only rendered if any exist) -->
-      ${(job.changeOrders && job.changeOrders.length) ? `
-      <div style="margin-bottom:20px;">
-        <h3 style="font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-2);margin-bottom:8px;font-family:var(--font-sans)">Change Orders</h3>
-        ${job.changeOrders.map(co => {
-          const amt = (co.amount_cents / 100).toLocaleString('fr-CA', {maximumFractionDigits:0});
-          const statusColor = co.status === 'approved' ? 'var(--sage)' : (co.status === 'rejected' ? '#c94a4a' : 'var(--text-3)');
-          const statusBg = co.status === 'approved' ? 'var(--sage-dim)' : (co.status === 'rejected' ? 'rgba(201,74,74,0.1)' : 'var(--surface-2)');
-          return \`<div style="background:var(--surface-1);border:1px solid var(--border);border-radius:6px;padding:10px 12px;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between;gap:8px">
-            <div style="flex:1;min-width:0">
-              <div style="font-size:13px;font-weight:600;color:var(--text);font-family:var(--font-sans)">\${esc(co.title_en || co.title_fr || 'Change order')}</div>
-              <div style="font-size:11px;color:var(--text-3);margin-top:2px">\${co.created_at ? co.created_at.slice(0,10) : ''}</div>
-            </div>
-            <div style="font-size:14px;font-weight:600;color:var(--text);white-space:nowrap">$\${amt}</div>
-            <span style="font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;padding:2px 6px;border-radius:3px;background:\${statusBg};color:\${statusColor}">\${co.status}</span>
-            <a href="/preview/change-order/\${co.id}" target="_blank" style="font-size:11px;color:var(--accent);text-decoration:none;white-space:nowrap">view</a>
-          </div>\`;
-        }).join('')}
-      </div>` : ''}
+      ${renderChangeOrders(job.changeOrders)}
 
       <!-- ACTIONS (compact grid) -->
       <div style="margin-bottom:20px;">
