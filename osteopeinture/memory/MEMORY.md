@@ -30,6 +30,10 @@
 ## Cash/Declared + Past Quotes
 - [Cash vs declared job logic](project_cash_declared_logic.md) — no taxes on cash, agreed flat total, unbranded docs, declared ledger future intent
 - [Past quotes search plan](project_past_quotes_search.md) — import 252 PDFs + extracted JSON into Supabase, Claude tool for institutional memory
+- [Past quotes extraction status](project_past_quotes_extraction.md) — 80 imported, ~300 pending, filter by: quotes-only + recent + converted jobs
+
+## UX Feedback
+- [Mobile UX must be instant](feedback_mobile_ux_speed.md) — no round-trips per interaction, textareas over checkboxes, Enter=newline on mobile, hamburger always visible
 
 ## Scaffold Module
 - [Scaffold module — scope & logic](project_scaffold_module.md) — new OP Hub module, calculates scaffold component quantities + rental costs from job dimensions
