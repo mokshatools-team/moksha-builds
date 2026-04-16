@@ -3160,9 +3160,10 @@ function mobileNavTo(view) {
   }
 }
 
-// ── SWIPE GESTURES ──────────────────────────────────
+// ── SWIPE GESTURES — swipe through all 4 tabs continuously ──────────
 (function initSwipeGestures() {
-  const THRESHOLD = 50;
+  const THRESHOLD = 60;
+  const TAB_ORDER = ['chat', 'quote', 'email', 'jobs'];
   let touchStartX = 0;
   let touchStartY = 0;
   let swiping = false;
@@ -3179,14 +3180,29 @@ function mobileNavTo(view) {
     swiping = false;
     const dx = e.changedTouches[0].clientX - touchStartX;
     const dy = e.changedTouches[0].clientY - touchStartY;
-    if (Math.abs(dx) < THRESHOLD || Math.abs(dy) > Math.abs(dx)) return;
+    // Only trigger on horizontal swipes (not vertical scroll)
+    if (Math.abs(dx) < THRESHOLD || Math.abs(dy) > Math.abs(dx) * 0.7) return;
 
-    if (dx < -THRESHOLD && mobileCurrentView === 'chat') {
-      mobileNavTo('quote');
-    } else if (dx > THRESHOLD && mobileCurrentView === 'quote') {
-      mobileNavTo('chat');
-    } else if (dx > THRESHOLD && mobileCurrentView === 'email') {
-      mobileNavTo('quote');
+    const currentIdx = TAB_ORDER.indexOf(mobileCurrentView);
+    if (currentIdx === -1) return;
+
+    if (dx < -THRESHOLD && currentIdx < TAB_ORDER.length - 1) {
+      // Swipe left → next tab
+      const next = TAB_ORDER[currentIdx + 1];
+      if (next === 'jobs') {
+        switchSidebarMode('jobs');
+      } else {
+        mobileNavTo(next);
+      }
+    } else if (dx > THRESHOLD && currentIdx > 0) {
+      // Swipe right → previous tab
+      const prev = TAB_ORDER[currentIdx - 1];
+      if (mobileCurrentView === 'jobs') {
+        switchSidebarMode('quotes');
+        mobileNavTo('email');
+      } else {
+        mobileNavTo(prev);
+      }
     }
   }, { passive: true });
 })();
@@ -3590,6 +3606,7 @@ function switchSidebarMode(mode) {
     loadJobsSidebar();
     // Show jobs panel in main area
     document.getElementById('jobs-panel').classList.add('visible');
+    mobileCurrentView = 'jobs';
   } else {
     quotesMode.style.display = '';
     jobsMode.style.display = 'none';
