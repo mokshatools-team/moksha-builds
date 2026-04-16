@@ -3491,17 +3491,24 @@ async function applySmartPaste(overwrite) {
 }
 
 async function cycleSessionStatus(sessionId, current) {
-  const options = ['gathering', 'quote_ready', 'sent', 'declined', 'archived'];
-  const labels = { gathering: 'In Progress', quote_ready: 'Ready', sent: 'Sent', declined: 'Declined', archived: 'Archived' };
+  const options = ['gathering', 'quote_ready', 'sent', 'converted', 'declined', 'archived'];
+  const labels = { gathering: 'In Progress', quote_ready: 'Ready', sent: 'Sent', converted: 'Active (convert to job)', declined: 'Declined', archived: 'Archived' };
   const choice = prompt(
     'Set status to:\n' +
     options.map((o, i) => `  ${i+1}. ${labels[o]}${o === current ? ' (current)' : ''}`).join('\n') +
-    '\n\nEnter number (1-5):'
+    '\n\nEnter number (1-6):'
   );
   if (!choice) return;
   const idx = parseInt(choice) - 1;
   if (idx < 0 || idx >= options.length) return;
   const newStatus = options[idx];
+
+  // If converting to a job, run the convert flow instead of just changing the badge
+  if (newStatus === 'converted') {
+    await convertViaStatusBadge(sessionId);
+    return;
+  }
+
   try {
     await fetch('/api/sessions/' + sessionId + '/status', {
       method: 'PATCH',
@@ -3509,6 +3516,75 @@ async function cycleSessionStatus(sessionId, current) {
       body: JSON.stringify({ status: newStatus }),
     });
     loadSidebar();
+  } catch (err) {
+    alert('Error: ' + err.message);
+  }
+}
+
+async function convertViaStatusBadge(sessionId) {
+  // Fetch session to get quote data for pre-fills
+  let session;
+  try {
+    const res = await fetch('/api/sessions/' + sessionId);
+    session = await res.json();
+  } catch (e) { alert('Could not load session'); return; }
+
+  // Step 1: Cash or Declared?
+  const typeChoice = prompt('Payment type:\n  1. Declared (taxes apply)\n  2. Cash (no taxes)\n\nEnter 1 or 2:');
+  if (!typeChoice) return;
+  const isCash = typeChoice.trim() === '2';
+  const paymentType = isCash ? 'cash' : 'declared';
+
+  // Step 2: Agreed total — pre-fill based on type
+  const quoteJson = session.quoteJson || (session.quote_json ? JSON.parse(session.quote_json) : null);
+  let preFill = 0;
+  if (quoteJson && quoteJson.sections) {
+    let subtotal = 0;
+    for (const sec of quoteJson.sections) {
+      if (sec.excluded || sec.optional) continue;
+      subtotal += sec.total || 0;
+    }
+    // Round to nearest $50
+    subtotal = Math.round(subtotal / 50) * 50;
+    if (isCash) {
+      preFill = subtotal; // pre-tax for cash
+    } else {
+      preFill = Math.round(subtotal * 1.14975); // with taxes for declared
+    }
+  }
+
+  const agreedStr = prompt(
+    (isCash ? 'Cash' : 'Declared') + ' — Agreed total ($):\n\n' +
+    '(Pre-filled with ' + (isCash ? 'pre-tax subtotal' : 'grand total incl. taxes') + '.\n' +
+    'Edit if negotiated differently.)',
+    String(preFill)
+  );
+  if (!agreedStr) return;
+  const agreedTotal = parseFloat(agreedStr);
+  if (!agreedTotal || agreedTotal <= 0) { alert('Invalid amount'); return; }
+
+  // Step 3: Convert
+  try {
+    const res = await fetch('/api/sessions/' + sessionId + '/convert-to-job', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        paymentType,
+        agreedTotal,
+        clientName: session.client_name || (quoteJson && quoteJson.clientName) || undefined,
+        address: session.address || (quoteJson && quoteJson.address) || undefined,
+        clientEmail: session.email_recipient || undefined,
+        language: (quoteJson && quoteJson.modalities && quoteJson.modalities.language) || 'french',
+      }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      loadSidebar();
+      if (typeof loadJobs === 'function') loadJobs();
+      alert('Job created: ' + (data.job_number || 'OK'));
+    } else {
+      alert(data.error || 'Conversion failed');
+    }
   } catch (err) {
     alert('Error: ' + err.message);
   }
