@@ -242,7 +242,8 @@ async function convertSessionToJob(sessionId, overrides = {}) {
     const productsLines = paints.map(p => {
       const parts = [];
       if (p.type) parts.push(p.type + ':');
-      if (p.product) parts.push(p.product);
+      if (p.approxQty) parts.push(p.approxQty);
+      if (p.product) parts.push((p.approxQty ? '— ' : '') + p.product);
       if (p.finish) parts.push('— ' + p.finish);
       if (p.color) parts.push('— ' + p.color);
       return parts.join(' ');
@@ -1283,9 +1284,9 @@ Output this exact structure (if user requested French quote, add "lang": "fr" an
     }
   ],
   "paints": [
-    { "type": "Walls", "product": "SW Duration Home", "color": "BM OC-65 Chantilly Lace", "finish": "Low Sheen", "approxCost": 850 },
-    { "type": "Ceilings", "product": "SW PM400", "color": "Ceiling White", "finish": "Extra Flat", "approxCost": 200 },
-    { "type": "Trim", "product": "BM Advance", "color": "BM OC-65 Chantilly Lace", "finish": "Semi-Gloss", "approxCost": 350 }
+    { "type": "Walls", "product": "SW Duration Home", "color": "BM OC-65 Chantilly Lace", "finish": "Low Sheen", "approxQty": "12 gal", "approxCost": 850 },
+    { "type": "Ceilings", "product": "SW PM400", "color": "Ceiling White", "finish": "Extra Flat", "approxQty": "5 gal", "approxCost": 200 },
+    { "type": "Trim", "product": "BM Advance", "color": "BM OC-65 Chantilly Lace", "finish": "Semi-Gloss", "approxQty": "4 gal", "approxCost": 350 }
   ],
   "modalities": {
     "startDate": "April 7, 2026",
@@ -1368,8 +1369,8 @@ For exterior jobs, output this structure instead. Key differences: sections use 
     }
   ],
   "paints": [
-    { "type": "Façade", "product": "SW Duration Ext", "color": "TBD", "finish": "Satin", "approxCost": 450 },
-    { "type": "Deck", "product": "STEINA Enduradeck", "color": "TBD", "finish": "Opaque", "approxCost": 220 }
+    { "type": "Façade", "product": "SW Duration Ext", "color": "TBD", "finish": "Satin", "approxQty": "8 gal", "approxCost": 450 },
+    { "type": "Deck", "product": "STEINA Enduradeck", "color": "TBD", "finish": "Opaque", "approxQty": "4 gal", "approxCost": 220 }
   ],
   "modalities": {
     "startDate": "May 12, 2026",
@@ -1419,6 +1420,7 @@ ${rules}
   - Paint tier: use High-end products (Duration Home for walls) or Standard products (SuperPaint for walls) from §6
   - Paint prices: if "hide", set approxCost to 0 in the paints array (the renderer will omit the price column). If "show", include real approxCost values.
 - Do NOT ask the user about language, interior/exterior, or paint tier if the toggles already specify them. Just use the toggle values.
+- Before finalizing the JSON, BRIEFLY ask the user to confirm or estimate paint quantities (gallons per product). Use §5 COVERAGE RATES from QUOTING_LOGIC.md to propose a number based on the surface area you have. Example: "Walls ~520 sqft × 2 coats ÷ 350 sqft/gal ≈ 3 gal of Regal — sound right?" The user can answer with a number, "yes", or "skip" — if skip, set approxQty to null. Always include the approxQty field in the paints array (string like "12 gal" or null). This populates the Products section automatically when the quote becomes a job.
 - You have access to 80 past OstéoPeinture quotes (2024-2025) in the database. When the user asks about similar past jobs, mentions a client name, or when a price reference would be helpful, search the past quotes and cite them with the date: "For [client] at [address] in [Month Year], you quoted $X." Always include the date to avoid stale pricing confusion. Never guess — only cite actual data from past quotes.
 - For EXTERIOR jobs: never calculate labour hours from benchmarks — the estimator provides hours manually. Only calculate product quantities for decks and large stucco where sqft was collected.
 - For EXTERIOR jobs: always include the estimateDisclaimer field. Always include a Repairs section with excluded: true. Always round section totals to nearest $50.
