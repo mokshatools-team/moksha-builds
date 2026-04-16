@@ -4411,6 +4411,12 @@ async function recordPayment(jobId) {
 
 // ── INIT ─────────────────────────────────────────────
 loadSidebar();
+// On mobile, open the sidebar by default so the user lands on the
+// Quotes/Jobs list instead of an empty chat screen.
+if (window.innerWidth <= 768) {
+  document.getElementById('sidebar').classList.add('open');
+  document.getElementById('sidebar-overlay').classList.add('visible');
+}
 window.addEventListener('resize', updateQuoteScale);
 </script>
 </body>
