@@ -1627,19 +1627,27 @@
     #quote-panel.email-only #panel-divider { display: none !important; }
     #quote-panel.email-only #email-form {
       flex: 1;
+      display: flex;
+      flex-direction: column;
       position: relative;
       transform: none;
-      padding-top: calc(env(safe-area-inset-top, 0px) + 50px);
+      padding-top: calc(env(safe-area-inset-top, 0px) + 44px);
       padding-bottom: calc(56px + env(safe-area-inset-bottom));
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
     }
-    /* Tighter spacing in email form on mobile — more room for the message */
-    #quote-panel.email-only #email-form-header { padding-bottom: 4px; margin-bottom: 2px; }
-    #quote-panel.email-only .email-settings-grid { gap: 4px; margin-bottom: 4px; }
-    #quote-panel.email-only .form-row { margin-bottom: 2px; }
-    #quote-panel.email-only .form-label { font-size: 9px; margin-bottom: 2px; }
-    #quote-panel.email-only .form-input { padding: 6px 8px; font-size: 12px; }
+    /* Tight spacing — maximize message area */
+    #quote-panel.email-only #email-form-header { padding-bottom: 2px; margin-bottom: 0; }
+    #quote-panel.email-only .email-settings-grid { gap: 2px 6px; margin-bottom: 0; }
+    #quote-panel.email-only .form-row { margin-bottom: 1px; }
+    #quote-panel.email-only .form-label { font-size: 8px; margin-bottom: 1px; }
+    #quote-panel.email-only .form-input { padding: 5px 6px; font-size: 11px; }
+    /* Generate/Refine buttons: compact single line */
+    #quote-panel.email-only #email-form > div:nth-child(2) { padding: 4px 0 6px; margin-bottom: 0; }
+    #quote-panel.email-only #email-form > div:nth-child(2) button { padding: 5px 8px; font-size: 11px; }
+    /* Message textarea fills remaining space */
+    #quote-panel.email-only .form-row-flex { flex: 1; display: flex; flex-direction: column; }
+    #quote-panel.email-only .form-textarea { flex: 1; min-height: 120px; }
 
     #jobs-panel { padding-top: env(safe-area-inset-top); }
     #jobs-header { padding-top: max(14px, env(safe-area-inset-top)); }
@@ -1692,12 +1700,10 @@
       transform: translateY(100%) !important;
     }
 
-    /* Email settings: 2×3 grid on mobile */
+    /* Email settings: 3×2 grid on mobile — 6 fields in 2 rows */
     .email-settings-grid {
-      grid-template-columns: 1fr 1fr;
-    }
-    .email-settings-grid .form-row:last-child {
-      grid-column: 1 / -1;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 4px 6px;
     }
 
     /* Send button: inside the email header flow, not absolute-positioned.
