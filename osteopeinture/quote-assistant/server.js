@@ -1156,8 +1156,19 @@ function esc(str) {
 // SYSTEM PROMPT
 // ============================================================
 
-function buildSystemPrompt() {
-  const rules = getQuotingLogic();
+// Return quoting logic trimmed to what's needed for this session.
+// Interior sessions skip §23-34 (exterior, scaffold, lifts) — saves ~5K tokens per request.
+function getRelevantQuotingLogic(isExterior) {
+  const full = getQuotingLogic();
+  if (isExterior) return full; // exterior needs everything
+  // Strip from "## 23. EXTERIOR" to end of file — interior doesn't need it
+  const cutPoint = full.indexOf('## 23. EXTERIOR');
+  if (cutPoint === -1) return full;
+  return full.slice(0, cutPoint).trimEnd() + '\n\n(Exterior/scaffold sections omitted — interior session)\n';
+}
+
+function buildSystemPrompt(isExterior = false) {
+  const rules = getRelevantQuotingLogic(isExterior);
   return `You are the internal quote builder for Loric, Lubo, and Graeme at Ostéopeinture. This is an internal estimating tool, not client-facing by default.
 
 Be casual, direct, brief, and operational. Stay task-focused. No flattery, no extra commentary, no tone-policing. Do not encourage abusive or hateful language.
@@ -1816,7 +1827,7 @@ async function handleSessionMessage(req, res) {
     const apiParams = {
       model: 'claude-sonnet-4-6',
       max_tokens: 4096,
-      system: buildSystemPrompt(),
+      system: buildSystemPrompt(isExteriorSession),
       messages,
     };
     // Always provide past quotes search; scaffold only for exterior sessions
