@@ -326,6 +326,15 @@
     .upload-label { font-size: 13px; color: var(--text-2); margin-bottom: 4px; }
     .upload-hint  { font-size: 11px; color: var(--text-3); }
     .upload-name  { font-size: 13px; color: var(--accent); font-weight: 500; }
+    .upload-progress {
+      width: 100%; height: 4px; background: var(--border);
+      border-radius: 2px; margin-top: 10px; overflow: hidden; display: none;
+    }
+    .upload-progress-bar {
+      height: 100%; width: 0%; background: var(--accent);
+      border-radius: 2px; transition: width 0.2s;
+    }
+    .upload-pct { font-size: 11px; color: var(--text-3); margin-top: 4px; display: none; }
 
     .input-separator {
       padding: 12px 20px;
@@ -762,6 +771,8 @@
               <div class="upload-icon">📁</div>
               <div class="upload-label" id="upload-label">Click or drag a video file here</div>
               <div class="upload-hint">mp4 · mov · mxf · avi</div>
+              <div class="upload-progress" id="upload-progress"><div class="upload-progress-bar" id="upload-progress-bar"></div></div>
+              <div class="upload-pct" id="upload-pct"></div>
             </div>
           </div>
 
@@ -1229,7 +1240,9 @@
       }
     }
 
-    // ── File uploaded (Railway mode) ──
+    // ── File uploaded (Railway mode) — chunked for large files ──
+    const CHUNK_SIZE = 50 * 1024 * 1024; // 50 MB per chunk
+
     async function onFileUpload(inputEl) {
       const file = inputEl.files[0];
       if (!file) return;
@@ -1240,47 +1253,101 @@
       const projectInput = document.getElementById('project-input');
       const offsetInput  = document.getElementById('offset-input');
       const offsetHint   = document.getElementById('offset-hint');
+      const progressWrap = document.getElementById('upload-progress');
+      const progressBar  = document.getElementById('upload-progress-bar');
+      const pctLabel     = document.getElementById('upload-pct');
 
-      labelEl.textContent  = 'Uploading…';
       zone.classList.add('has-file');
-      uploadInProgress     = true;
-      analyzeBtn.disabled  = true;
+      uploadInProgress    = true;
+      analyzeBtn.disabled = true;
 
-      const formData = new FormData();
-      formData.append('file', file);
+      const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+      const useChunked  = totalChunks > 1;
 
       try {
-        const resp = await fetch('/upload', { method: 'POST', body: formData });
-        const data = await resp.json();
+        let data;
 
-        if (!resp.ok) {
-          showError(data.error || 'Upload failed.');
-          labelEl.textContent = 'Click or drag a video file here';
-          zone.classList.remove('has-file');
-          uploadInProgress = false;
-          return;
+        if (!useChunked) {
+          // Small file — single POST (original path)
+          labelEl.textContent = 'Uploading\u2026';
+          const formData = new FormData();
+          formData.append('file', file);
+          const resp = await fetch('/upload', { method: 'POST', body: formData });
+          data = await resp.json();
+          if (!resp.ok) throw new Error(data.error || 'Upload failed.');
+        } else {
+          // Large file — chunked upload
+          progressWrap.style.display = 'block';
+          pctLabel.style.display     = 'block';
+          progressBar.style.width    = '0%';
+          labelEl.textContent        = 'Uploading\u2026 0%';
+
+          // 1. Init
+          const initResp = await fetch('/upload/init', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ filename: file.name }),
+          });
+          const initData = await initResp.json();
+          if (!initResp.ok) throw new Error(initData.error || 'Upload init failed.');
+          const uploadId = initData.upload_id;
+
+          // 2. Send chunks
+          for (let i = 0; i < totalChunks; i++) {
+            const start = i * CHUNK_SIZE;
+            const end   = Math.min(start + CHUNK_SIZE, file.size);
+            const blob  = file.slice(start, end);
+
+            const chunkForm = new FormData();
+            chunkForm.append('upload_id', uploadId);
+            chunkForm.append('chunk', blob);
+
+            const chunkResp = await fetch('/upload/chunk', { method: 'POST', body: chunkForm });
+            if (!chunkResp.ok) {
+              const err = await chunkResp.json().catch(() => ({}));
+              throw new Error(err.error || 'Chunk upload failed.');
+            }
+
+            const pct = Math.round(((i + 1) / totalChunks) * 100);
+            progressBar.style.width = pct + '%';
+            pctLabel.textContent    = pct + '%';
+            labelEl.textContent     = 'Uploading\u2026 ' + pct + '%';
+          }
+
+          // 3. Complete
+          const completeResp = await fetch('/upload/complete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ upload_id: uploadId }),
+          });
+          data = await completeResp.json();
+          if (!completeResp.ok) throw new Error(data.error || 'Upload finalize failed.');
         }
 
         selectedFile         = data.temp_filename;
         uploadedOriginalName = data.original_name || file.name;
         setIngestionMode('file');
-        labelEl.innerHTML    = `<span class="upload-name">✓ ${esc(uploadedOriginalName)}</span>`;
+        labelEl.innerHTML    = `<span class="upload-name">\u2713 ${esc(uploadedOriginalName)}</span>`;
+        progressWrap.style.display = 'none';
+        pctLabel.style.display     = 'none';
 
         if (!projectInput.value.trim()) projectInput.value = filenameToProjectName(uploadedOriginalName);
         const detected = detectOffsetFromFilename(uploadedOriginalName);
         if (detected) {
-          offsetHint.textContent = `Auto-detected: ${detected} — confirm or override`;
+          offsetHint.textContent = `Auto-detected: ${detected} \u2014 confirm or override`;
           offsetHint.classList.add('visible');
           if (!offsetInput.value.trim()) offsetInput.value = detected;
         }
 
-        uploadInProgress    = false;
+        uploadInProgress = false;
         refreshAnalyzeButton();
         clearError();
       } catch (err) {
-        showError('Upload failed — network error.');
+        showError(err.message || 'Upload failed \u2014 network error.');
         labelEl.textContent = 'Click or drag a video file here';
         zone.classList.remove('has-file');
+        progressWrap.style.display = 'none';
+        pctLabel.style.display     = 'none';
         uploadInProgress = false;
         refreshAnalyzeButton();
       }

@@ -519,11 +519,18 @@ def api_files():
 
 
 # ---------------------------------------------------------------------------
-# Routes — file upload (Railway mode)
+# Routes — file upload (Railway mode) — chunked for large files
 # ---------------------------------------------------------------------------
+
+# In-progress chunked uploads: upload_id -> {path, ext, original_name, chunks_received}
+_chunked_uploads = {}
+
+CHUNK_SIZE_LIMIT = 60 * 1024 * 1024  # 50 MB per chunk (with margin)
+
 
 @app.route("/upload", methods=["POST"])
 def upload_file():
+    """Legacy single-shot upload — still works for small files."""
     if "file" not in request.files:
         return jsonify({"error": "No file provided."}), 400
 
@@ -538,6 +545,71 @@ def upload_file():
     f.save(dest)
 
     return jsonify({"temp_filename": safe_name, "original_name": name})
+
+
+@app.route("/upload/init", methods=["POST"])
+def upload_init():
+    """Start a chunked upload. Returns an upload_id."""
+    data = request.get_json(force=True) or {}
+    name = data.get("filename", "")
+    ext  = os.path.splitext(name)[1].lower()
+    if ext not in SUPPORTED_EXTS:
+        return jsonify({"error": f"Unsupported file type: {ext}. Use mp4, mov, mxf, or avi."}), 400
+
+    upload_id = uuid.uuid4().hex
+    safe_name = f"{upload_id}{ext}"
+    dest      = os.path.join(TEMP_DIR, safe_name)
+
+    _chunked_uploads[upload_id] = {
+        "path": dest,
+        "ext": ext,
+        "original_name": name,
+        "safe_name": safe_name,
+        "chunks_received": 0,
+    }
+
+    return jsonify({"upload_id": upload_id})
+
+
+@app.route("/upload/chunk", methods=["POST"])
+def upload_chunk():
+    """Receive one chunk and append it to the file."""
+    upload_id = request.form.get("upload_id", "")
+    info = _chunked_uploads.get(upload_id)
+    if not info:
+        return jsonify({"error": "Unknown upload_id."}), 400
+
+    if "chunk" not in request.files:
+        return jsonify({"error": "No chunk data."}), 400
+
+    chunk = request.files["chunk"]
+    with open(info["path"], "ab") as fp:
+        while True:
+            block = chunk.stream.read(1024 * 1024)
+            if not block:
+                break
+            fp.write(block)
+
+    info["chunks_received"] += 1
+    return jsonify({"chunks_received": info["chunks_received"]})
+
+
+@app.route("/upload/complete", methods=["POST"])
+def upload_complete():
+    """Finalize a chunked upload."""
+    data = request.get_json(force=True) or {}
+    upload_id = data.get("upload_id", "")
+    info = _chunked_uploads.pop(upload_id, None)
+    if not info:
+        return jsonify({"error": "Unknown upload_id."}), 400
+
+    if not os.path.isfile(info["path"]):
+        return jsonify({"error": "Upload file not found on server."}), 500
+
+    return jsonify({
+        "temp_filename": info["safe_name"],
+        "original_name": info["original_name"],
+    })
 
 
 # ---------------------------------------------------------------------------
