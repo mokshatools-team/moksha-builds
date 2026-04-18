@@ -1317,6 +1317,7 @@ Output this exact structure (if user requested French quote, add "lang": "fr" an
     "conditions": [
       "Previously painted surfaces are presumed to be latex-based; oil-based surfaces would require an additional priming coat"
     ],
+    "_NOTE_ON_CONDITIONS": "IMPORTANT: the following 3 lines are ALREADY hardcoded in the quote footer — NEVER repeat them in conditions: (1) additional work billed at $65/h + materials, (2) quote valid 30 days, (3) client responsible for permits. Also NEVER add filler like 'work limited to designated surfaces' — it's obvious and adds no value. Only include conditions that are genuinely specific to this job (e.g., substrate assumptions, access constraints, weather conditions for exterior).",
     "hourlyRate": 65
   },
   "sections": [
