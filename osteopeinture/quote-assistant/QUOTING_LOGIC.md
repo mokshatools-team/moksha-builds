@@ -1,7 +1,7 @@
 # OSTÉOPEINTURE — QUOTING LOGIC
 # Main estimating brain for interior and exterior quotes.
 # Last updated: April 8, 2026
-# Version: v6 — §5 gallon rounding: round up unless .1-.2 (round down), show calc + suggestion
+# Version: v7 — §4 door/window benchmarks are PER COAT (×2 for standard 2 coats)
 
 ---
 ---
@@ -68,27 +68,29 @@ Primer coat time = same benchmark as finish coat. Extra cost = materials + consu
 
 ## 4. SURFACE / UNIT ASSUMPTIONS
 
-### Doors — per face, frame inclusive every time
+### Doors — per face, per coat, frame inclusive every time
 
-| Type | Time per face |
+| Type | Time per face PER COAT |
 |---|---|
 | Standard door + frame | 30 min |
 | Panelled door / window door + frame | 45 min |
 | French door 15 panels + frame | 1h taping + 1h per face |
 
 Notes:
-- All door benchmarks are per face; frame time is included every time.
+- All door benchmarks are **per face, per coat**; frame time is included every time.
 - Two-face door = double the time (each face timed independently).
+- **2 coats is standard** — multiply the per-coat time × 2 for total time. Example: standard door, 2 faces, 2 coats = 30 min × 2 faces × 2 coats = 2h.
 
-### Windows — per unit, frame inclusive
+### Windows — per unit, per coat, frame inclusive
 
-| Type | Time |
+| Type | Time PER COAT |
 |---|---|
 | Modern flat rectangular | 15 min |
 | Standard Victorian | 30 min |
 | Extra-detail Victorian (leaded glass / multi-pane) | 1h taping + 1h per unit |
 
-If window type is unclear, state the assumption and ask the user to confirm it.
+- **2 coats is standard** — multiply the per-coat time × 2 for total time. Example: standard Victorian window, 2 coats = 30 min × 2 = 1h.
+- If window type is unclear, state the assumption and ask the user to confirm it.
 
 ### Fireplace Mantle
 
