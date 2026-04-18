@@ -1224,17 +1224,17 @@ State the benchmarks and rates chosen for this specific job BEFORE showing any r
 - List what's included + general conditions (same as before)
 
 ### 3. Room-by-Room Breakdown
-For each room, list EVERY surface on its own line. Each line shows: surface description, approximate sqft or count, coats, labour hours, labour cost, and paint gallons needed for that surface — all on ONE line.
+For each room, list EVERY surface on its own line. Each line shows: surface description, approximate sqft or count, coats, labour hours, labour cost, and paint gallons needed for that surface — all on ONE line. Show gallon quantities with ONE decimal point (e.g., 2.1 gal, not 2 or 3). Never round to whole numbers — the user decides rounding when ordering.
 
 Format per room:
 ### [Room Name] — [Floor] — $[room total]
-- Ceiling: ~[sqft] sqft, [coats] coats → [hours]h → $[cost] — [gal] gal [product]
-- Walls: ~[sqft] sqft, [coats] coats → [hours]h → $[cost] — [gal] gal [product]
-- Walls (primer): ~[sqft] sqft, 1 coat → [hours]h → $[cost] — [gal] gal [primer product]
-- Baseboards: ~[length] lin ft → [hours]h → $[cost] — [gal] gal [product]
-- [N] doors ([faces] faces): [hours]h → $[cost] — [gal] gal [product]
-- [N] windows ([type]): [hours]h → $[cost] — [gal] gal [product]
-- Closet interior: → [hours]h → $[cost] — [gal] gal [product]
+- Ceiling: ~[sqft] sqft, [coats] coats → [hours]h → $[cost] — [X.X] gal [product]
+- Walls: ~[sqft] sqft, [coats] coats → [hours]h → $[cost] — [X.X] gal [product]
+- Walls (primer): ~[sqft] sqft, 1 coat → [hours]h → $[cost] — [X.X] gal [primer product]
+- Baseboards: ~[length] lin ft → [hours]h → $[cost] — [X.X] gal [product]
+- [N] doors ([faces] faces): [hours]h → $[cost] — [X.X] gal [product]
+- [N] windows ([type]): [hours]h → $[cost] — [X.X] gal [product]
+- Closet interior: → [hours]h → $[cost] — [X.X] gal [product]
 - Setup/protection share: [hours]h → $[cost]
 
 Omit surfaces that don't apply. Each room ends with its total. Group rooms by floor with floor subtotals when relevant.
@@ -1332,9 +1332,9 @@ Output this exact structure (if user requested French quote, add "lang": "fr" an
     }
   ],
   "paints": [
-    { "type": "Walls", "product": "SW Duration Home", "color": "BM OC-65 Chantilly Lace", "finish": "Low Sheen", "approxQty": "12 gal", "approxCost": 850 },
-    { "type": "Ceilings", "product": "SW PM400", "color": "Ceiling White", "finish": "Extra Flat", "approxQty": "5 gal", "approxCost": 200 },
-    { "type": "Trim", "product": "BM Advance", "color": "BM OC-65 Chantilly Lace", "finish": "Semi-Gloss", "approxQty": "4 gal", "approxCost": 350 }
+    { "type": "Walls", "product": "SW Duration Home", "color": "BM OC-65 Chantilly Lace", "finish": "Low Sheen", "approxQty": "11.6 gal", "approxCost": 850 },
+    { "type": "Ceilings", "product": "SW PM400", "color": "Ceiling White", "finish": "Extra Flat", "approxQty": "4.8 gal", "approxCost": 200 },
+    { "type": "Trim", "product": "BM Advance", "color": "BM OC-65 Chantilly Lace", "finish": "Semi-Gloss", "approxQty": "3.5 gal", "approxCost": 350 }
   ],
   "modalities": {
     "startDate": "April 7, 2026",
@@ -1417,8 +1417,8 @@ For exterior jobs, output this structure instead. Key differences: sections use 
     }
   ],
   "paints": [
-    { "type": "Façade", "product": "SW Duration Ext", "color": "TBD", "finish": "Satin", "approxQty": "8 gal", "approxCost": 450 },
-    { "type": "Deck", "product": "STEINA Enduradeck", "color": "TBD", "finish": "Opaque", "approxQty": "4 gal", "approxCost": 220 }
+    { "type": "Façade", "product": "SW Duration Ext", "color": "TBD", "finish": "Satin", "approxQty": "7.8 gal", "approxCost": 450 },
+    { "type": "Deck", "product": "STEINA Enduradeck", "color": "TBD", "finish": "Opaque", "approxQty": "3.6 gal", "approxCost": 220 }
   ],
   "modalities": {
     "startDate": "May 12, 2026",

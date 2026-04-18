@@ -1,7 +1,7 @@
 # OSTÉOPEINTURE — QUOTING LOGIC
 # Main estimating brain for interior and exterior quotes.
 # Last updated: April 8, 2026
-# Version: v4 — added EMCO ladder prices, GAMMA lift catalog §34, operational notes, renumbered to §35 labor
+# Version: v5 — §5 gallon quantities: 1 decimal point, no rounding to whole numbers, flag close calls
 
 ---
 ---
@@ -108,6 +108,12 @@ If window type is unclear, state the assumption and ask the user to confirm it.
 - Ceiling paint: 350 sqft/gal — 2 coats
 - Wall paint: 350 sqft/gal — 2 coats
 - Trim paint: 350 sqft/gal — 2 coats
+
+**Gallon quantity display rules:**
+- Show calculated gallons with ONE decimal point per room/surface (e.g., "2.1 gal", "3.2 gal") — do NOT round to whole numbers. The user decides how to round when ordering.
+- Formula: sqft × coats ÷ coverage rate = X.X gal
+- If the result falls close to a whole gallon (within 0.15 gal), flag it: e.g., "2.1 gal (close to 2)" or "2.9 gal (close to 3)" so the user can decide.
+- In the paints JSON `approxQty` field, use the 1-decimal format: "2.1 gal", not "2 gal" or "3 gal".
 
 ## 6. PAINT PRODUCT SELECTION
 
