@@ -1329,6 +1329,14 @@ Output this exact structure (if user requested French quote, add "lang": "fr" an
         { "description": "Baseboards and door frames — prime and 2 coats", "price": 600 }
       ],
       "exclusions": ["Excl. fireplace and mantle"]
+    },
+    {
+      "title": "Option A — Baseboards, 3 rooms",
+      "optional": true,
+      "total": 550,
+      "items": [
+        { "description": "Taping and 2 coats on all baseboards", "price": 550 }
+      ]
     }
   ],
   "paints": [
@@ -1351,6 +1359,8 @@ INTERIOR JSON RULES:
 - All prices are numbers (not strings), in CAD before tax
 - Terms adapt to the job (see examples above)
 - sections with renovation categories (Protection, Repairs, etc.) use "title" instead of "name", and optionally "range" (e.g., "$3,000–$5,000")
+- **Optional add-ons:** any section the client hasn't committed to (e.g., "Option A — Ceilings", "Option B — Baseboards") MUST have `"optional": true`. These are displayed under an "OPTIONAL ADD-ONS" header and excluded from the TOTAL. The total only includes confirmed scope.
+- **Excluded items:** repairs or items billed hourly use `"excluded": true` — shown but not in total.
 - Paint approxCost values are materials only, not labour
 - Item descriptions in sections must NEVER include paint product names or finishes — only describe the work (e.g. "Walls and ceiling — 2 coats", NOT "Walls and ceiling — 2 coats, SW Duration Home Low Sheen")
 - deposit: always 25% of subtotal, rounded UP to nearest 100

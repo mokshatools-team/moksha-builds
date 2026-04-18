@@ -1,7 +1,7 @@
 # OSTÉOPEINTURE — QUOTING LOGIC
 # Main estimating brain for interior and exterior quotes.
 # Last updated: April 8, 2026
-# Version: v8 — §3A baseboard times are TOTAL (2 coats included), §4 doors/windows are PER COAT
+# Version: v9 — interior optional sections must use "optional":true, excluded from total
 
 ---
 ---
