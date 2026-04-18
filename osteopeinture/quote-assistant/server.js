@@ -908,16 +908,25 @@ function renderQuoteHTML(data, options = {}) {
         tableHtml += `<tr class="row-spacer"><td colspan="2"></td></tr>`;
       }
 
-      // Floor header (only for non-optional, non-excluded sections)
+      // Floor header for room-based sections (PIÈCE 1, PIÈCE 2, etc.)
       if (!sec.optional && !sec.excluded && sec.floor && sec.floor !== currentFloor) {
         currentFloor = sec.floor;
         tableHtml += `<tr class="row-floor"><td colspan="2">${esc(sec.floor)}</td></tr>`;
       }
+      // Standalone sections with `title` (no floor) get the same grey header
+      // bar as PIÈCE 1/2/3. Covers repairs, extras, grouped items.
+      if (sec.title && !sec.floor && !sec.optional) {
+        tableHtml += `<tr class="row-floor"><td colspan="2">${esc(sec.title)}</td></tr>`;
+      }
       const secTotal = sec.total != null ? sec.total : (sec.items || []).reduce((s, i) => s + (i.price || 0), 0);
       const excludedLabel = sec.excluded ? ` <span style="font-size:7px;font-weight:400;color:#999;font-style:italic;">${t.excludedLabel}</span>` : '';
       const priceDisplay = sec.excluded ? '' : (secTotal ? fmt(secTotal) : '');
-      const sectionName = sec.title || sec.name || '';
-      tableHtml += `<tr class="row-section"><td class="col-desc">${esc(sectionName)}${excludedLabel}</td><td class="col-price">${priceDisplay}</td></tr>`;
+      // `name` = room name under a floor header (e.g. "Chambre (bleu foncé)")
+      // `title` = already rendered as the grey header above, so skip the section row
+      const sectionName = sec.name || '';
+      if (sectionName) {
+        tableHtml += `<tr class="row-section"><td class="col-desc">${esc(sectionName)}${excludedLabel}</td><td class="col-price">${priceDisplay}</td></tr>`;
+      }
       for (const item of (sec.items || [])) {
         const itemPrice = (sec.excluded || !item.price) ? '' : fmt(item.price);
         tableHtml += `<tr class="row-item"><td class="col-desc"><span class="arrow">➛</span>${esc(item.description || '')}</td><td class="col-price">${itemPrice}</td></tr>`;
