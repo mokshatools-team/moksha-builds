@@ -2422,10 +2422,14 @@ async function deleteSession(id) {
 }
 
 async function loadSession(id) {
+  // Save current session's email form state before switching
+  saveEmailFormState(currentSessionId);
   closeSidebar();
   const res = await fetch(`/api/sessions/${id}`);
   const session = await res.json();
   currentSessionId = id;
+  // Update URL so this tab can be bookmarked / opened in another tab
+  history.replaceState(null, '', '?session=' + id);
   clearAttachmentQueue();
 
   const messagesEl = document.getElementById('messages');
@@ -2722,22 +2726,18 @@ function restoreEmailForm() {
 
 function prefillEmail(session) {
   if (!session || !session.quoteJson) return;
+  // If the user already had email form state for this session (generated
+  // or edited a draft then switched away), restore it exactly as they left it.
+  if (restoreEmailFormState(session.id)) return;
+  // Otherwise, prefill from the server-side draft data
   const draft = session.emailDraft || {};
   const settings = draft.settings || {};
-  const state = getEmailDraftState(session.id);
-  const subjectEl = document.getElementById('email-subject');
-  const bodyEl = document.getElementById('email-body');
-  const toEl = document.getElementById('email-to');
-  const scenarioEl = document.getElementById('email-scenario');
-  const signerEl = document.getElementById('email-signer');
-  const detailEl = document.getElementById('email-detail-level');
-
-  if (!state.subjectDirty) subjectEl.value = draft.subject || '';
-  if (!state.bodyDirty) bodyEl.value = draft.body || '';
-  if (!state.toDirty) toEl.value = draft.recipient || session.email_recipient || '';
-  scenarioEl.value = ['quote_send', 'quote_revision', 'quote_follow_up'].includes(settings.scenario) ? settings.scenario : 'quote_send';
-  signerEl.value = settings.signer || 'Loric';
-  detailEl.value = settings.detailLevel || 'standard';
+  document.getElementById('email-subject').value = draft.subject || '';
+  document.getElementById('email-body').value = draft.body || '';
+  document.getElementById('email-to').value = draft.recipient || session.email_recipient || '';
+  document.getElementById('email-scenario').value = ['quote_send', 'quote_revision', 'quote_follow_up'].includes(settings.scenario) ? settings.scenario : 'quote_send';
+  document.getElementById('email-signer').value = settings.signer || 'Loric';
+  document.getElementById('email-detail-level').value = settings.detailLevel || 'standard';
   document.getElementById('email-language').value = settings.language || 'english';
 }
 
@@ -3028,6 +3028,36 @@ function markEmailDraftDirty(field) {
   if (!currentSessionId) return;
   const state = getEmailDraftState(currentSessionId);
   state[`${field}Dirty`] = true;
+}
+
+// Save current email form values to the per-session Map before switching away.
+// This preserves generated/edited drafts so switching back restores them.
+function saveEmailFormState(sessionId) {
+  if (!sessionId) return;
+  const state = getEmailDraftState(sessionId);
+  state.savedSubject = document.getElementById('email-subject').value;
+  state.savedBody = document.getElementById('email-body').value;
+  state.savedTo = document.getElementById('email-to').value;
+  state.savedScenario = document.getElementById('email-scenario').value;
+  state.savedSigner = document.getElementById('email-signer').value;
+  state.savedDetail = document.getElementById('email-detail-level').value;
+  state.savedTone = document.getElementById('email-tone').value;
+  state.savedLanguage = document.getElementById('email-language').value;
+}
+
+// Restore email form from saved state (returns true if restored, false if no saved state)
+function restoreEmailFormState(sessionId) {
+  const state = getEmailDraftState(sessionId);
+  if (state.savedBody == null) return false; // nothing saved yet
+  document.getElementById('email-subject').value = state.savedSubject || '';
+  document.getElementById('email-body').value = state.savedBody || '';
+  document.getElementById('email-to').value = state.savedTo || '';
+  document.getElementById('email-scenario').value = state.savedScenario || 'quote_send';
+  document.getElementById('email-signer').value = state.savedSigner || 'Loric';
+  document.getElementById('email-detail-level').value = state.savedDetail || 'standard';
+  document.getElementById('email-tone').value = state.savedTone || 'informal';
+  document.getElementById('email-language').value = state.savedLanguage || 'english';
+  return true;
 }
 
 // ── STATUS ───────────────────────────────────────────
@@ -4691,12 +4721,21 @@ function recordPayment(jobId, jobNumber) {
 
 // ── INIT ─────────────────────────────────────────────
 loadSidebar();
-// On mobile, open the sidebar by default so the user lands on the
-// Quotes/Jobs list instead of an empty chat screen.
-if (window.innerWidth <= 768) {
-  document.getElementById('sidebar').classList.add('open');
-  document.getElementById('sidebar-overlay').classList.add('visible');
-}
+// Check URL for a session param — enables multi-tab (each tab opens its own session)
+(function checkUrlSession() {
+  const params = new URLSearchParams(window.location.search);
+  const sessionId = params.get('session');
+  if (sessionId) {
+    loadSession(sessionId);
+    return; // skip sidebar-open on mobile since we're loading a specific session
+  }
+  // On mobile, open the sidebar by default so the user lands on the
+  // Quotes/Jobs list instead of an empty chat screen.
+  if (window.innerWidth <= 768) {
+    document.getElementById('sidebar').classList.add('open');
+    document.getElementById('sidebar-overlay').classList.add('visible');
+  }
+})();
 window.addEventListener('resize', updateQuoteScale);
 </script>
 </body>
