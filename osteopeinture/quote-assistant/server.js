@@ -892,23 +892,42 @@ function renderQuoteHTML(data, options = {}) {
   let tableHtml = '';
   if (isRoomBased) {
     let currentFloor = null;
+    let addedOptionalDivider = false;
     for (let si = 0; si < sections.length; si++) {
       const sec = sections[si];
-      if (sec.floor && sec.floor !== currentFloor) {
+
+      // Optional add-ons divider (same pattern as category-based renderer)
+      if (sec.optional && !addedOptionalDivider) {
+        addedOptionalDivider = true;
+        tableHtml += `<tr class="row-spacer"><td colspan="2"></td></tr>`;
+        tableHtml += `<tr class="row-floor"><td colspan="2">${isFr ? 'OPTIONS (non incluses dans le total)' : 'OPTIONAL ADD-ONS (not included in total)'}</td></tr>`;
+      }
+
+      // Excluded section divider
+      if (sec.excluded && !sec.optional) {
+        tableHtml += `<tr class="row-spacer"><td colspan="2"></td></tr>`;
+      }
+
+      // Floor header (only for non-optional, non-excluded sections)
+      if (!sec.optional && !sec.excluded && sec.floor && sec.floor !== currentFloor) {
         currentFloor = sec.floor;
         tableHtml += `<tr class="row-floor"><td colspan="2">${esc(sec.floor)}</td></tr>`;
       }
       const secTotal = sec.total != null ? sec.total : (sec.items || []).reduce((s, i) => s + (i.price || 0), 0);
-      tableHtml += `<tr class="row-section"><td class="col-desc">${esc(sec.name || '')}</td><td class="col-price">${secTotal ? fmt(secTotal) : ''}</td></tr>`;
+      const excludedLabel = sec.excluded ? ` <span style="font-size:7px;font-weight:400;color:#999;font-style:italic;">${t.excludedLabel}</span>` : '';
+      const priceDisplay = sec.excluded ? '' : (secTotal ? fmt(secTotal) : '');
+      const sectionName = sec.title || sec.name || '';
+      tableHtml += `<tr class="row-section"><td class="col-desc">${esc(sectionName)}${excludedLabel}</td><td class="col-price">${priceDisplay}</td></tr>`;
       for (const item of (sec.items || [])) {
-        tableHtml += `<tr class="row-item"><td class="col-desc"><span class="arrow">➛</span>${esc(item.description || '')}</td><td class="col-price">${item.price ? fmt(item.price) : ''}</td></tr>`;
+        const itemPrice = (sec.excluded || !item.price) ? '' : fmt(item.price);
+        tableHtml += `<tr class="row-item"><td class="col-desc"><span class="arrow">➛</span>${esc(item.description || '')}</td><td class="col-price">${itemPrice}</td></tr>`;
       }
       for (const excl of (sec.exclusions || [])) {
         tableHtml += `<tr class="row-note"><td colspan="2"><span class="arrow">➛</span>${esc(excl)}</td></tr>`;
       }
       const nextSec = sections[si + 1];
       const nextIsNewFloor = nextSec && nextSec.floor && nextSec.floor !== currentFloor;
-      if (si < sections.length - 1 && !nextIsNewFloor) {
+      if (si < sections.length - 1 && !nextIsNewFloor && !sec.optional && !(nextSec && nextSec.optional)) {
         tableHtml += `<tr class="row-spacer"><td colspan="2"></td></tr>`;
       }
     }
