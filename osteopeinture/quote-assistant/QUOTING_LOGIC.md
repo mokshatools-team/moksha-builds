@@ -1,7 +1,7 @@
 # OSTÉOPEINTURE — QUOTING LOGIC
 # Main estimating brain for interior and exterior quotes.
 # Last updated: April 8, 2026
-# Version: v7 — §4 door/window benchmarks are PER COAT (×2 for standard 2 coats)
+# Version: v8 — §3A baseboard times are TOTAL (2 coats included), §4 doors/windows are PER COAT
 
 ---
 ---
@@ -37,13 +37,15 @@
 - When exact area-based surface benchmarks are missing, other measured paintable surfaces may temporarily use the wall benchmark as a provisional sqft assumption; doors and windows are excluded from this provisional area-based rule.
 - Room-average estimating is fallback only when measured surfaces are not available.
 
-## 3A. BASEBOARD BENCHMARKS — per linear foot (one painter, sequential: tape then paint)
+## 3A. BASEBOARD BENCHMARKS — per linear foot, TOTAL (taping once + 2 coats painting included)
 
-| Type | Taping | Painting | Combined |
+| Type | Taping | Painting (2 coats) | Combined (total) |
 |---|---|---|---|
 | High-end Victorian 10in curved | 1.84 min/lft | 1.84 min/lft | 3.68 min/lft |
 | Standard Victorian 5in curved | 1.60 min/lft | 1.60 min/lft | 3.20 min/lft |
 | Modern rectangular 4in | 1.60 min/lft | 1.36 min/lft | 2.96 min/lft |
+
+These times are the **complete total** — taping (done once) + painting (2 coats) already factored in. Do NOT multiply by coats again.
 
 Baseboard linear footage: measure full room perimeter, deduct 2.5 ft per door opening.
 
