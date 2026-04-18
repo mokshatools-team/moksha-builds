@@ -1974,8 +1974,10 @@ app.post('/api/sessions/:id/send-email', async (req, res) => {
 
     const transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST || 'smtp.gmail.com',
-      port: parseInt(process.env.SMTP_PORT || '587'),
-      secure: false,
+      // Port 465 (direct SSL) instead of 587 (STARTTLS) — Railway
+      // blocks outbound 587, causing connection timeouts.
+      port: parseInt(process.env.SMTP_PORT || '465'),
+      secure: true,
       auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
