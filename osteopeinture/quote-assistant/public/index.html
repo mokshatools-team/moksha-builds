@@ -1630,7 +1630,16 @@
       position: relative;
       transform: none;
       padding-top: calc(env(safe-area-inset-top, 0px) + 50px);
+      padding-bottom: calc(56px + env(safe-area-inset-bottom));
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
     }
+    /* Tighter spacing in email form on mobile — more room for the message */
+    #quote-panel.email-only #email-form-header { padding-bottom: 4px; margin-bottom: 2px; }
+    #quote-panel.email-only .email-settings-grid { gap: 4px; margin-bottom: 4px; }
+    #quote-panel.email-only .form-row { margin-bottom: 2px; }
+    #quote-panel.email-only .form-label { font-size: 9px; margin-bottom: 2px; }
+    #quote-panel.email-only .form-input { padding: 6px 8px; font-size: 12px; }
 
     #jobs-panel { padding-top: env(safe-area-inset-top); }
     #jobs-header { padding-top: max(14px, env(safe-area-inset-top)); }
@@ -2018,8 +2027,9 @@
         <div class="form-row">
           <div class="form-label">Tone</div>
           <select class="form-input" id="email-tone">
-            <option value="informal" selected>Informal (tu)</option>
-            <option value="formal">Formal (vous)</option>
+            <option value="familiar">Familiar</option>
+            <option value="informal" selected>Informal</option>
+            <option value="formal">Formal</option>
           </select>
         </div>
         <div class="form-row">
@@ -2176,8 +2186,9 @@
       <div>
         <div style="font-size:11px;color:var(--text-3);margin-bottom:4px;letter-spacing:.06em;text-transform:uppercase;">Tone</div>
         <select id="stdemail-tone" style="width:100%;padding:8px;background:var(--surface-1);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px;">
-          <option value="informal" selected>Informal (tu)</option>
-          <option value="formal">Formal (vous)</option>
+          <option value="familiar">Familiar</option>
+          <option value="informal" selected>Informal</option>
+          <option value="formal">Formal</option>
         </select>
       </div>
     </div>

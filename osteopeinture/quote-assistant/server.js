@@ -394,13 +394,14 @@ function detectDefaultEmailLanguage(session) {
   return 'english';
 }
 
-function inferSeasonLabel(date = new Date()) {
+function inferSeasonLabel(lang = 'english', date = new Date()) {
   const month = date.getMonth();
   const year = date.getFullYear();
-  if (month >= 2 && month <= 4) return `Spring ${year}`;
-  if (month >= 5 && month <= 7) return `Summer ${year}`;
-  if (month >= 8 && month <= 10) return `Fall ${year}`;
-  return `Winter ${year}`;
+  const isFr = lang === 'french';
+  if (month >= 2 && month <= 4) return isFr ? `Printemps ${year}` : `Spring ${year}`;
+  if (month >= 5 && month <= 7) return isFr ? `Été ${year}` : `Summer ${year}`;
+  if (month >= 8 && month <= 10) return isFr ? `Automne ${year}` : `Fall ${year}`;
+  return isFr ? `Hiver ${year}` : `Winter ${year}`;
 }
 
 function inferSuggestedEmailScenario(session) {
@@ -520,11 +521,12 @@ function buildSubjectPrefix(scenario, language) {
 function buildEmailSubject(session, emailMeta) {
   const language = emailMeta.language;
   const prefix = buildSubjectPrefix(emailMeta.scenario, language);
-  const address = (session.quoteJson?.address || session.address || '').trim();
-  const projectId = (session.quoteJson?.projectId || session.projectId || '').trim();
-  const location = address || projectId || 'Quote';
+  const rawAddress = (session.quoteJson?.address || session.address || '').trim();
+  // Strip city from address — "5648 Wilderton, Montréal" → "5648 Wilderton"
+  // The city is understood and never included in subject lines.
+  const location = rawAddress.split(',')[0].trim() || '';
   const includeSeason = ['quote_send', 'quote_revision'].includes(emailMeta.scenario);
-  const season = includeSeason ? inferSeasonLabel() : '';
+  const season = includeSeason ? inferSeasonLabel(language) : '';
   return [prefix, location, season].filter(Boolean).join(' — ');
 }
 
@@ -1948,6 +1950,9 @@ app.post('/api/sessions/:id/send-email', async (req, res) => {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
       },
+      // Force IPv4 — Railway resolves Gmail SMTP to IPv6 which fails
+      // with ENETUNREACH (same issue as Supabase direct connection).
+      family: 4,
     });
 
     const draft = buildEmailDraft(session);
@@ -2107,7 +2112,7 @@ app.post('/api/email/standalone-draft', express.json(), async (req, res) => {
     const lang = ['english', 'french'].includes(language) ? language : 'english';
     const sgnr = ['Loric', 'Graeme', 'Lubo'].includes(signer) ? signer : 'Loric';
     const dtl = ['minimal', 'standard', 'detailed'].includes(detailLevel) ? detailLevel : 'standard';
-    const tn = ['informal', 'formal'].includes(tone) ? tone : 'informal';
+    const tn = ['familiar', 'informal', 'formal'].includes(tone) ? tone : 'informal';
 
     const SCENARIO_LABEL = {
       quote_send: 'sending the quote (attached as PDF)',
@@ -2120,9 +2125,17 @@ app.post('/api/email/standalone-draft', express.json(), async (req, res) => {
       project_update: 'sending a project / cost update during the work',
     };
 
-    const toneInstruction = lang === 'french'
-      ? (tn === 'formal' ? 'Use vous (formal you). Polite but not stiff.' : 'Use tu (informal you). Casual, like texting a colleague — short, warm, direct.')
-      : (tn === 'formal' ? 'Polite/formal English.' : 'Casual English, like a quick note to someone you know.');
+    const toneInstruction = (() => {
+      if (lang === 'french') {
+        if (tn === 'familiar') return 'Tu-form. Very warm and direct, like writing to someone you know. Use "Hésite pas si tu as des ajustements" style. Use "vous serez prêt" when addressing a couple or group (they = vous, but it stays casual).';
+        if (tn === 'formal') return 'Vous-form throughout. Polite and professional but NOT corporate — still sounds like a real person, just respectful. No "Veuillez" or "N\'hésitez pas à nous contacter".';
+        return 'Tu-form but measured. Friendly contractor writing to a homeowner — warmer than vous but not buddy-buddy. Professional without being stiff.';
+      } else {
+        if (tn === 'familiar') return 'Very casual English, like writing to a friend. Short, warm, direct.';
+        if (tn === 'formal') return 'Professional English. Polite and respectful but still sounds human — not corporate boilerplate.';
+        return 'Friendly but professional English. Like a quick note to a client you\'ve met once.';
+      }
+    })();
 
     // ── Tone reference: fetch 3 real past sent emails matching
     // signer + scenario + language. Injected as <example> blocks so Claude
@@ -2175,10 +2188,12 @@ app.post('/api/email/standalone-draft', express.json(), async (req, res) => {
       `- Sound like a real person sending a quick email. Short, direct, human.`,
       `- Default 2-4 sentences. Detailed mode 4-6 sentences max.`,
       `- For quote_send in French: open with "Voici la soumission." (just that — no "ci-jointe", no extra words). Then a brief CTA inviting adjustments + explaining the deposit reserves the calendar slot.`,
-      `- French informal default = friendly but measured (think a polite contractor writing to a homeowner he just met). NOT chummy. Save very-casual phrasings ("Hésite pas si tu as…", "Fais-moi signe quand tu es prêt…") for clients where the past-email examples clearly show that closeness already exists. If past examples show a more measured tone, match that instead. Default lean: a touch warmer than vous, but not buddy-buddy.`,
-      `- French informal: NEVER use contractions like "t'as", "t'es", "j'sais". Always write them out: "tu as", "tu es", "je sais". The informal tone is friendly but properly written.`,
-      `- For quote_send in English: open with "Here's the quote attached." (not "Please find attached"). Same CTA structure: invite adjustments, mention deposit reserves a calendar slot. Same calibration as French — friendly but not buddy-buddy unless past examples show that closeness.`,
-      `- Sign-off matches the signer per EMAIL_LOGIC.md. Loric usually closes with "Merci," or just his name on a new line. For informal it's even shorter.`,
+      `- FAMILIAR tone FR: use "Hésite pas si tu as des ajustements", "Fais-moi signe quand vous serez prêt" (vous for couples/groups is fine in familiar). Very warm and direct.`,
+      `- INFORMAL tone FR: friendly tu-form but measured — warmer than vous, not buddy-buddy. "Dis-moi si tu veux des ajustements" rather than "Hésite pas".`,
+      `- FORMAL tone FR: vous throughout, respectful but NOT corporate. Still sounds like a real person.`,
+      `- French: NEVER use contractions like "t'as", "t'es", "j'sais". Always write them out: "tu as", "tu es", "je sais". All tones are properly written.`,
+      `- For quote_send in English: open with "Here's the quote attached." (not "Please find attached"). Same CTA structure: invite adjustments, mention deposit reserves a calendar slot.`,
+      `- Sign-off: always "Merci," then a blank line, then the signer block. Loric's block is exactly: "Loric\\nPour OstéoPeinture\\n514-266-2028". Graeme's block: "Graeme\\nPour OstéoPeinture" (no phone). Lubo's block: "Lubo\\nPour OstéoPeinture" (no phone). Only Loric includes the phone number.`,
       ``,
       `Output ONLY the email body (greeting through sign-off). No subject line, no markdown, no quotes around it.`,
     ].filter(Boolean).join('\n');
