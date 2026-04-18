@@ -1062,7 +1062,18 @@ body { background:#e8e8e8; font-family:'Montserrat',sans-serif; padding:40px 20p
 .footer-logo { text-align:center; margin-bottom:6px; }
 .footer-logo img { height:20px; }
 .footer-info { font-size:6.5px; color:#888; line-height:1.7; letter-spacing:0.02em; }
-@media print { body { background:white; padding:0; } .page { box-shadow:none; width:100%; padding:32px 40px; } }
+@media print {
+  body { background:white; padding:0; }
+  .page { box-shadow:none; width:100%; padding:32px 40px; }
+  /* Keep sections from splitting across pages */
+  .section-header, .mod-grid, .legal-block, .sig-grid, .footer { break-inside: avoid; }
+  /* Keep signature + footer together on the last page */
+  .sig-grid { break-before: auto; }
+  .footer { break-before: avoid; }
+  /* Prevent table rows from orphaning */
+  tr.row-section, tr.row-floor { break-after: avoid; }
+  tr.row-item { break-inside: avoid; }
+}
 </style>
 </head>
 <body>
@@ -1935,7 +1946,7 @@ app.post('/api/sessions/:id/pdf', async (req, res) => {
     await page.setContent(html, { waitUntil: 'networkidle' });
     const pdfBuffer = await page.pdf({
       format: 'Letter',
-      margin: { top: '0', right: '0', bottom: '0', left: '0' },
+      margin: { top: '20px', right: '16px', bottom: '20px', left: '16px' },
       printBackground: true,
     });
     res.setHeader('Content-Type', 'application/pdf');
@@ -1966,7 +1977,7 @@ app.post('/api/sessions/:id/send-email', async (req, res) => {
     await page.setContent(html, { waitUntil: 'networkidle' });
     const pdfBuffer = await page.pdf({
       format: 'Letter',
-      margin: { top: '0', right: '0', bottom: '0', left: '0' },
+      margin: { top: '20px', right: '16px', bottom: '20px', left: '16px' },
       printBackground: true,
     });
     await browser.close();
