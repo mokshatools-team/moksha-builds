@@ -2212,7 +2212,13 @@ app.post('/api/email/standalone-draft', express.json(), async (req, res) => {
     const sgnr = ['Loric', 'Graeme', 'Lubo'].includes(signer) ? signer : 'Loric';
     const dtl = ['minimal', 'standard', 'detailed'].includes(detailLevel) ? detailLevel : 'standard';
     const tn = ['informal', 'formal'].includes(tone) ? tone : 'informal';
-    const paymentType = req.body.paymentType || 'declared';
+    // Payment type: for jobs, auto-detect from the job record. For sessions
+    // (quoting phase), use the dropdown value since it hasn't been formally set yet.
+    let paymentType = req.body.paymentType || 'declared';
+    if (jobId) {
+      const job = await getJob(jobId);
+      if (job && job.payment_type === 'cash') paymentType = 'cash';
+    }
 
     // ── HARDCODED TEMPLATES for quote_send ──────────────────────────
     // No Claude needed. Templates are filled with context variables.
