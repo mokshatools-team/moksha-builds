@@ -2030,41 +2030,48 @@ app.post('/api/sessions/:id/send-email', async (req, res) => {
   const { to, subject, body } = req.body;
   if (!to) return res.status(400).json({ error: 'Missing email recipient' });
 
-  const html = renderQuoteHTML(session.quoteJson);
+  const quoteHtml = renderQuoteHTML(session.quoteJson);
   try {
-    const pdfBuffer = await generateQuotePDF(html);
-
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp.gmail.com',
-      // Port 465 (direct SSL) instead of 587 (STARTTLS) — Railway
-      // blocks outbound 587, causing connection timeouts.
-      port: parseInt(process.env.SMTP_PORT || '465'),
-      secure: true,
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
-      // Force IPv4 — Railway resolves Gmail SMTP to IPv6 which fails
-      // with ENETUNREACH (same issue as Supabase direct connection).
-      family: 4,
-    });
+    const pdfBuffer = await generateQuotePDF(quoteHtml);
 
     const draft = buildEmailDraft(session);
     const projectId = session.quoteJson.projectId || 'Quote';
-    const emailSubject = subject || draft?.subject || `Quote — ${session.quoteJson.projectId || 'Quote'} — Ostéopeinture`;
+    const emailSubject = subject || draft?.subject || `Quote — ${projectId} — Ostéopeinture`;
     const emailBody = body || draft?.body || '';
 
-    await transporter.sendMail({
-      from: process.env.SMTP_USER,
-      to,
-      subject: emailSubject,
-      text: emailBody,
-      attachments: [{
-        filename: `${projectId}.pdf`,
-        content: pdfBuffer,
-        contentType: 'application/pdf',
-      }],
-    });
+    // Send via Resend HTTP API (Railway blocks all outbound SMTP).
+    // Falls back to SMTP if RESEND_API_KEY is not set (local dev).
+    if (process.env.RESEND_API_KEY) {
+      const { Resend } = require('resend');
+      const resend = new Resend(process.env.RESEND_API_KEY);
+      const fromAddr = process.env.SMTP_USER || 'info@osteopeinture.com';
+      await resend.emails.send({
+        from: `OstéoPeinture <${fromAddr}>`,
+        to: [to],
+        subject: emailSubject,
+        text: emailBody,
+        attachments: [{
+          filename: `${projectId}.pdf`,
+          content: pdfBuffer.toString('base64'),
+        }],
+      });
+    } else {
+      // Fallback: SMTP for local dev
+      const transporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST || 'smtp.gmail.com',
+        port: parseInt(process.env.SMTP_PORT || '465'),
+        secure: true,
+        auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+        family: 4,
+      });
+      await transporter.sendMail({
+        from: process.env.SMTP_USER,
+        to,
+        subject: emailSubject,
+        text: emailBody,
+        attachments: [{ filename: `${projectId}.pdf`, content: pdfBuffer, contentType: 'application/pdf' }],
+      });
+    }
 
     session.emailRecipient = to;
     session.status = 'sent';
