@@ -3210,7 +3210,7 @@ document.getElementById('email-body').addEventListener('input', () => markEmailD
 document.getElementById('email-to').addEventListener('input', () => markEmailDraftDirty('to'));
 document.getElementById('email-scenario').addEventListener('change', () => refreshEmailDraftFromSettings('scenario'));
 document.getElementById('email-signer').addEventListener('change', () => refreshEmailDraftFromSettings('signer'));
-document.getElementById('email-detail-level').addEventListener('change', () => refreshEmailDraftFromSettings('detailLevel'));
+// email-detail-level removed (replaced by payment-type toggle for templates)
 
 // ── MOBILE BOTTOM NAV ───────────────────────────────
 let mobileCurrentView = 'chat';
