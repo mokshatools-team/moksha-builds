@@ -1905,6 +1905,7 @@ async function handleSessionMessage(req, res) {
         // Calculate total for DB
         let total = 0;
         for (const sec of (quoteJson.sections || [])) {
+          if (sec.excluded || sec.optional) continue;
           if (sec.total) total += sec.total;
           else for (const item of (sec.items || [])) total += (item.price || 0);
         }
@@ -1915,6 +1916,20 @@ async function handleSessionMessage(req, res) {
         session.quoteJson = quoteJson;
       } catch (e) {
         // Not valid JSON, continue gathering
+      }
+    }
+
+    // Early metadata extraction: update sidebar name/address from user
+    // messages even before the full quote JSON is generated. Looks for
+    // common patterns like "Client: Name" or "Address: 123 Street" in
+    // the assistant's recap, or just uses the last mentioned proper name.
+    if (!session.projectId || session.projectId.startsWith('NEW_')) {
+      // Check if assistant mentioned a client name in a structured way
+      const nameMatch = assistantText.match(/(?:client|nom|name)\s*[:—]\s*([A-ZÀ-ÖØ-Ý][a-zà-öø-ÿ]+(?:\s+[A-ZÀ-ÖØ-Ý][a-zà-öø-ÿ]+)*)/i);
+      if (nameMatch && nameMatch[1]) {
+        const lastName = nameMatch[1].trim().split(/\s+/).pop().toUpperCase();
+        session.projectId = lastName + '_01';
+        session.clientName = nameMatch[1].trim();
       }
     }
 
