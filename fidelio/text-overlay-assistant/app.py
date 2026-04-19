@@ -522,10 +522,27 @@ def api_files():
 # Routes — file upload (Railway mode) — chunked for large files
 # ---------------------------------------------------------------------------
 
-# In-progress chunked uploads: upload_id -> {path, ext, original_name, chunks_received}
-_chunked_uploads = {}
+# Chunked upload metadata is stored on disk (not in-memory) so it works
+# across multiple gunicorn workers that don't share Python state.
 
-CHUNK_SIZE_LIMIT = 60 * 1024 * 1024  # 50 MB per chunk (with margin)
+def _upload_meta_path(upload_id):
+    return os.path.join(TEMP_DIR, f"_upload_{upload_id}.json")
+
+def _write_upload_meta(upload_id, meta):
+    with open(_upload_meta_path(upload_id), "w") as fp:
+        json.dump(meta, fp)
+
+def _read_upload_meta(upload_id):
+    p = _upload_meta_path(upload_id)
+    if not os.path.isfile(p):
+        return None
+    with open(p, "r") as fp:
+        return json.load(fp)
+
+def _delete_upload_meta(upload_id):
+    p = _upload_meta_path(upload_id)
+    if os.path.isfile(p):
+        os.remove(p)
 
 
 @app.route("/upload", methods=["POST"])
@@ -560,13 +577,12 @@ def upload_init():
     safe_name = f"{upload_id}{ext}"
     dest      = os.path.join(TEMP_DIR, safe_name)
 
-    _chunked_uploads[upload_id] = {
+    _write_upload_meta(upload_id, {
         "path": dest,
         "ext": ext,
         "original_name": name,
         "safe_name": safe_name,
-        "chunks_received": 0,
-    }
+    })
 
     return jsonify({"upload_id": upload_id})
 
@@ -575,7 +591,7 @@ def upload_init():
 def upload_chunk():
     """Receive one chunk and append it to the file."""
     upload_id = request.form.get("upload_id", "")
-    info = _chunked_uploads.get(upload_id)
+    info = _read_upload_meta(upload_id)
     if not info:
         return jsonify({"error": "Unknown upload_id."}), 400
 
@@ -590,8 +606,7 @@ def upload_chunk():
                 break
             fp.write(block)
 
-    info["chunks_received"] += 1
-    return jsonify({"chunks_received": info["chunks_received"]})
+    return jsonify({"ok": True})
 
 
 @app.route("/upload/complete", methods=["POST"])
@@ -599,9 +614,11 @@ def upload_complete():
     """Finalize a chunked upload."""
     data = request.get_json(force=True) or {}
     upload_id = data.get("upload_id", "")
-    info = _chunked_uploads.pop(upload_id, None)
+    info = _read_upload_meta(upload_id)
     if not info:
         return jsonify({"error": "Unknown upload_id."}), 400
+
+    _delete_upload_meta(upload_id)
 
     if not os.path.isfile(info["path"]):
         return jsonify({"error": "Upload file not found on server."}), 500
