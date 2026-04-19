@@ -1076,9 +1076,10 @@ body { background:#e8e8e8; font-family:'Montserrat',sans-serif; padding:40px 20p
 @media print {
   body { background:white; padding:0; }
   .page { box-shadow:none; width:100%; padding:32px 40px; }
-  /* Keep sections from splitting across pages */
-  .section-header, .mod-grid, .legal-block, .sig-grid, .footer { break-inside: avoid; }
-  /* Keep signature + footer together on the last page */
+  /* Keep blocks from splitting across pages */
+  .section-header, .mod-grid, .legal-block, .sig-grid, .footer, .totals-block { break-inside: avoid; }
+  /* Paint + modalities + legal + signature + footer all stay together */
+  .paint-section { break-inside: avoid; }
   .sig-grid { break-before: auto; }
   .footer { break-before: avoid; }
   /* Prevent table rows from orphaning */
@@ -1111,13 +1112,17 @@ body { background:#e8e8e8; font-family:'Montserrat',sans-serif; padding:40px 20p
   <div class="terms-block">${termsHtml}</div>
   <div class="section-header">${t.costBreakdown}</div>
   <table class="quote-table">${tableHtml}</table>
+  <div class="totals-block">
   <div class="row-total total-line"><div class="lbl">${t.total}</div><div class="prc">${fmt(subtotal)}</div></div>
   ${branded ? `<div class="row-total tax"><div class="lbl">TPS #7784757551RT0001</div><div class="prc">${fmt(tps)}</div></div>
   <div class="row-total tax"><div class="lbl">TVQ #1231045518</div><div class="prc">${fmt(tvq)}</div></div>
   <div class="row-total grand"><div class="lbl">${t.grandTotal}</div><div class="prc">${fmt(grandTotal)}</div></div>` : `<div class="row-total grand"><div class="lbl">${t.grandTotal}</div><div class="prc">${fmt(subtotal)}</div></div>`}
+  </div>
+  <div class="paint-section">
   <div class="section-header">${t.paintProducts}</div>
   <div class="paint-note">${t.paintNote}</div>
   <table class="paint-table">${paintHtml}</table>
+  </div>
   <div class="section-header">${t.details}</div>
   <div class="mod-grid">
     <div class="mod-cell"><div class="mod-label">${t.startDate}</div><div class="mod-value">${esc(mod.startDate || '—')}</div></div>
