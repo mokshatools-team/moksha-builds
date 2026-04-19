@@ -920,15 +920,17 @@ function renderQuoteHTML(data, options = {}) {
       }
       const secTotal = sec.total != null ? sec.total : (sec.items || []).reduce((s, i) => s + (i.price || 0), 0);
       const excludedLabel = sec.excluded ? ` <span style="font-size:7px;font-weight:400;color:#999;font-style:italic;">${t.excludedLabel}</span>` : '';
-      const priceDisplay = sec.excluded ? '' : (secTotal ? fmt(secTotal) : '');
+      const rangeLabel = sec.range ? ` <span style="font-size:7.5px;font-weight:400;color:#888;">${esc(sec.range)}</span>` : '';
+      // Optional add-ons show price as [+X $] to distinguish from confirmed scope
+      const priceDisplay = sec.excluded ? '' : (secTotal ? (sec.optional ? '[+' + fmt(secTotal) + ']' : fmt(secTotal)) : '');
       // `name` = room name under a floor header (e.g. "Chambre (bleu foncé)")
       // `title` = already rendered as the grey header above, so skip the section row
       const sectionName = sec.name || '';
       if (sectionName) {
-        tableHtml += `<tr class="row-section"><td class="col-desc">${esc(sectionName)}${excludedLabel}</td><td class="col-price">${priceDisplay}</td></tr>`;
+        tableHtml += `<tr class="row-section"><td class="col-desc">${esc(sectionName)}${rangeLabel}${excludedLabel}</td><td class="col-price">${priceDisplay}</td></tr>`;
       }
       for (const item of (sec.items || [])) {
-        const itemPrice = (sec.excluded || !item.price) ? '' : fmt(item.price);
+        const itemPrice = (sec.excluded || !item.price) ? '' : (sec.optional ? '[+' + fmt(item.price) + ']' : fmt(item.price));
         tableHtml += `<tr class="row-item"><td class="col-desc"><span class="arrow">➛</span>${esc(item.description || '')}</td><td class="col-price">${itemPrice}</td></tr>`;
       }
       for (const excl of (sec.exclusions || [])) {
@@ -961,10 +963,10 @@ function renderQuoteHTML(data, options = {}) {
       const secTotal = sec.total != null ? sec.total : (sec.items || []).reduce((s, i) => s + (i.price || 0), 0);
       const rangeLabel = sec.range ? ` <span style="font-size:7.5px;font-weight:400;color:#888;">${esc(sec.range)}</span>` : '';
       const excludedLabel = sec.excluded ? ` <span style="font-size:7px;font-weight:400;color:#999;font-style:italic;">${t.excludedLabel}</span>` : '';
-      const priceDisplay = sec.excluded ? '' : (secTotal ? fmt(secTotal) : '');
+      const priceDisplay = sec.excluded ? '' : (secTotal ? (sec.optional ? '[+' + fmt(secTotal) + ']' : fmt(secTotal)) : '');
       tableHtml += `<tr class="row-section"><td class="col-desc">${esc(sec.title || sec.name || '')}${rangeLabel}${excludedLabel}</td><td class="col-price">${priceDisplay}</td></tr>`;
       for (const item of (sec.items || [])) {
-        const itemPrice = (sec.excluded || !item.price) ? '' : fmt(item.price);
+        const itemPrice = (sec.excluded || !item.price) ? '' : (sec.optional ? '[+' + fmt(item.price) + ']' : fmt(item.price));
         tableHtml += `<tr class="row-item"><td class="col-desc"><span class="arrow">➛</span>${esc(item.description || '')}</td><td class="col-price">${itemPrice}</td></tr>`;
       }
       if (si < sections.length - 1 && !sections[si + 1].optional && !sections[si + 1].excluded) {
