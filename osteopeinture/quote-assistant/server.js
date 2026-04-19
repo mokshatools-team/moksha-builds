@@ -1959,31 +1959,51 @@ app.get('/preview/:id', async (req, res) => {
   res.send(renderQuoteHTML(session.quoteJson));
 });
 
-// Generate PDF
+// Generate a quote PDF with smart page format selection.
+// Renders Letter first; if it spills to 2 pages by just a little,
+// switches to Legal (14" tall) so it fits on one clean page.
+// If the content genuinely needs 2+ pages, keeps Letter (multi-page is fine).
+const PDF_MARGIN = { top: '20px', right: '16px', bottom: '20px', left: '16px' };
+
+async function generateQuotePDF(html) {
+  const { chromium } = require('playwright');
+  const browser = await chromium.launch({ args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+  try {
+    const page = await browser.newPage();
+    await page.setContent(html, { waitUntil: 'networkidle' });
+    // Try Letter first
+    let pdfBuffer = await page.pdf({ format: 'Letter', margin: PDF_MARGIN, printBackground: true });
+    // Quick page-count check: each PDF page is a fixed-size object.
+    // Count "\/Type \/Page" occurrences (PDF spec marker for page objects).
+    const pageCount = (pdfBuffer.toString('latin1').match(/\/Type\s*\/Page[^s]/g) || []).length;
+    if (pageCount === 2) {
+      // Barely spilled — try Legal (3" more height). If it fits on 1 page, use it.
+      const legalBuffer = await page.pdf({ format: 'Legal', margin: PDF_MARGIN, printBackground: true });
+      const legalPages = (legalBuffer.toString('latin1').match(/\/Type\s*\/Page[^s]/g) || []).length;
+      if (legalPages === 1) {
+        pdfBuffer = legalBuffer;
+      }
+      // If Legal is also 2 pages, keep Letter (content genuinely needs 2 pages)
+    }
+    return pdfBuffer;
+  } finally {
+    await browser.close();
+  }
+}
+
 app.post('/api/sessions/:id/pdf', async (req, res) => {
   const session = await getSession(req.params.id);
   if (!session || !session.quoteJson) return res.status(404).json({ error: 'No quote' });
 
-  const html = renderQuoteHTML(session.quoteJson);
-  let browser;
   try {
-    const { chromium } = require('playwright');
-    browser = await chromium.launch({ args: ['--no-sandbox', '--disable-setuid-sandbox'] });
-    const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: 'networkidle' });
-    const pdfBuffer = await page.pdf({
-      format: 'Letter',
-      margin: { top: '20px', right: '16px', bottom: '20px', left: '16px' },
-      printBackground: true,
-    });
+    const html = renderQuoteHTML(session.quoteJson);
+    const pdfBuffer = await generateQuotePDF(html);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="quote-${session.projectId || session.id.slice(0,8)}.pdf"`);
     res.send(pdfBuffer);
   } catch (err) {
     console.error('PDF generation error:', err);
     res.status(500).json({ error: err.message });
-  } finally {
-    if (browser) await browser.close();
   }
 });
 
@@ -1996,19 +2016,8 @@ app.post('/api/sessions/:id/send-email', async (req, res) => {
   if (!to) return res.status(400).json({ error: 'Missing email recipient' });
 
   const html = renderQuoteHTML(session.quoteJson);
-  let browser;
   try {
-    const { chromium } = require('playwright');
-    browser = await chromium.launch({ args: ['--no-sandbox', '--disable-setuid-sandbox'] });
-    const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: 'networkidle' });
-    const pdfBuffer = await page.pdf({
-      format: 'Letter',
-      margin: { top: '20px', right: '16px', bottom: '20px', left: '16px' },
-      printBackground: true,
-    });
-    await browser.close();
-    browser = null;
+    const pdfBuffer = await generateQuotePDF(html);
 
     const transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST || 'smtp.gmail.com',
@@ -2050,8 +2059,6 @@ app.post('/api/sessions/:id/send-email', async (req, res) => {
   } catch (err) {
     console.error('Email error:', err);
     res.status(500).json({ error: err.message });
-  } finally {
-    if (browser) await browser.close();
   }
 });
 
