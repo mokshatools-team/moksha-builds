@@ -47,6 +47,9 @@
 - [EMCO 2025 scaffold rental catalog](reference_emco_scaffold_catalog.md) — full price list: frames, braces, platforms, boards, accessories, lifts (Jan 2025)
 - [GAMMA 2025 lift rental catalog](reference_gamma_lift_catalog.md) — Z34/Z45/Z60 boom lifts, delivery $165/way, harness w/ sling
 
+## Files & Quote-Job Link
+- [File attachments + quote accessible from job](project_file_attachments_and_quote_link.md) — save chat files, transfer to jobs, link original quote from job dashboard
+
 ## Invoicing & Documents
 - [Invoice formatting must match quote template](project_invoice_direction.md) — reuse quote HTML renderer, pull from extras + change orders, change orders parked for now
 

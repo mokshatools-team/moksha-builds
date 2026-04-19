@@ -1817,8 +1817,26 @@ async function handleSessionMessage(req, res) {
       return res.status(400).json({ error: 'No message or image' });
     }
 
-    const messages = buildTextOnlyHistory(session.messages);
-    messages.push({ role: 'user', content });
+    // Trim conversation to last 14 messages (~7 exchanges) to save API tokens.
+    // Full history is stored in the DB, but only the tail is sent to Claude.
+    // If the session has a quoteJson, inject it as context so Claude always
+    // knows the current quote state even if the generating message was trimmed.
+    const fullHistory = buildTextOnlyHistory(session.messages);
+    let trimmedMessages = fullHistory.length > 14 ? fullHistory.slice(-14) : fullHistory;
+    // Ensure first message is from 'user' (Anthropic API requirement)
+    while (trimmedMessages.length > 0 && trimmedMessages[0].role !== 'user') {
+      trimmedMessages = trimmedMessages.slice(1);
+    }
+    // If we trimmed and there's an existing quote, prepend it as context
+    if (fullHistory.length > 14 && session.quoteJson) {
+      trimmedMessages.unshift({
+        role: 'user',
+        content: '[Prior context — current quote JSON for reference:]\n' + JSON.stringify(session.quoteJson).slice(0, 3000),
+      });
+      trimmedMessages.splice(1, 0, { role: 'assistant', content: 'Understood, I have the current quote context.' });
+    }
+    trimmedMessages.push({ role: 'user', content });
+    const messages = trimmedMessages;
 
     // Detect exterior/scaffold sessions to enable tool use
     const conversationText = session.messages

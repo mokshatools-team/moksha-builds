@@ -1,7 +1,7 @@
 # OSTÉOPEINTURE — QUOTING LOGIC
 # Main estimating brain for interior and exterior quotes.
 # Last updated: April 8, 2026
-# Version: v9 — interior optional sections must use "optional":true, excluded from total
+# Version: v10 — STEINA Enduradeck updated: $96.95/gal, coverage/cost-per-sqft details, 2 coats, no primer
 
 ---
 ---
@@ -599,7 +599,15 @@ All prices are quoted reference prices before QC taxes and already include the a
 |---|---|---|
 | Sico ProLuxe / Sikkens Solid Stain | Solid stain — beams, siding, balcony elements, high-end doors | $103.50/gal |
 | Sansin Semi-transparent | Natural wood stain — fascias, soffits, handrails | $149.50/gal |
-| STEINA Enduradeck (Colobar) | Balcony floor / steps (opaque deck stain) | $110.40/gal |
+| STEINA Enduradeck (Colobar) | Balcony floor / steps (opaque deck stain) | $96.95/gal |
+
+**STEINA Enduradeck details** (replaces Storm Stain Enduradeck):
+- 2 coats required. 1st coat on bare wood: thin with ½L water per gallon.
+- Coverage: 300–350 sqft/gal smooth, 200–250 porous, ~100 sqft/gal 2-coat finished on very weathered wood.
+- Material cost per sqft (2 coats): ~$0.60 smooth → ~$0.86 porous → ~$0.97 weathered. Add 10–15% waste.
+- Self-sealing (Penebond technology) — no primer needed.
+- Dry time: 1h touch, 4h recoat.
+- Durability: 5 yr horizontal surfaces, 10–15 yr vertical.
 
 ### Primers (Exterior)
 | Surface | Product | Quoted Price (before QC taxes) |
