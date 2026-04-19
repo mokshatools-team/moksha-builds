@@ -53,6 +53,14 @@
 ## Invoicing & Documents
 - [Invoice formatting must match quote template](project_invoice_direction.md) — reuse quote HTML renderer, pull from extras + change orders, change orders parked for now
 
+## Email & Sending
+- [Resend HTTP API for email sending](reference_resend_email.md) — Railway blocks SMTP, Resend with verified osteopeinture.com domain
+- [Hardcoded email templates for quote_send](feedback_email_templates_hardcoded.md) — 8 templates (Informal/Formal × Declared/Cash × EN/FR), Loric's exact wording
+- [API credits separate from claude.ai sub](reference_api_credits.md) — OP Hub uses console.anthropic.com credits, not Max plan balance
+
+## Pending
+- [Pending transactions to write](project_op_pending_transactions.md) — 5 rows queued (Lachance +$4,500, Graeme/Lubo -$2K draws + mirrors). Loric's cut NOT taken yet. Blocked on gws re-auth.
+
 ## References
 - [Tiller Master Sheet](reference_tiller_master.md) — AutoCat rules source (ID: 12FT0agrTeIdrC929n-vjEWLG9Uxbf136VxpESs-Kcsc)
 - [Cash Ledger tab pattern](reference_cash_ledger_tab.md) — QUERY + SCAN reusable pattern for per-account dynamic ledgers (tab #13)

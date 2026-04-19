@@ -1,6 +1,62 @@
 # CONTEXT.md — OstéoPeinture OP Hub (fka Quote Assistant)
-# Last updated: April 16, 2026
-# Session: G — Payment modal, jobs dashboard, deploy safeguard
+# Last updated: April 19, 2026
+# Session: H — Email templates, Resend, PDF formatting, token optimization
+
+---
+
+## STATE AS OF 2026-04-19 (Session H)
+
+### Email Sending — Resend HTTP API
+- Railway blocks all outbound SMTP (ports 587 and 465). Switched to **Resend HTTP API**.
+- Domain `osteopeinture.com` verified in Resend (DNS records on GoDaddy).
+- API key: `RESEND_API_KEY` env var on Railway. Sends from `OstéoPeinture <info@osteopeinture.com>`.
+- SMTP fallback still in code for local dev (if no RESEND_API_KEY).
+
+### Email Templates — Hardcoded for quote_send
+- 8 templates: Informal/Formal × Declared/Cash × EN/FR. No Claude API call needed.
+- Other scenarios (follow-up, decline, etc.) still use Claude.
+- Tone dropdown: Informal / Formal (removed Familiar).
+- Payment Type dropdown added (Declared/Cash). Auto-detects from job record for jobs; manual for sessions.
+- Signature: Loric gets phone (514-266-2028), others don't. All sign "Pour OstéoPeinture".
+
+### Token Cost Optimization
+- **Conversation trimming**: only last 14 messages sent to Claude (full history in DB). Current quote JSON injected as context when trimming kicks in.
+- **Interior prompt trim**: §23-34 (exterior/scaffold) stripped for interior sessions, saves ~5K tokens/request.
+- **Hardcoded email templates**: zero API tokens for quote_send emails.
+- API credits are on console.anthropic.com (separate from claude.ai Max plan subscription).
+
+### PDF Formatting
+- Smart format: renders Letter first, auto-switches to Legal if content barely spills to 2 pages.
+- CSS page-break rules: totals block, paint section, signature+footer never split across pages.
+- Small margins (20px top/bottom, 16px sides).
+
+### Quote Renderer Fixes
+- Room-based renderer now handles `optional: true` and `excluded: true` sections (was only in category-based).
+- Optional prices display as `[+X $]` format.
+- Sections with `title` (no `floor`) get grey header bar like rooms.
+- Loric's signature auto-embedded in every branded quote (optimized PNG, 3.5KB).
+
+### Quoting Logic Updates (v10)
+- §5: gallon rounding — round UP unless .1-.2 (round down). Show calc + suggestion in breakdown.
+- §4: door/window benchmarks are PER COAT (×2 for 2 coats). Baseboards are TOTAL (2 coats included).
+- §5: STEINA Enduradeck updated: $96.95/gal, coverage rates, cost-per-sqft, no primer needed.
+- Interior JSON: optional sections must use `"optional": true`, excluded from total.
+- Conditions: never duplicate hardcoded footer lines, no filler conditions.
+
+### Other UI
+- Multi-tab support: URL param `?session=XXX` — each tab opens its own session independently.
+- Email form state persists per-session (switching sessions preserves email drafts).
+- Jobs interface hides bottom nav (separate "app" feel).
+- Email tab is full-screen on mobile (email-only mode hides quote content).
+- Job sections auto-expand + collapse/expand toggle.
+- Sidebar updates name during conversation (not just on quote JSON output).
+- Subject: French seasons (Printemps), no city name.
+
+### Bug: dead addEventListener crashed the entire app
+- Removing the LENGTH dropdown left `document.getElementById('email-detail-level').addEventListener(...)` pointing at null. Crashed the script → `loadSidebar()` never ran → "No quotes yet" for hours. Fixed in `96f0eda`.
+
+**Live URL:** https://op-quote-assistant.up.railway.app
+**Latest commit:** `96f0eda`
 
 ---
 
