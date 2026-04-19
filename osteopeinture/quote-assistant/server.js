@@ -1411,6 +1411,14 @@ Output this exact structure (if user requested French quote, add "lang": "fr" an
 }
 
 INTERIOR JSON RULES:
+
+SECTION LAYOUT SHORTHAND — the user may use H1/H2/H3 to direct the quote layout:
+- H1 = grey bar header (uppercase, full-width background). JSON: "floor" field on a room section, OR "title" field on a standalone section. Examples: PIECE 1, REPARATIONS, OPTIONS.
+- H2 = bold section name with price on the right. JSON: "name" field. Examples: Chambre (bleu fonce) — 975$, Reparations de platre — 450$.
+- H3 = bullet item line (arrow prefix). JSON: "items" array entries with "description" and "price". Examples: Murs — 2 couches de finition, Plinthes — 2 couches.
+When the user says "put X as H1" use floor or title. "Put X as H2" use name. "Put X as H3" use items.
+A section can have H1 + H2 + H3 (floor header, then name, then items), or just H1 + H3 (title header, then items directly — no name row).
+
 - projectId: always LASTNAME_01 (or _02 if second job for this client)
 - date: today's date formatted as "Month Day, Year"
 - sections: use floor grouping for room-by-room quotes; omit floor field if not applicable
