@@ -2023,17 +2023,8 @@
           </select>
         </div>
         <div class="form-row">
-          <div class="form-label">Length</div>
-          <select class="form-input" id="email-detail-level">
-            <option value="minimal">Short</option>
-            <option value="standard" selected>Standard</option>
-            <option value="detailed">Detailed</option>
-          </select>
-        </div>
-        <div class="form-row">
           <div class="form-label">Tone</div>
           <select class="form-input" id="email-tone">
-            <option value="familiar">Familiar</option>
             <option value="informal" selected>Informal</option>
             <option value="formal">Formal</option>
           </select>
@@ -2043,6 +2034,13 @@
           <select class="form-input" id="email-language" onchange="refreshEmailDraftFromSettings('language')">
             <option value="english">English</option>
             <option value="french">French</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <div class="form-label">Payment</div>
+          <select class="form-input" id="email-payment-type">
+            <option value="declared" selected>Declared</option>
+            <option value="cash">Cash</option>
           </select>
         </div>
         <div class="form-row">
@@ -2192,7 +2190,6 @@
       <div>
         <div style="font-size:11px;color:var(--text-3);margin-bottom:4px;letter-spacing:.06em;text-transform:uppercase;">Tone</div>
         <select id="stdemail-tone" style="width:100%;padding:8px;background:var(--surface-1);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:13px;">
-          <option value="familiar">Familiar</option>
           <option value="informal" selected>Informal</option>
           <option value="formal">Formal</option>
         </select>
@@ -3669,8 +3666,8 @@ async function generateSessionEmail() {
     scenario: document.getElementById('email-scenario').value,
     signer: document.getElementById('email-signer').value,
     language: document.getElementById('email-language').value,
-    detailLevel: document.getElementById('email-detail-level').value,
     tone: (document.getElementById('email-tone') || {}).value || 'informal',
+    paymentType: (document.getElementById('email-payment-type') || {}).value || 'declared',
     recipient: document.getElementById('email-to').value.trim() || undefined,
   };
   const btn = document.getElementById('generate-session-email-btn');

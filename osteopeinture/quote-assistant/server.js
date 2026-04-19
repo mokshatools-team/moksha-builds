@@ -2211,7 +2211,59 @@ app.post('/api/email/standalone-draft', express.json(), async (req, res) => {
     const lang = ['english', 'french'].includes(language) ? language : 'english';
     const sgnr = ['Loric', 'Graeme', 'Lubo'].includes(signer) ? signer : 'Loric';
     const dtl = ['minimal', 'standard', 'detailed'].includes(detailLevel) ? detailLevel : 'standard';
-    const tn = ['familiar', 'informal', 'formal'].includes(tone) ? tone : 'informal';
+    const tn = ['informal', 'formal'].includes(tone) ? tone : 'informal';
+    const paymentType = req.body.paymentType || 'declared';
+
+    // ── HARDCODED TEMPLATES for quote_send ──────────────────────────
+    // No Claude needed. Templates are filled with context variables.
+    // The user can edit the result before sending.
+    if (scenario === 'quote_send') {
+      const isCash = paymentType === 'cash';
+      const firstName = ctx.clientFirstName || '';
+      const scope = ctx.scopeSummary || 'the painting project';
+      const sigBlock = sgnr === 'Loric'
+        ? `${sgnr}\nPour OstéoPeinture\n514-266-2028`
+        : `${sgnr}\nPour OstéoPeinture`;
+
+      const templates = {
+        english: {
+          informal: {
+            declared: `Hi ${firstName},\n\nHope you're doing well.\n\nPlease find attached our quote for ${scope}.\n\nTo move forward, just send back the signed quote and the deposit by e-transfer to info@osteopeinture.com.\n\nAny questions or adjustments, feel free to reach out.\n\nTalk soon,\n\n${sigBlock}`,
+            cash: `Hi ${firstName},\n\nHope you're doing well.\n\nPlease find attached our quote for ${scope}.\n\nReach out directly whenever you're ready to move forward so we can lock in your spot on our calendar.\n\nAny questions or adjustments, feel free to let me know.\n\nTalk soon,\n\n${sigBlock}`,
+          },
+          formal: {
+            declared: `Good day,\n\nI hope you're doing well.\n\nPlease find attached our quote for ${scope}.\n\nTo move forward, simply return the signed quote and send the deposit by e-transfer to info@osteopeinture.com.\n\nIf you have any questions or would like to make adjustments to the quote, feel free to reach out directly.\n\nKind regards,\n\n${sigBlock}`,
+            cash: `Good day,\n\nI hope you're doing well.\n\nPlease find attached our quote for ${scope}.\n\nPlease reach out directly when you're ready to move forward so we can reserve your spot on our calendar.\n\nIf you have any questions or would like to make adjustments to the quote, feel free to let me know.\n\nKind regards,\n\n${sigBlock}`,
+          },
+        },
+        french: {
+          informal: {
+            declared: `Bonjour ${firstName},\n\nJ'espère que tu vas bien.\n\nTu trouveras ci-joint notre soumission pour ${scope}.\n\nPour aller de l'avant, tu n'as qu'à me retourner la soumission signée et à envoyer le dépôt par virement Interac à info@osteopeinture.com.\n\nPour toute question ou ajustement à apporter, n'hésite pas à me contacter.\n\nAu plaisir,\n\n${sigBlock}`,
+            cash: `Bonjour ${firstName},\n\nJ'espère que tu vas bien.\n\nTu trouveras ci-joint notre soumission pour ${scope}.\n\nContacte-moi directement quand tu seras prêt(e) à aller de l'avant pour réserver ta place dans notre calendrier.\n\nPour toute question ou ajustement à apporter, n'hésite pas à me le faire savoir.\n\nAu plaisir,\n\n${sigBlock}`,
+          },
+          formal: {
+            declared: `Bonjour,\n\nJ'espère que vous allez bien.\n\nVous trouverez ci-joint notre soumission pour ${scope}.\n\nPour aller de l'avant, il suffit de retourner la soumission signée et d'envoyer le dépôt par virement Interac à info@osteopeinture.com.\n\nSi vous avez des questions ou souhaitez apporter des modifications à la soumission, n'hésitez pas à me contacter directement.\n\nCordialement,\n\n${sigBlock}`,
+            cash: `Bonjour,\n\nJ'espère que vous allez bien.\n\nVous trouverez ci-joint notre soumission pour ${scope}.\n\nContactez-moi directement lorsque vous serez prêt(e) à aller de l'avant afin de réserver votre place dans notre calendrier.\n\nSi vous avez des questions ou souhaitez apporter des modifications à la soumission, n'hésitez pas à me le faire savoir.\n\nCordialement,\n\n${sigBlock}`,
+          },
+        },
+      };
+
+      const emailBody = templates[lang][tn][isCash ? 'cash' : 'declared'];
+      const pseudoForSubject = {
+        clientName: ctx.clientName, address: ctx.address, projectId: ctx.projectId,
+        emailMeta: { scenario, signer: sgnr, language: lang, detailLevel: dtl },
+      };
+      const emailSubject = buildEmailSubject(pseudoForSubject, pseudoForSubject.emailMeta);
+
+      return res.json({
+        subject: emailSubject,
+        body: emailBody,
+        recipient: ctx.recipient,
+        language: lang,
+        settings: { scenario, signer: sgnr, language: lang, detailLevel: dtl, tone: tn, paymentType },
+      });
+    }
+    // ── End templates. Other scenarios continue to use Claude below. ──
 
     const SCENARIO_LABEL = {
       quote_send: 'sending the quote (attached as PDF)',
