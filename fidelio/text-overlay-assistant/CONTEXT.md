@@ -92,7 +92,7 @@ Status: ON HOLD. Do not work on YouTube ingestion until dedicated cross-build se
 
 4. **`youtube_transcript_api` not in requirements:** There is a code path in `app.py` (`_fetch_transcript_entries_via_youtube_transcript_api`) that tries to import `youtube_transcript_api`. This package is not listed in `requirements.txt` and will not be installed on Railway, so that fallback will always raise a RuntimeError. The code handles it gracefully and continues to the next fallback, but it's dead weight on Railway.
 
-5. **Large file uploads:** The app accepts up to 4 GB uploads, but Railway's free tier may have request timeout limits shorter than the time needed to upload and transcribe a large file.
+5. **Large file uploads:** Files >50 MB are now uploaded in 50 MB chunks (chunked upload). Upload state is stored on disk so it works across gunicorn workers. Tested with endpoint calls but not yet end-to-end with a real large file on the live URL.
 
 6. **Session-based Google credentials:** YouTube OAuth credentials are stored in the Flask session (in-memory). On Railway with 2 gunicorn workers, a user could lose their session if requests hit different workers. A persistent session store (e.g. Redis) would fix this, but is not implemented.
 
@@ -101,10 +101,19 @@ Status: ON HOLD. Do not work on YouTube ingestion until dedicated cross-build se
 ## Next Planned Feature or Fix
 
 Suggested priorities for next session:
-1. End-to-end test the live URL https://toa.up.railway.app (upload a file → analyze → download JSON)
+1. Loric confirms 670 MB upload works end-to-end (upload → transcribe → analyze → download JSON)
 2. Fix the README template name discrepancy (`OA_` vs `TOA_`)
 3. Remove the dead `youtube_transcript_api` import path or add it to requirements.txt
 4. Delete old services from moksha-tools project via Railway dashboard (deployments already taken down)
+
+## Session Log — 2026-04-18
+
+- Chunked upload implemented: files >50 MB split into 50 MB chunks client-side, reassembled server-side
+- Fixed multi-worker bug: upload state moved from in-memory dict to JSON files on disk (/tmp)
+- Progress bar added to upload UI (percentage shown during chunked uploads)
+- Service confirmed live at https://toa.up.railway.app (service ID: `a6a65ad0-ee3a-4305-8aa7-d5d5694f906c`)
+- Endpoints tested via curl (init → chunk → complete all return success)
+- NOT yet tested end-to-end with a real large file upload from browser
 
 ## Session Log — 2026-04-04
 
