@@ -3470,6 +3470,25 @@ function renderJobAttachments(attachments) {
   return html;
 }
 
+// ── COST UPDATE / INVOICE ────────────────────────────────────
+async function openCostUpdate(jobId, docType) {
+  try {
+    const res = await fetch('/api/jobs/' + jobId + '/cost-update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ docType: docType || 'cost-update' }),
+    });
+    const data = await res.json();
+    if (!res.ok) { alert(data.error || 'Failed'); return; }
+    // Open the rendered HTML in a new tab
+    const w = window.open('', '_blank');
+    if (w) { w.document.write(data.html); w.document.close(); }
+    else { alert('Popup blocked — allow popups for this site.'); }
+  } catch (err) {
+    alert('Error: ' + err.message);
+  }
+}
+
 function renderChangeOrders(orders) {
   if (!orders || !orders.length) return '';
   let html = '<div style="margin-bottom:20px;">';
@@ -3619,7 +3638,8 @@ async function openJobDetail(jobId, source) {
           <button class="job-action-btn" onclick="openStandaloneEmail('${job.id}')" style="font-size:11px;padding:8px 10px">Draft Email</button>
           <button class="job-action-btn" onclick="openSmartPaste('${job.id}')" style="font-size:11px;padding:8px 10px">Paste Apple Note</button>
           ${job.quote_session_id ? '<button class="job-action-btn" onclick="window.open(\'/preview/' + job.quote_session_id + '\',\'_blank\')" style="font-size:11px;padding:8px 10px">View Quote</button>' : ''}
-          <button class="job-action-btn" onclick="generateClientUpdate('${job.id}')" style="font-size:11px;padding:8px 10px">Client Update</button>
+          <button class="job-action-btn" onclick="openCostUpdate('${job.id}')" style="font-size:11px;padding:8px 10px">Cost Update</button>
+          <button class="job-action-btn" onclick="openCostUpdate('${job.id}','invoice')" style="font-size:11px;padding:8px 10px">Invoice</button>
           <button class="job-action-btn" onclick="importJibbleCSV('${job.id}')" style="font-size:11px;padding:8px 10px">Import Jibble</button>
           <button class="job-action-btn" onclick="promptUpdateTotal('${job.id}', ${effectiveTotal})" style="font-size:11px;padding:8px 10px;grid-column:1/-1">Update ${isCash ? 'Agreed' : 'Quote'} Total</button>
         </div>

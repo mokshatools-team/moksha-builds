@@ -3325,6 +3325,179 @@ app.post('/api/updates/:id/pdf', async (req, res) => {
 });
 
 // ============================================================
+// CLIENT COST UPDATE (unified document: quote + add-ons + payments + balance)
+// Replaces separate change orders + invoices. Same branded template as quotes.
+// Title toggles: "Mise à jour des coûts" / "Cost Update" vs "Facture" / "Invoice"
+// ============================================================
+
+app.post('/api/jobs/:id/cost-update', express.json(), async (req, res) => {
+  try {
+    const job = await getJob(req.params.id);
+    if (!job) return res.status(404).json({ error: 'Job not found' });
+
+    const { docType, language } = req.body || {};
+    const lang = language || job.language || 'french';
+    const isFr = lang === 'french';
+    const isInvoice = docType === 'invoice';
+    const isCash = job.payment_type === 'cash';
+
+    // 1. Original quote sections
+    const quoteJson = job.accepted_quote_json
+      ? (typeof job.accepted_quote_json === 'string' ? JSON.parse(job.accepted_quote_json) : job.accepted_quote_json)
+      : null;
+    const originalSections = (quoteJson && quoteJson.sections) || [];
+
+    // 2. Approved change orders as extras
+    const changeOrders = await db.all(
+      "SELECT * FROM job_change_orders WHERE job_id = ? AND status = 'approved' ORDER BY created_at",
+      [job.id]
+    );
+
+    // 3. Extras from job_sections (free-text → convert to a section)
+    const jobSections = job.job_sections
+      ? (typeof job.job_sections === 'string' ? JSON.parse(job.job_sections) : job.job_sections)
+      : {};
+    const extrasText = (jobSections.extras || '').trim();
+
+    // Build sections for the document
+    const sections = [];
+
+    // Original quote sections (non-optional, non-excluded)
+    let originalSubtotal = 0;
+    for (const sec of originalSections) {
+      if (sec.excluded || sec.optional) continue;
+      const secTotal = sec.total || (sec.items || []).reduce((s, i) => s + (i.price || 0), 0);
+      originalSubtotal += secTotal;
+      sections.push({ ...sec });
+    }
+
+    // Add-ons from change orders
+    let addonsSubtotal = 0;
+    if (changeOrders.length > 0 || extrasText) {
+      for (const co of changeOrders) {
+        const coTotal = co.amount_cents / 100;
+        addonsSubtotal += coTotal;
+        let items = [];
+        try { items = JSON.parse(co.description); } catch(e) {}
+        if (!Array.isArray(items)) items = [];
+        sections.push({
+          title: isFr ? (co.title_fr || co.title_en) : (co.title_en || co.title_fr),
+          total: coTotal,
+          items: items.map(i => ({ description: i.description || i.desc || '', price: (i.amountCents || 0) / 100 })),
+        });
+      }
+      // Free-text extras as a section
+      if (extrasText) {
+        const extraLines = extrasText.split('\n').filter(l => l.trim());
+        sections.push({
+          title: isFr ? 'Extras' : 'Extras',
+          items: extraLines.map(l => ({ description: l.trim(), price: 0 })),
+          total: 0,
+        });
+      }
+    }
+
+    // Payments
+    const payments = await getJobPayments(job.id);
+    const totalPaidCents = payments.reduce((s, p) => s + p.amount_cents, 0);
+
+    // Totals
+    const subtotal = originalSubtotal + addonsSubtotal;
+    const tps = isCash ? 0 : subtotal * 0.05;
+    const tvq = isCash ? 0 : subtotal * 0.09975;
+    const grandTotal = subtotal + tps + tvq;
+    const balanceDue = grandTotal - (totalPaidCents / 100);
+
+    // Build the document HTML using the quote renderer's CSS
+    const docTitle = isInvoice
+      ? (isFr ? 'FACTURE' : 'INVOICE')
+      : (isFr ? 'MISE À JOUR DES COÛTS' : 'COST UPDATE');
+    const projectType = quoteJson ? quoteJson.projectType : (isFr ? 'Travaux de peinture' : 'Painting Work');
+
+    // Construct a quote-like object and render it
+    const costUpdateData = {
+      clientName: job.client_name,
+      projectId: job.job_number,
+      address: job.address,
+      date: new Date().toLocaleDateString(isFr ? 'fr-CA' : 'en-CA', { year: 'numeric', month: 'long', day: 'numeric' }),
+      projectType: projectType,
+      lang: isFr ? 'fr' : undefined,
+      sections,
+      paints: (quoteJson && quoteJson.paints) || [],
+      terms: { includes: [], conditions: [] },
+      modalities: {},
+    };
+
+    // Render the base quote HTML, then inject payments section before the signature
+    let html = renderQuoteHTML(costUpdateData);
+
+    // Replace the title in the rendered HTML
+    const origTitle = isFr ? 'TRAVAUX DE PEINTURE' : 'PAINTING';
+    html = html.replace(
+      /<div class="project-type">[^<]*<\/div>/,
+      '<div class="project-type">' + docTitle + '</div>'
+    );
+
+    // Build payments table HTML
+    let paymentsHtml = '';
+    if (payments.length > 0) {
+      paymentsHtml = '<div class="section-header">' + (isFr ? 'Paiements reçus' : 'Payments Received') + '</div>';
+      paymentsHtml += '<table class="quote-table">';
+      for (const p of payments) {
+        const date = p.payment_date || p.created_at.slice(0, 10);
+        const method = p.method || '';
+        const amount = (p.amount_cents / 100).toLocaleString('fr-CA', { maximumFractionDigits: 0 }) + ' $';
+        paymentsHtml += '<tr class="row-item"><td class="col-desc">' + esc(date) + ' — ' + esc(method) + '</td><td class="col-price">' + amount + '</td></tr>';
+      }
+      const paidStr = (totalPaidCents / 100).toLocaleString('fr-CA', { maximumFractionDigits: 0 }) + ' $';
+      paymentsHtml += '<tr class="row-section"><td class="col-desc"><strong>' + (isFr ? 'Total payé' : 'Total Paid') + '</strong></td><td class="col-price"><strong>' + paidStr + '</strong></td></tr>';
+      paymentsHtml += '</table>';
+
+      // Balance due
+      const balanceStr = balanceDue.toLocaleString('fr-CA', { maximumFractionDigits: 0 }) + ' $';
+      paymentsHtml += '<div class="row-total grand" style="margin-top:8px"><div class="lbl">' + (isFr ? 'SOLDE À PAYER' : 'BALANCE DUE') + '</div><div class="prc">' + balanceStr + '</div></div>';
+    }
+
+    // Inject payments section before the signature grid
+    if (paymentsHtml) {
+      html = html.replace('<div class="sig-grid">', paymentsHtml + '<div class="sig-grid">');
+    }
+
+    // Remove paint section and modalities for cost updates (not relevant)
+    // Actually keep them — the client may want to see what products were used
+
+    res.json({ html, docType: isInvoice ? 'invoice' : 'cost-update' });
+  } catch (err) {
+    console.error('Cost update error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Preview cost update as HTML page
+app.get('/preview/cost-update/:jobId', async (req, res) => {
+  try {
+    // Simulate a POST to generate the HTML
+    const job = await getJob(req.params.jobId);
+    if (!job) return res.status(404).send('Job not found');
+    const fakeReq = { params: { id: req.params.jobId }, body: { docType: req.query.type || 'cost-update', language: req.query.lang || job.language } };
+    const fakeRes = {
+      json: (data) => {
+        res.setHeader('Content-Type', 'text/html');
+        res.send(data.html);
+      },
+      status: (code) => ({ json: (d) => res.status(code).json(d) }),
+    };
+    // Call the handler directly (a bit hacky but avoids code duplication)
+    const handler = app._router.stack.find(r => r.route && r.route.path === '/api/jobs/:id/cost-update' && r.route.methods.post);
+    if (!handler) return res.status(500).send('Handler not found');
+    fakeReq.params.id = req.params.jobId;
+    await handler.route.stack[0].handle(fakeReq, fakeRes, () => {});
+  } catch (err) {
+    res.status(500).send('Error: ' + err.message);
+  }
+});
+
+// ============================================================
 // CHANGE ORDERS
 // ============================================================
 
