@@ -208,7 +208,10 @@ async function listJobs() {
 }
 
 async function generateJobNumber(clientName) {
-  const prefix = (clientName || 'JOB').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 10);
+  // Use the LAST name only: "Anthony Sanford" → "SANFORD"
+  const parts = (clientName || 'JOB').trim().split(/\s+/);
+  const lastName = parts[parts.length - 1];
+  const prefix = lastName.toUpperCase().replace(/[^A-ZÀ-ÖØ-Ý]/g, '').slice(0, 15);
   const existing = await db.get("SELECT job_number FROM jobs WHERE job_number LIKE ? ORDER BY job_number DESC LIMIT 1", [`${prefix}_%`]);
   if (existing) {
     const match = existing.job_number.match(/_(\d+)$/);
