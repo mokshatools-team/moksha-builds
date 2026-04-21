@@ -2519,35 +2519,93 @@ async function sendMessage() {
   scrollToBottom();
 
   try {
+    // Show user message immediately
+    const displayText = text + (filesToSend.length ? ` [${filesToSend.length} image(s)]` : '');
+    if (displayText) appendMessage('user', displayText);
+    input.value = '';
+    autoResize(input);
+    clearAttachmentQueue();
+
     const res = await fetch(`/api/sessions/${currentSessionId}/messages`, {
       method: 'POST',
       body: formData,
     });
-    const data = await res.json();
 
-    typingEl.remove();
+    // Check if server is streaming (SSE) or returning JSON (error/fallback)
+    const contentType = res.headers.get('content-type') || '';
+    if (contentType.includes('text/event-stream')) {
+      // Streaming SSE path — text appears word-by-word
+      let fullText = '';
+      let renderTimer = null;
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
 
-    if (data.error) {
-      appendMessage('system', 'Error: ' + data.error);
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const parts = buffer.split('\n\n');
+        buffer = parts.pop();
+
+        for (const part of parts) {
+          if (!part.startsWith('data: ')) continue;
+          let payload;
+          try { payload = JSON.parse(part.slice(6)); } catch(e) { continue; }
+
+          if (payload.type === 'delta') {
+            fullText += payload.text;
+            // Debounce markdown rendering to avoid DOM thrashing
+            if (!renderTimer) {
+              renderTimer = setTimeout(() => {
+                renderAssistantText(typingEl, fullText);
+                scrollToBottom();
+                renderTimer = null;
+              }, 40);
+            }
+          } else if (payload.type === 'replace') {
+            fullText = payload.text;
+            renderAssistantText(typingEl, fullText);
+            scrollToBottom();
+          } else if (payload.type === 'done') {
+            // Final render (un-debounced)
+            if (renderTimer) { clearTimeout(renderTimer); renderTimer = null; }
+            if (payload.hasQuote) {
+              typingEl.remove();
+              appendMessage('assistant', 'Quote ready — see the panel on the right.');
+              showQuote(currentSessionId, payload.status);
+              loadSessionMeta();
+            } else {
+              renderAssistantText(typingEl, fullText);
+            }
+            setStatus(payload.status);
+            loadSidebar();
+          } else if (payload.type === 'error') {
+            typingEl.remove();
+            appendMessage('system', 'Error: ' + payload.message);
+          }
+        }
+      }
+      // Final cleanup — ensure last render happened
+      if (renderTimer) { clearTimeout(renderTimer); renderTimer = null; }
+      if (fullText && typingEl.parentNode) renderAssistantText(typingEl, fullText);
     } else {
-      const displayText = text + (filesToSend.length ? ` [${filesToSend.length} image(s)]` : '');
-      if (displayText) appendMessage('user', displayText);
-      if (data.hasQuote) {
-        appendMessage('assistant', 'Quote ready — see the panel on the right.');
+      // JSON fallback (error responses before SSE headers were sent)
+      const data = await res.json();
+      typingEl.remove();
+      if (data.error) {
+        appendMessage('system', 'Error: ' + data.error);
       } else {
-        appendMessage('assistant', data.reply);
+        if (data.hasQuote) {
+          appendMessage('assistant', 'Quote ready — see the panel on the right.');
+          showQuote(currentSessionId, data.status);
+          loadSessionMeta();
+        } else {
+          appendMessage('assistant', data.reply);
+        }
+        setStatus(data.status);
+        loadSidebar();
       }
-      setStatus(data.status);
-      input.value = '';
-      autoResize(input);
-      clearAttachmentQueue();
-
-      if (data.hasQuote) {
-        showQuote(currentSessionId, data.status);
-        await loadSessionMeta();
-      }
-
-      loadSidebar();
     }
   } catch (err) {
     typingEl.remove();

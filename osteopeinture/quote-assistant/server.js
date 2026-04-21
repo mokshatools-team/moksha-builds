@@ -1871,67 +1871,90 @@ async function handleSessionMessage(req, res) {
     if (isExteriorSession) {
       apiParams.tools.push(SCAFFOLD_TOOL);
     }
-    let response = await anthropic.messages.create(apiParams);
+    // Helper to write SSE events
+    const sse = (payload) => res.write('data: ' + JSON.stringify(payload) + '\n\n');
 
-    // Handle tool use loop (scaffold + past quotes search)
-    let assistantContent = response.content;
-    while (response.stop_reason === 'tool_use') {
-      const toolBlock = assistantContent.find(b => b.type === 'tool_use');
-      if (!toolBlock) break;
+    // Start SSE stream
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders();
 
-      let toolResult;
-      try {
-        if (toolBlock.name === 'calculate_scaffold') {
-          toolResult = calculateScaffold(toolBlock.input);
-        } else if (toolBlock.name === 'search_past_quotes') {
-          const { query, type } = toolBlock.input || {};
-          const searchParams = [query ? '%' + query + '%' : '%'];
-          let sql = 'SELECT client_name, project_id, address, date, year, job_type, subtotal, grand_total, deposit, duration, sections_json, paints_json FROM past_quotes WHERE (client_name ILIKE $1 OR project_id ILIKE $1 OR address ILIKE $1)';
-          if (type) { sql += ' AND job_type = $2'; searchParams.push(type); }
-          sql += ' ORDER BY date DESC LIMIT 5';
-          const { getPool } = require('./db');
-          const { rows } = await getPool().query(sql, searchParams);
-          toolResult = rows.map(r => ({
-            ...r,
-            sections: r.sections_json ? JSON.parse(r.sections_json) : null,
-            paints: r.paints_json ? JSON.parse(r.paints_json) : null,
-            sections_json: undefined,
-            paints_json: undefined,
-          }));
-        } else {
-          break;
+    // Handle client disconnect
+    let aborted = false;
+    req.on('close', () => { aborted = true; });
+
+    // Stream the first Claude call
+    let assistantText = '';
+    const stream = anthropic.messages.stream({ ...apiParams, messages });
+    stream.on('text', (text) => {
+      if (aborted) return;
+      assistantText += text;
+      sse({ type: 'delta', text });
+    });
+    const finalMessage = await stream.finalMessage();
+
+    // If tool use, run the tool loop non-streaming then send the final result
+    if (finalMessage.stop_reason === 'tool_use') {
+      let assistantContent = finalMessage.content;
+      let response = finalMessage;
+      while (response.stop_reason === 'tool_use') {
+        const toolBlock = assistantContent.find(b => b.type === 'tool_use');
+        if (!toolBlock) break;
+
+        let toolResult;
+        try {
+          if (toolBlock.name === 'calculate_scaffold') {
+            toolResult = calculateScaffold(toolBlock.input);
+          } else if (toolBlock.name === 'search_past_quotes') {
+            const { query, type } = toolBlock.input || {};
+            const searchParams = [query ? '%' + query + '%' : '%'];
+            let sql = 'SELECT client_name, project_id, address, date, year, job_type, subtotal, grand_total, deposit, duration, sections_json, paints_json FROM past_quotes WHERE (client_name ILIKE $1 OR project_id ILIKE $1 OR address ILIKE $1)';
+            if (type) { sql += ' AND job_type = $2'; searchParams.push(type); }
+            sql += ' ORDER BY date DESC LIMIT 5';
+            const { getPool } = require('./db');
+            const { rows } = await getPool().query(sql, searchParams);
+            toolResult = rows.map(r => ({
+              ...r,
+              sections: r.sections_json ? JSON.parse(r.sections_json) : null,
+              paints: r.paints_json ? JSON.parse(r.paints_json) : null,
+              sections_json: undefined,
+              paints_json: undefined,
+            }));
+          } else {
+            break;
+          }
+        } catch (err) {
+          toolResult = { error: err.message };
         }
-      } catch (err) {
-        toolResult = { error: err.message };
+
+        messages.push({ role: 'assistant', content: assistantContent });
+        messages.push({
+          role: 'user',
+          content: [{ type: 'tool_result', tool_use_id: toolBlock.id, content: JSON.stringify(toolResult) }],
+        });
+
+        response = await anthropic.messages.create({ ...apiParams, messages });
+        assistantContent = response.content;
       }
-
-      messages.push({ role: 'assistant', content: assistantContent });
-      messages.push({
-        role: 'user',
-        content: [{ type: 'tool_result', tool_use_id: toolBlock.id, content: JSON.stringify(toolResult) }],
-      });
-
-      response = await anthropic.messages.create({ ...apiParams, messages });
-      assistantContent = response.content;
+      // Send the final text (replaces any partial stream from before tool use)
+      assistantText = extractTextContent(assistantContent);
+      if (!aborted) sse({ type: 'replace', text: assistantText });
     }
 
-    const assistantText = extractTextContent(assistantContent);
+    // Save to session
     session.messages.push({
       role: 'user',
       content: buildCompactStoredUserContent(userText, normalizedImages),
     });
 
-    // Try to extract JSON from response
     let quoteJson = null;
     let status = session.status;
-
     const jsonString = extractJsonString(assistantText);
     if (jsonString) {
       try {
         quoteJson = JSON.parse(jsonString);
         status = 'quote_ready';
-
-        // Calculate total for DB
         let total = 0;
         for (const sec of (quoteJson.sections || [])) {
           if (sec.excluded || sec.optional) continue;
@@ -1943,17 +1966,10 @@ async function handleSessionMessage(req, res) {
         session.projectId = quoteJson.projectId || null;
         session.address = quoteJson.address || null;
         session.quoteJson = quoteJson;
-      } catch (e) {
-        // Not valid JSON, continue gathering
-      }
+      } catch (e) {}
     }
 
-    // Early metadata extraction: update sidebar name/address from user
-    // messages even before the full quote JSON is generated. Looks for
-    // common patterns like "Client: Name" or "Address: 123 Street" in
-    // the assistant's recap, or just uses the last mentioned proper name.
     if (!session.projectId || session.projectId.startsWith('NEW_')) {
-      // Check if assistant mentioned a client name in a structured way
       const nameMatch = assistantText.match(/(?:client|nom|name)\s*[:—]\s*([A-ZÀ-ÖØ-Ý][a-zà-öø-ÿ]+(?:\s+[A-ZÀ-ÖØ-Ý][a-zà-öø-ÿ]+)*)/i);
       if (nameMatch && nameMatch[1]) {
         const lastName = nameMatch[1].trim().split(/\s+/).pop().toUpperCase();
@@ -1966,17 +1982,22 @@ async function handleSessionMessage(req, res) {
     session.status = status;
     await saveSession(session);
 
-    res.json({
-      reply: assistantText,
-      status,
-      hasQuote: !!quoteJson,
-    });
+    if (!aborted) {
+      sse({ type: 'done', status, hasQuote: !!quoteJson });
+      res.end();
+    }
   } catch (error) {
     if (error instanceof UploadError) {
       return res.status(error.status || 400).json({ error: error.message });
     }
     console.error('Claude API error:', error);
-    res.status(500).json({ error: 'Unexpected server error' });
+    // If SSE headers already sent, send error as SSE event
+    if (res.headersSent) {
+      try { res.write('data: ' + JSON.stringify({ type: 'error', message: error.message || 'Unexpected server error' }) + '\n\n'); } catch(e) {}
+      res.end();
+    } else {
+      res.status(500).json({ error: 'Unexpected server error' });
+    }
   }
 }
 
