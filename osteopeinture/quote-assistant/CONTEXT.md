@@ -1,6 +1,53 @@
 # CONTEXT.md — OstéoPeinture OP Hub (fka Quote Assistant)
-# Last updated: April 19, 2026
-# Session: H — Email templates, Resend, PDF formatting, token optimization
+# Last updated: April 21, 2026
+# Session: I — Streaming, markdown, file attachments, cost update, multi-tab
+
+---
+
+## STATE AS OF 2026-04-21 (Session I)
+
+### Streaming Responses
+- Claude responses now stream word-by-word via SSE over POST
+- Tool use (scaffold, past quotes) falls back to non-streaming, then streams final answer
+- Frontend uses fetch + ReadableStream with debounced markdown rendering (40ms)
+
+### Markdown Rendering
+- Switched from custom line parser to `marked.js` for assistant messages
+- Bold, tables, code, lists, headings, hr all render properly
+- Added CSS for tables, headings in assistant bubbles
+
+### File Attachments (Supabase Storage)
+- Images uploaded in chat saved to `op-hub-attachments` bucket on Supabase
+- `attachments` DB table tracks metadata (session_id, job_id, public_url, etc.)
+- Thumbnail strip below chat header for sessions with files
+- Attachments section in job detail between Extras and Finances
+- Files transfer to job on quote conversion (job_id updated)
+- Supabase SDK: `@supabase/supabase-js` installed, env vars `SUPABASE_URL` + `SUPABASE_ANON_KEY` on Railway
+
+### Client Cost Update (unified document)
+- Replaces separate change orders + invoices — one document, three title variants
+- POST `/api/jobs/:id/cost-update` with `docType` param: `cost-update` or `invoice`
+- **Cost Update** = "PROJECT COST UPDATE": sections + totals + payments + balance. NO paint, NO modalities, NO signature, NO closing.
+- **Invoice (cash)** = "PROJECT COST BREAKDOWN": adds paint section, closing, "thank you for your trust"
+- **Invoice (declared)** = "INVOICE": same as cash invoice but with taxes
+- Payment lines right-aligned near amounts (Kennerknecht format)
+- Reference: `/Users/loric/Downloads/KENNERKNECHT_01 - INVOICE_01 (1).pdf`
+
+### Multi-Tab Independence
+- `startNewSession()` now updates URL with `?session=ID`
+- Combined with `loadSession()` URL update, each tab works independently
+- Email form state persists per-session (save/restore on switch)
+
+### Other Fixes
+- Job ID rename: click title in job detail → prompt to rename
+- Job number uses last name only (SANFORD_01 not ANTHONYSAN_01)
+- Close buttons (✕) + backdrop click on all modals (standalone email, smart paste)
+- H1/H2/H3 layout shorthand in system prompt + help button (?) next to toggles
+- View Original Quote button in job detail (opens `/preview/{quote_session_id}`)
+- QUOTING_LOGIC v10: STEINA Enduradeck $96.95/gal with coverage/cost details
+
+**Live URL:** https://op-quote-assistant.up.railway.app
+**Latest commit:** `099ff75`
 
 ---
 
