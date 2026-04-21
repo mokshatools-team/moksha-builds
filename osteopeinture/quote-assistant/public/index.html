@@ -2480,6 +2480,8 @@ async function startNewSession() {
   const res = await fetch('/api/sessions', { method: 'POST' });
   const data = await res.json();
   currentSessionId = data.id;
+  // Update URL so this tab has its own session — enables multi-tab
+  history.replaceState(null, '', '?session=' + data.id);
   clearAttachmentQueue();
 
   document.getElementById('messages').innerHTML = '';
