@@ -51,7 +51,8 @@
 - [File attachments + quote accessible from job](project_file_attachments_and_quote_link.md) — save chat files, transfer to jobs, link original quote from job dashboard
 
 ## Invoicing & Documents
-- [Invoice formatting must match quote template](project_invoice_direction.md) — reuse quote HTML renderer, pull from extras + change orders, change orders parked for now
+- [Client Cost Update = ONE document replacing change orders + invoices](project_client_cost_update_spec.md) — initial quote + add-ons + payments + balance, same template as quotes
+- [Invoice formatting must match quote template](project_invoice_direction.md) — reuse quote HTML renderer
 
 ## Email & Sending
 - [Resend HTTP API for email sending](reference_resend_email.md) — Railway blocks SMTP, Resend with verified osteopeinture.com domain
