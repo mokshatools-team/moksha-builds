@@ -18,6 +18,19 @@ const { ensureDatabase, scheduleBackup, backupToDrive } = require('./lib/db-back
 const { calculateScaffold } = require('./lib/scaffold-engine');
 
 // ============================================================
+// SUPABASE STORAGE (file attachments)
+// ============================================================
+let supabase = null;
+const STORAGE_BUCKET = 'op-hub-attachments';
+if (process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY) {
+  const { createClient } = require('@supabase/supabase-js');
+  supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+  console.log('[storage] Supabase Storage initialized');
+} else {
+  console.log('[storage] SUPABASE_URL/ANON_KEY not set — file attachments disabled');
+}
+
+// ============================================================
 // DATABASE SETUP
 // ============================================================
 
@@ -295,6 +308,9 @@ async function convertSessionToJob(sessionId, overrides = {}) {
       await db.run('UPDATE jobs SET job_sections = ? WHERE id = ?', [JSON.stringify({ products: productsLines }), jobId]);
     }
   }
+
+  // Transfer file attachments from session to job
+  await db.run('UPDATE attachments SET job_id = ? WHERE session_id = ?', [jobId, sessionId]);
 
   // Mark session as converted
   await db.run('UPDATE sessions SET converted_job_id = ?, accepted_at = ? WHERE id = ?', [jobId, now, sessionId]);
@@ -1820,6 +1836,27 @@ async function handleSessionMessage(req, res) {
   try {
     const userText = typeof req.body.message === 'string' ? req.body.message : '';
     const normalizedImages = await normalizeImages(req.files || []);
+
+    // Upload normalized images to Supabase Storage (persist for later access)
+    if (supabase && normalizedImages.length > 0) {
+      for (const img of normalizedImages) {
+        try {
+          const fileId = uuidv4();
+          const ext = img.mediaType === 'image/png' ? 'png' : 'jpeg';
+          const storagePath = `sessions/${req.params.id}/${fileId}.${ext}`;
+          const { error: uploadErr } = await supabase.storage
+            .from(STORAGE_BUCKET)
+            .upload(storagePath, img.data, { contentType: img.mediaType, upsert: false });
+          if (uploadErr) { console.warn('[storage] upload failed:', uploadErr.message); continue; }
+          const { data: urlData } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(storagePath);
+          await db.run(
+            'INSERT INTO attachments (id, session_id, filename, original_name, content_type, size_bytes, storage_path, public_url, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [fileId, req.params.id, `${fileId}.${ext}`, img.originalName || `${fileId}.${ext}`, img.mediaType, img.data.length, storagePath, urlData.publicUrl, new Date().toISOString()]
+          );
+        } catch (e) { console.warn('[storage] attach error:', e.message); }
+      }
+    }
+
     const content = [];
     if (userText) content.push({ type: 'text', text: userText });
     content.push(...buildAnthropicImageParts(normalizedImages));
@@ -2157,6 +2194,36 @@ app.post('/api/sessions/:id/adjust-quote', async (req, res) => {
   await saveSession(session);
 
   res.json({ ok: true });
+});
+
+// ── ATTACHMENTS ─────────────────────────────────────────────
+// List attachments for a session
+app.get('/api/sessions/:id/attachments', async (req, res) => {
+  try {
+    const rows = await db.all('SELECT * FROM attachments WHERE session_id = ? ORDER BY created_at', [req.params.id]);
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// List attachments for a job
+app.get('/api/jobs/:id/attachments', async (req, res) => {
+  try {
+    const rows = await db.all('SELECT * FROM attachments WHERE job_id = ? ORDER BY created_at', [req.params.id]);
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Delete an attachment
+app.delete('/api/attachments/:id', async (req, res) => {
+  try {
+    const att = await db.get('SELECT * FROM attachments WHERE id = ?', [req.params.id]);
+    if (!att) return res.status(404).json({ error: 'Not found' });
+    if (supabase) {
+      await supabase.storage.from(STORAGE_BUCKET).remove([att.storage_path]);
+    }
+    await db.run('DELETE FROM attachments WHERE id = ?', [req.params.id]);
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // Delete session
@@ -3805,8 +3872,25 @@ app.get('/api/version', async (req, res) => {
 if (require.main === module) {
   const PORT = process.env.PORT || 3000;
   // Start server immediately — never block on backup
-  app.listen(PORT, () => {
+  app.listen(PORT, async () => {
     console.log(`OP Hub running on http://localhost:${PORT}`);
+    // Create attachments table if it doesn't exist
+    try {
+      await db.run(`CREATE TABLE IF NOT EXISTS attachments (
+        id TEXT PRIMARY KEY,
+        session_id TEXT,
+        job_id TEXT,
+        filename TEXT NOT NULL,
+        original_name TEXT,
+        content_type TEXT,
+        size_bytes INTEGER,
+        storage_path TEXT NOT NULL,
+        public_url TEXT,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )`);
+      await db.run('CREATE INDEX IF NOT EXISTS idx_attachments_session ON attachments(session_id)');
+      await db.run('CREATE INDEX IF NOT EXISTS idx_attachments_job ON attachments(job_id)');
+    } catch (e) { console.log('[attachments] table setup:', e.message); }
     // Restore/backup in background after server is up
     ensureDatabase(DB_PATH).then((status) => {
       console.log(`[db-backup] DB status: ${status}`);

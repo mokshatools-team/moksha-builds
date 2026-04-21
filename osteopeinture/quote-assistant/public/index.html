@@ -1936,6 +1936,7 @@
       </button>
       <button id="convert-to-job-btn" onclick="openConvertFromCurrentSession()" style="display:none;background:var(--sage-dim);color:var(--sage);border:none;padding:4px 10px;border-radius:4px;font-size:11px;font-weight:600;cursor:pointer">→ Job</button>
     </div>
+    <div id="session-attachments" style="display:none;padding:6px 12px;border-bottom:1px solid var(--border-soft);overflow-x:auto;white-space:nowrap;-webkit-overflow-scrolling:touch"></div>
     <div id="messages">
       <div class="msg system">Select a past quote or start a new one.</div>
     </div>
@@ -2459,6 +2460,7 @@ async function loadSession(id) {
   }
 
   setStatus(session.status);
+  loadSessionAttachments(id);
 
   document.getElementById('session-badge').style.display = 'none';
   document.getElementById('chat-header-title').textContent = session.project_id || session.client_name || 'New Quote';
@@ -3431,6 +3433,37 @@ async function loadJobs() {
   }
 }
 
+// ── ATTACHMENTS GALLERY ─────────────────────────────────────
+async function loadSessionAttachments(sessionId) {
+  const container = document.getElementById('session-attachments');
+  if (!container) return;
+  try {
+    const res = await fetch('/api/sessions/' + sessionId + '/attachments');
+    const files = await res.json();
+    if (!files.length) { container.style.display = 'none'; return; }
+    container.style.display = '';
+    container.innerHTML = files.map(f =>
+      '<a href="' + esc(f.public_url) + '" target="_blank" style="display:inline-block;margin-right:6px;border-radius:4px;overflow:hidden;border:1px solid var(--border)">' +
+      '<img src="' + esc(f.public_url) + '" style="height:48px;width:auto;display:block" alt="' + esc(f.original_name) + '">' +
+      '</a>'
+    ).join('');
+  } catch (e) { container.style.display = 'none'; }
+}
+
+function renderJobAttachments(attachments) {
+  if (!attachments || !attachments.length) return '';
+  let html = '<div style="margin-bottom:20px;">';
+  html += '<h3 style="font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-2);margin-bottom:8px;font-family:var(--font-sans)">Attachments</h3>';
+  html += '<div style="display:flex;flex-wrap:wrap;gap:6px">';
+  for (const f of attachments) {
+    html += '<a href="' + esc(f.public_url) + '" target="_blank" style="display:block;border-radius:4px;overflow:hidden;border:1px solid var(--border)">';
+    html += '<img src="' + esc(f.public_url) + '" style="height:64px;width:auto;display:block" alt="' + esc(f.original_name) + '">';
+    html += '</a>';
+  }
+  html += '</div></div>';
+  return html;
+}
+
 function renderChangeOrders(orders) {
   if (!orders || !orders.length) return '';
   let html = '<div style="margin-bottom:20px;">';
@@ -3522,6 +3555,9 @@ async function openJobDetail(jobId, source) {
       ${sectionTextarea('products', 'Products', 'Paint orders, quantities, colors...')}
       ${sectionTextarea('extras', 'Extras', 'Additional work, change orders, notes...')}
 
+      <!-- ATTACHMENTS (loaded async after render) -->
+      <div id="job-attachments-container"></div>
+
       <!-- FINANCES -->
       <div style="margin-bottom:20px;">
         <h3 style="font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-2);margin-bottom:8px;font-family:var(--font-sans)">Finances${isCash ? ' <span style="color:var(--accent);font-size:10px;font-weight:500">CASH</span>' : ''}</h3>
@@ -3575,6 +3611,11 @@ async function openJobDetail(jobId, source) {
     `;
     // Auto-expand all section textareas to fit their content
     setTimeout(autoExpandAllSections, 0);
+    // Load job attachments async
+    fetch('/api/jobs/' + jobId + '/attachments').then(r => r.json()).then(files => {
+      const el = document.getElementById('job-attachments-container');
+      if (el) el.innerHTML = renderJobAttachments(files);
+    }).catch(() => {});
   } catch (err) {
     content.innerHTML = '<div style="color:var(--accent);padding:20px">Error: ' + esc(err.message) + '</div>';
   }
