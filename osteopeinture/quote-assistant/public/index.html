@@ -2156,9 +2156,12 @@
 </div>
 
 <!-- STANDALONE EMAIL DRAFT MODAL -->
-<div id="stdemail-modal" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,0.7);align-items:flex-start;justify-content:center;overflow-y:auto;padding:40px 16px;">
+<div id="stdemail-modal" onclick="if(event.target===this)closeStandaloneEmail()" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,0.7);align-items:flex-start;justify-content:center;overflow-y:auto;padding:40px 16px;">
   <div style="background:var(--surface-0);border:1px solid var(--border);border-radius:8px;max-width:680px;width:100%;padding:24px;color:var(--text);font-family:var(--font-sans);">
-    <h3 style="margin:0 0 6px;font-family:var(--font-serif);font-size:20px;">Draft Email</h3>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+      <h3 style="margin:0;font-family:var(--font-serif);font-size:20px;">Draft Email</h3>
+      <button onclick="closeStandaloneEmail()" style="background:transparent;border:none;color:var(--text-3);font-size:20px;cursor:pointer;padding:4px 8px">✕</button>
+    </div>
     <div id="stdemail-context" style="font-size:12px;color:var(--text-3);margin-bottom:14px;"></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
       <div>
@@ -2221,9 +2224,12 @@
 </div>
 
 <!-- SMART PASTE MODAL (Apple Notes → job fields) -->
-<div id="smartpaste-modal" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,0.7);align-items:flex-start;justify-content:center;overflow-y:auto;padding:40px 16px;">
+<div id="smartpaste-modal" onclick="if(event.target===this)closeSmartPaste()" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,0.7);align-items:flex-start;justify-content:center;overflow-y:auto;padding:40px 16px;">
   <div style="background:var(--surface-0);border:1px solid var(--border);border-radius:8px;max-width:640px;width:100%;padding:24px;color:var(--text);font-family:var(--font-sans);">
-    <h3 style="margin:0 0 6px;font-family:var(--font-serif);font-size:20px;">Paste from Apple Notes</h3>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+      <h3 style="margin:0;font-family:var(--font-serif);font-size:20px;">Paste from Apple Notes</h3>
+      <button onclick="closeSmartPaste()" style="background:transparent;border:none;color:var(--text-3);font-size:20px;cursor:pointer;padding:4px 8px">✕</button>
+    </div>
     <div style="font-size:12px;color:var(--text-3);margin-bottom:14px;">Paste a raw Apple Note. Claude will extract client info, payments, and totals. Everything else goes to the scratchpad.</div>
 
     <div id="smartpaste-step-input">
@@ -3505,6 +3511,21 @@ async function openJobDetail(jobId, source) {
     const res = await fetch('/api/jobs/' + jobId);
     const job = await res.json();
     title.textContent = job.job_number || job.client_name;
+    title.style.cursor = 'pointer';
+    title.title = 'Click to rename';
+    title.onclick = async () => {
+      const newName = prompt('Rename job ID:', job.job_number || '');
+      if (!newName || newName === job.job_number) return;
+      try {
+        await fetch('/api/jobs/' + jobId, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ job_number: newName }),
+        });
+        title.textContent = newName;
+        loadJobsSidebar();
+      } catch (e) { alert('Rename failed: ' + e.message); }
+    };
 
     const isCash = job.payment_type === 'cash';
     const effectiveTotal = (job.effectiveTotalCents || job.quote_total_cents || 0) / 100;
