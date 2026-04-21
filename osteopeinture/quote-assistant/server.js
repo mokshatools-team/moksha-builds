@@ -3409,9 +3409,10 @@ app.post('/api/jobs/:id/cost-update', express.json(), async (req, res) => {
     const balanceDue = grandTotal - (totalPaidCents / 100);
 
     // Build the document HTML using the quote renderer's CSS
+    // Title logic: cost update = PROJECT COST UPDATE, invoice = PROJECT COST BREAKDOWN (cash) or INVOICE (declared)
     const docTitle = isInvoice
-      ? (isFr ? 'FACTURE' : 'INVOICE')
-      : (isFr ? 'MISE À JOUR DES COÛTS' : 'COST UPDATE');
+      ? (isCash ? (isFr ? 'VENTILATION DES COÛTS DU PROJET' : 'PROJECT COST BREAKDOWN') : (isFr ? 'FACTURE' : 'INVOICE'))
+      : (isFr ? 'MISE À JOUR DES COÛTS DU PROJET' : 'PROJECT COST UPDATE');
     const projectType = quoteJson ? quoteJson.projectType : (isFr ? 'Travaux de peinture' : 'Painting Work');
 
     // Construct a quote-like object and render it
@@ -3423,48 +3424,69 @@ app.post('/api/jobs/:id/cost-update', express.json(), async (req, res) => {
       projectType: projectType,
       lang: isFr ? 'fr' : undefined,
       sections,
-      paints: (quoteJson && quoteJson.paints) || [],
+      // Invoice gets paint section; cost update does not
+      paints: isInvoice ? ((quoteJson && quoteJson.paints) || []) : [],
       terms: { includes: [], conditions: [] },
       modalities: {},
     };
 
-    // Render the base quote HTML, then inject payments section before the signature
-    let html = renderQuoteHTML(costUpdateData);
+    // Render the base quote HTML
+    let html = renderQuoteHTML(costUpdateData, { branded: true });
 
-    // Replace the title in the rendered HTML
-    const origTitle = isFr ? 'TRAVAUX DE PEINTURE' : 'PAINTING';
+    // Replace the title
     html = html.replace(
       /<div class="project-type">[^<]*<\/div>/,
       '<div class="project-type">' + docTitle + '</div>'
     );
 
-    // Build payments table HTML
+    // Remove modalities section (not needed for cost update or invoice)
+    html = html.replace(/<div class="section-header">[^<]*(?:Détails et modalités|Details & Modalities)[^<]*<\/div>[\s\S]*?<\/div>\s*(?=<div class="(?:legal-block|sig-grid|footer|section-header)">)/, '');
+
+    // Remove legal block ("additional work", "valid 30 days", "client responsible") for both
+    html = html.replace(/<div class="legal-block">[\s\S]*?<\/div>/, '');
+
+    // Cost update: remove signature + paint section
+    if (!isInvoice) {
+      html = html.replace(/<div class="sig-grid">[\s\S]*?<\/div>\s*<\/div>/, '');
+      html = html.replace(/<div class="paint-section">[\s\S]*?<\/div>/, '');
+    }
+
+    // Build payments section
     let paymentsHtml = '';
     if (payments.length > 0) {
-      paymentsHtml = '<div class="section-header">' + (isFr ? 'Paiements reçus' : 'Payments Received') + '</div>';
+      paymentsHtml += '<div class="section-header">' + (isFr ? 'PAIEMENTS REÇUS' : 'PAYMENTS RECEIVED') + '</div>';
       paymentsHtml += '<table class="quote-table">';
       for (const p of payments) {
         const date = p.payment_date || p.created_at.slice(0, 10);
         const method = p.method || '';
         const amount = (p.amount_cents / 100).toLocaleString('fr-CA', { maximumFractionDigits: 0 }) + ' $';
-        paymentsHtml += '<tr class="row-item"><td class="col-desc">' + esc(date) + ' — ' + esc(method) + '</td><td class="col-price">' + amount + '</td></tr>';
+        // Right-align date+method text so it reads near the amounts
+        paymentsHtml += '<tr class="row-item"><td class="col-desc" style="text-align:right">' + esc(date) + ' — ' + esc(method) + '</td><td class="col-price">' + amount + '</td></tr>';
       }
       const paidStr = (totalPaidCents / 100).toLocaleString('fr-CA', { maximumFractionDigits: 0 }) + ' $';
-      paymentsHtml += '<tr class="row-section"><td class="col-desc"><strong>' + (isFr ? 'Total payé' : 'Total Paid') + '</strong></td><td class="col-price"><strong>' + paidStr + '</strong></td></tr>';
+      paymentsHtml += '<tr class="row-section"><td class="col-desc" style="text-align:right"><strong>' + (isFr ? 'Total payé' : 'Total Paid') + '</strong></td><td class="col-price"><strong>' + paidStr + '</strong></td></tr>';
       paymentsHtml += '</table>';
 
       // Balance due
       const balanceStr = balanceDue.toLocaleString('fr-CA', { maximumFractionDigits: 0 }) + ' $';
-      paymentsHtml += '<div class="row-total grand" style="margin-top:8px"><div class="lbl">' + (isFr ? 'SOLDE À PAYER' : 'BALANCE DUE') + '</div><div class="prc">' + balanceStr + '</div></div>';
+      paymentsHtml += '<div class="row-total grand" style="margin-top:8px"><div class="lbl">' + (isFr ? 'SOLDE À PAYER' : 'BALANCE TO BE PAID') + '</div><div class="prc">' + balanceStr + '</div></div>';
     }
 
-    // Inject payments section before the signature grid
-    if (paymentsHtml) {
-      html = html.replace('<div class="sig-grid">', paymentsHtml + '<div class="sig-grid">');
+    // Invoice closing statements (not on cost update)
+    let closingHtml = '';
+    if (isInvoice) {
+      const closingText = isCash
+        ? (isFr ? 'Le solde restant est à payer en argent comptant à la fin des travaux.' : 'The remaining balance is to be paid by cash upon completion of the work.')
+        : (isFr ? 'Le solde restant est à payer par virement Interac à la fin des travaux.' : 'The remaining balance is to be paid by e-transfer upon completion of the work.');
+      closingHtml = '<div style="text-align:center;font-size:8px;color:#555;padding:12px 0 6px">' + closingText + '</div>';
+      closingHtml += '<div style="text-align:center;font-weight:700;font-style:italic;font-size:10px;padding:12px 0 20px">' + (isFr ? 'MERCI DE VOTRE CONFIANCE!' : 'THANK YOU FOR YOUR TRUST!') + '</div>';
     }
 
-    // Remove paint section and modalities for cost updates (not relevant)
-    // Actually keep them — the client may want to see what products were used
+    // Inject payments + closing before footer
+    const insertPoint = '<div class="footer">';
+    if (paymentsHtml || closingHtml) {
+      html = html.replace(insertPoint, paymentsHtml + closingHtml + insertPoint);
+    }
 
     res.json({ html, docType: isInvoice ? 'invoice' : 'cost-update' });
   } catch (err) {
