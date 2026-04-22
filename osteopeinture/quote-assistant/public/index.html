@@ -597,6 +597,19 @@
     border: 1px solid var(--border);
   }
 
+  /* Gallery carousel thumbnails */
+  #gallery-carousel img {
+    height: 56px;
+    width: auto;
+    border-radius: 4px;
+    border: 2px solid transparent;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: border-color 0.15s;
+  }
+  #gallery-carousel img:hover { border-color: var(--text-3); }
+  #gallery-carousel img.selected { border-color: var(--accent); }
+
   .msg.assistant p { margin: 0 0 4px; }
   .msg.assistant p:last-child { margin-bottom: 0; }
   .msg.assistant ul, .msg.assistant ol { padding-left: 18px; margin: 2px 0; }
@@ -1979,6 +1992,7 @@
         Back
       </button>
       <div id="quote-header-title">Quote Preview</div>
+      <button class="action-btn" id="btn-gallery-toggle" onclick="toggleGalleryView()" style="display:none" title="Toggle gallery">📎</button>
       <button class="action-btn" id="btn-pdf" onclick="downloadPDF()" style="display:none">↓ PDF</button>
       <button class="action-btn" id="btn-email-toggle" onclick="toggleEmailForm()" style="display:none">✉ Email</button>
       <button class="action-btn" id="btn-preview" onclick="refreshPreview()" style="display:none">↺ Refresh</button>
@@ -1996,6 +2010,16 @@
         <p>Your quote will appear here once the assistant generates it.</p>
       </div>
       <iframe id="quote-frame" style="display:none"></iframe>
+      <!-- IMAGE GALLERY (sibling of quote frame, toggled via show/hide) -->
+      <div id="quote-gallery" style="display:none;flex:1;flex-direction:column;overflow:hidden">
+        <div id="gallery-preview" style="flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative;background:var(--surface-0)">
+          <button id="gallery-prev" onclick="galleryNav(-1)" style="position:absolute;left:4px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,0.5);color:#fff;border:none;border-radius:50%;width:32px;height:32px;font-size:16px;cursor:pointer;z-index:2">‹</button>
+          <img id="gallery-preview-img" style="max-width:100%;max-height:100%;object-fit:contain" alt="">
+          <button id="gallery-next" onclick="galleryNav(1)" style="position:absolute;right:4px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,0.5);color:#fff;border:none;border-radius:50%;width:32px;height:32px;font-size:16px;cursor:pointer;z-index:2">›</button>
+        </div>
+        <div id="gallery-carousel" style="display:flex;gap:4px;padding:6px 8px;overflow-x:auto;-webkit-overflow-scrolling:touch;background:var(--surface-1);border-top:1px solid var(--border);flex-shrink:0"></div>
+        <div id="gallery-count" style="text-align:center;font-size:10px;color:var(--text-3);padding:2px 0;background:var(--surface-1)"></div>
+      </div>
       <button id="email-restore-btn" onclick="restoreEmailForm()">✉ Email</button>
     </div>
     <div id="email-divider"></div>
@@ -3485,14 +3509,14 @@ async function loadSessionAttachments(sessionId) {
   try {
     const res = await fetch('/api/sessions/' + sessionId + '/attachments');
     const files = await res.json();
-    if (!files.length) { container.style.display = 'none'; return; }
+    if (!files.length) { container.style.display = 'none'; loadGalleryImages([]); return; }
     container.style.display = '';
-    container.innerHTML = files.map(f =>
-      '<a href="' + esc(f.public_url) + '" target="_blank" style="display:inline-block;margin-right:6px;border-radius:4px;overflow:hidden;border:1px solid var(--border)">' +
-      '<img src="' + esc(f.public_url) + '" style="height:48px;width:auto;display:block" alt="' + esc(f.original_name) + '">' +
-      '</a>'
+    container.innerHTML = files.map((f, i) =>
+      '<img src="' + esc(f.public_url) + '" onclick="showGallery();selectGalleryImage(' + i + ')" style="height:48px;width:auto;display:inline-block;margin-right:6px;border-radius:4px;border:1px solid var(--border);cursor:pointer" alt="' + esc(f.original_name) + '">'
     ).join('');
-  } catch (e) { container.style.display = 'none'; }
+    // Populate the gallery panel
+    loadGalleryImages(files);
+  } catch (e) { container.style.display = 'none'; loadGalleryImages([]); }
 }
 
 function renderJobAttachments(attachments) {
@@ -3527,6 +3551,106 @@ async function openCostUpdate(jobId, docType) {
     alert('Error: ' + err.message);
   }
 }
+
+// ── IMAGE GALLERY (in quote panel) ──────────────────────────
+const galleryState = { images: [], currentIndex: 0, visible: false };
+
+function toggleGalleryView() {
+  if (galleryState.visible) {
+    hideGallery();
+  } else {
+    showGallery();
+  }
+}
+
+function showGallery() {
+  if (!galleryState.images.length) return;
+  galleryState.visible = true;
+  document.getElementById('quote-gallery').style.display = 'flex';
+  document.getElementById('quote-frame').style.display = 'none';
+  document.getElementById('quote-placeholder').style.display = 'none';
+  document.getElementById('btn-gallery-toggle').textContent = '📄';
+  document.getElementById('btn-gallery-toggle').title = 'Show quote';
+  selectGalleryImage(galleryState.currentIndex);
+}
+
+function hideGallery() {
+  galleryState.visible = false;
+  document.getElementById('quote-gallery').style.display = 'none';
+  document.getElementById('btn-gallery-toggle').textContent = '📎';
+  document.getElementById('btn-gallery-toggle').title = 'Show gallery';
+  // Show quote frame or placeholder
+  const frame = document.getElementById('quote-frame');
+  if (frame.src || frame.srcdoc) {
+    frame.style.display = '';
+  } else {
+    document.getElementById('quote-placeholder').style.display = '';
+  }
+}
+
+function loadGalleryImages(attachments) {
+  galleryState.images = (attachments || []).filter(a => a.content_type && a.content_type.startsWith('image/'));
+  galleryState.currentIndex = 0;
+  const toggleBtn = document.getElementById('btn-gallery-toggle');
+  if (galleryState.images.length > 0) {
+    toggleBtn.style.display = '';
+    // Build carousel thumbnails
+    const carousel = document.getElementById('gallery-carousel');
+    carousel.innerHTML = galleryState.images.map((img, i) =>
+      '<img src="' + esc(img.public_url) + '" class="' + (i === 0 ? 'selected' : '') + '" onclick="selectGalleryImage(' + i + ')" alt="' + esc(img.original_name || '') + '">'
+    ).join('');
+    // If no quote exists, show gallery by default
+    const frame = document.getElementById('quote-frame');
+    if (!frame.src && !frame.srcdoc) {
+      showGallery();
+    }
+  } else {
+    toggleBtn.style.display = 'none';
+    if (galleryState.visible) hideGallery();
+  }
+}
+
+function selectGalleryImage(index) {
+  if (index < 0 || index >= galleryState.images.length) return;
+  galleryState.currentIndex = index;
+  const img = galleryState.images[index];
+  document.getElementById('gallery-preview-img').src = img.public_url;
+  // Update carousel selection
+  const thumbs = document.querySelectorAll('#gallery-carousel img');
+  thumbs.forEach((t, i) => t.classList.toggle('selected', i === index));
+  // Scroll selected thumb into view
+  if (thumbs[index]) thumbs[index].scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+  // Update count
+  document.getElementById('gallery-count').textContent = (index + 1) + ' / ' + galleryState.images.length;
+  // Show/hide arrows
+  document.getElementById('gallery-prev').style.display = index > 0 ? '' : 'none';
+  document.getElementById('gallery-next').style.display = index < galleryState.images.length - 1 ? '' : 'none';
+}
+
+function galleryNav(delta) {
+  selectGalleryImage(galleryState.currentIndex + delta);
+}
+
+// Keyboard navigation for gallery
+document.addEventListener('keydown', (e) => {
+  if (!galleryState.visible) return;
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+  if (e.key === 'ArrowLeft') { galleryNav(-1); e.preventDefault(); }
+  if (e.key === 'ArrowRight') { galleryNav(1); e.preventDefault(); }
+  if (e.key === 'Escape') { hideGallery(); e.preventDefault(); }
+});
+
+// Mobile swipe on gallery preview
+(function initGallerySwipe() {
+  let startX = 0;
+  const el = document.getElementById('gallery-preview');
+  if (!el) return;
+  el.addEventListener('touchstart', (e) => { startX = e.touches[0].clientX; }, { passive: true });
+  el.addEventListener('touchend', (e) => {
+    const diff = e.changedTouches[0].clientX - startX;
+    if (Math.abs(diff) > 50) galleryNav(diff > 0 ? -1 : 1);
+  }, { passive: true });
+})();
 
 function renderChangeOrders(orders) {
   if (!orders || !orders.length) return '';
