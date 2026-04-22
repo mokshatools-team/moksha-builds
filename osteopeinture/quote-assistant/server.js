@@ -928,7 +928,7 @@ function renderQuoteHTML(data, options = {}) {
       }
 
       // Floor header for room-based sections (PIÈCE 1, PIÈCE 2, etc.)
-      if (!sec.optional && !sec.excluded && sec.floor && sec.floor !== currentFloor) {
+      if (!sec.optional && !sec.excluded && sec.floor && typeof sec.floor === 'string' && sec.floor !== currentFloor) {
         currentFloor = sec.floor;
         tableHtml += `<tr class="row-floor"><td colspan="2">${esc(sec.floor)}</td></tr>`;
       }
