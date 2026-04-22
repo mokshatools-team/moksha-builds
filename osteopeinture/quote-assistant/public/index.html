@@ -597,9 +597,12 @@
     border: 1px solid var(--border);
   }
 
+  /* Quote frame container needs relative positioning for the absolute gallery overlay */
+  #quote-frame-container { position: relative; }
+
   /* Gallery carousel thumbnails */
   #gallery-carousel img {
-    height: 56px;
+    height: 100px;
     width: auto;
     border-radius: 4px;
     border: 2px solid transparent;
@@ -1992,7 +1995,8 @@
         Back
       </button>
       <div id="quote-header-title">Quote Preview</div>
-      <button class="action-btn" id="btn-gallery-toggle" onclick="toggleGalleryView()" style="display:none" title="Toggle gallery">📎</button>
+      <button class="action-btn" id="btn-show-quote" onclick="hideGallery()" style="display:none">Quote</button>
+      <button class="action-btn" id="btn-show-gallery" onclick="showGallery()" style="display:none">Photos</button>
       <button class="action-btn" id="btn-pdf" onclick="downloadPDF()" style="display:none">↓ PDF</button>
       <button class="action-btn" id="btn-email-toggle" onclick="toggleEmailForm()" style="display:none">✉ Email</button>
       <button class="action-btn" id="btn-preview" onclick="refreshPreview()" style="display:none">↺ Refresh</button>
@@ -2011,14 +2015,16 @@
       </div>
       <iframe id="quote-frame" style="display:none"></iframe>
       <!-- IMAGE GALLERY (sibling of quote frame, toggled via show/hide) -->
-      <div id="quote-gallery" style="display:none;flex:1;flex-direction:column;overflow:hidden">
-        <div id="gallery-preview" style="flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative;background:var(--surface-0)">
-          <button id="gallery-prev" onclick="galleryNav(-1)" style="position:absolute;left:4px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,0.5);color:#fff;border:none;border-radius:50%;width:32px;height:32px;font-size:16px;cursor:pointer;z-index:2">‹</button>
+      <div id="quote-gallery" style="display:none;flex-direction:column;position:absolute;inset:0;background:var(--surface-0);z-index:5">
+        <div id="gallery-preview" style="flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative;min-height:0">
+          <button id="gallery-prev" onclick="galleryNav(-1)" style="position:absolute;left:8px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,0.6);color:#fff;border:none;border-radius:50%;width:36px;height:36px;font-size:18px;cursor:pointer;z-index:2">‹</button>
           <img id="gallery-preview-img" style="max-width:100%;max-height:100%;object-fit:contain" alt="">
-          <button id="gallery-next" onclick="galleryNav(1)" style="position:absolute;right:4px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,0.5);color:#fff;border:none;border-radius:50%;width:32px;height:32px;font-size:16px;cursor:pointer;z-index:2">›</button>
+          <button id="gallery-next" onclick="galleryNav(1)" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,0.6);color:#fff;border:none;border-radius:50%;width:36px;height:36px;font-size:18px;cursor:pointer;z-index:2">›</button>
         </div>
-        <div id="gallery-carousel" style="display:flex;gap:4px;padding:6px 8px;overflow-x:auto;-webkit-overflow-scrolling:touch;background:var(--surface-1);border-top:1px solid var(--border);flex-shrink:0"></div>
-        <div id="gallery-count" style="text-align:center;font-size:10px;color:var(--text-3);padding:2px 0;background:var(--surface-1)"></div>
+        <div style="flex-shrink:0;background:var(--surface-1);border-top:1px solid var(--border)">
+          <div id="gallery-carousel" style="display:flex;gap:6px;padding:8px 12px;overflow-x:auto;-webkit-overflow-scrolling:touch"></div>
+          <div id="gallery-count" style="text-align:center;font-size:10px;color:var(--text-3);padding:0 0 6px"></div>
+        </div>
       </div>
       <button id="email-restore-btn" onclick="restoreEmailForm()">✉ Email</button>
     </div>
@@ -3556,11 +3562,22 @@ async function openCostUpdate(jobId, docType) {
 const galleryState = { images: [], currentIndex: 0, visible: false };
 
 function toggleGalleryView() {
-  if (galleryState.visible) {
-    hideGallery();
-  } else {
-    showGallery();
-  }
+  if (galleryState.visible) hideGallery();
+  else showGallery();
+}
+
+function updateGalleryButtons() {
+  const hasImages = galleryState.images.length > 0;
+  const frame = document.getElementById('quote-frame');
+  const hasQuote = frame && (frame.src || frame.srcdoc);
+  // Show both buttons only when both content types exist
+  document.getElementById('btn-show-quote').style.display = (hasImages && hasQuote) ? '' : 'none';
+  document.getElementById('btn-show-gallery').style.display = hasImages ? '' : 'none';
+  // Highlight the active one
+  document.getElementById('btn-show-quote').style.background = galleryState.visible ? 'transparent' : 'var(--accent)';
+  document.getElementById('btn-show-quote').style.color = galleryState.visible ? 'var(--text-2)' : '#fff';
+  document.getElementById('btn-show-gallery').style.background = galleryState.visible ? 'var(--accent)' : 'transparent';
+  document.getElementById('btn-show-gallery').style.color = galleryState.visible ? '#fff' : 'var(--text-2)';
 }
 
 function showGallery() {
@@ -3569,17 +3586,14 @@ function showGallery() {
   document.getElementById('quote-gallery').style.display = 'flex';
   document.getElementById('quote-frame').style.display = 'none';
   document.getElementById('quote-placeholder').style.display = 'none';
-  document.getElementById('btn-gallery-toggle').textContent = '📄';
-  document.getElementById('btn-gallery-toggle').title = 'Show quote';
+  updateGalleryButtons();
   selectGalleryImage(galleryState.currentIndex);
 }
 
 function hideGallery() {
   galleryState.visible = false;
   document.getElementById('quote-gallery').style.display = 'none';
-  document.getElementById('btn-gallery-toggle').textContent = '📎';
-  document.getElementById('btn-gallery-toggle').title = 'Show gallery';
-  // Show quote frame or placeholder
+  updateGalleryButtons();
   const frame = document.getElementById('quote-frame');
   if (frame.src || frame.srcdoc) {
     frame.style.display = '';
@@ -3591,9 +3605,7 @@ function hideGallery() {
 function loadGalleryImages(attachments) {
   galleryState.images = (attachments || []).filter(a => a.content_type && a.content_type.startsWith('image/'));
   galleryState.currentIndex = 0;
-  const toggleBtn = document.getElementById('btn-gallery-toggle');
   if (galleryState.images.length > 0) {
-    toggleBtn.style.display = '';
     // Build carousel thumbnails
     const carousel = document.getElementById('gallery-carousel');
     carousel.innerHTML = galleryState.images.map((img, i) =>
@@ -3603,10 +3615,12 @@ function loadGalleryImages(attachments) {
     const frame = document.getElementById('quote-frame');
     if (!frame.src && !frame.srcdoc) {
       showGallery();
+    } else {
+      updateGalleryButtons();
     }
   } else {
-    toggleBtn.style.display = 'none';
     if (galleryState.visible) hideGallery();
+    updateGalleryButtons();
   }
 }
 
