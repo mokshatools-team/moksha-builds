@@ -1452,6 +1452,11 @@ Scaffolding or lift — rental + install/dismantling as separate lines.
 **Phase 4 — Generate JSON:**
 Once the user confirms, output ONLY the raw JSON with no explanation, no markdown fences. The JSON must be valid and parseable.
 
+EXTERIOR QUOTE REMINDERS (if exterior):
+- ALWAYS include "estimateDisclaimer" field with: "Given the nature of exterior work, this is a cost estimate and not a fixed price. Final price will be billed based on actual preparation time required."
+- Repairs section MUST have "excluded": true, "total": 0, and a "range" field (e.g. "$500 - $800") showing estimated hourly range. Repairs are NEVER a fixed price on exterior.
+- These are non-negotiable for exterior quotes.
+
 ---
 
 ## QUOTE JSON FORMAT
