@@ -2767,7 +2767,7 @@ function prefillEmail(session) {
   document.getElementById('email-to').value = draft.recipient || session.email_recipient || '';
   document.getElementById('email-scenario').value = ['quote_send', 'quote_revision', 'quote_follow_up'].includes(settings.scenario) ? settings.scenario : 'quote_send';
   document.getElementById('email-signer').value = settings.signer || 'Loric';
-  document.getElementById('email-detail-level').value = settings.detailLevel || 'standard';
+  // email-detail-level removed — replaced by payment-type
   document.getElementById('email-language').value = settings.language || 'english';
 }
 
@@ -2779,7 +2779,7 @@ async function refreshEmailDraftFromSettings(changedField = '') {
 
   if (changedField === 'scenario') payload.scenario = document.getElementById('email-scenario').value;
   if (changedField === 'signer') payload.signer = document.getElementById('email-signer').value;
-  if (changedField === 'detailLevel') payload.detailLevel = document.getElementById('email-detail-level').value;
+  // detailLevel removed — templates don't use it
   if (changedField === 'language') payload.language = document.getElementById('email-language').value;
 
   const res = await fetch(`/api/sessions/${currentSessionId}/email-draft`, {
@@ -3070,7 +3070,7 @@ function saveEmailFormState(sessionId) {
   state.savedTo = document.getElementById('email-to').value;
   state.savedScenario = document.getElementById('email-scenario').value;
   state.savedSigner = document.getElementById('email-signer').value;
-  state.savedDetail = document.getElementById('email-detail-level').value;
+  state.savedDetail = '';
   state.savedTone = document.getElementById('email-tone').value;
   state.savedLanguage = document.getElementById('email-language').value;
 }
@@ -3084,7 +3084,7 @@ function restoreEmailFormState(sessionId) {
   document.getElementById('email-to').value = state.savedTo || '';
   document.getElementById('email-scenario').value = state.savedScenario || 'quote_send';
   document.getElementById('email-signer').value = state.savedSigner || 'Loric';
-  document.getElementById('email-detail-level').value = state.savedDetail || 'standard';
+  // email-detail-level removed
   document.getElementById('email-tone').value = state.savedTone || 'informal';
   document.getElementById('email-language').value = state.savedLanguage || 'english';
   return true;
