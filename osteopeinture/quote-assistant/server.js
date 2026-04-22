@@ -1871,6 +1871,15 @@ async function handleSessionMessage(req, res) {
     // knows the current quote state even if the generating message was trimmed.
     const fullHistory = buildTextOnlyHistory(session.messages);
     let trimmedMessages = fullHistory.length > 14 ? fullHistory.slice(-14) : fullHistory;
+    // Strip any messages containing tool_use or tool_result blocks — these are
+    // internal tool calls that can orphan if trimming cuts between a tool_use
+    // and its tool_result, causing "tool_use ids without tool_result" API errors.
+    trimmedMessages = trimmedMessages.filter(m => {
+      if (Array.isArray(m.content)) {
+        return !m.content.some(b => b.type === 'tool_use' || b.type === 'tool_result');
+      }
+      return true;
+    });
     // Ensure first message is from 'user' (Anthropic API requirement)
     while (trimmedMessages.length > 0 && trimmedMessages[0].role !== 'user') {
       trimmedMessages = trimmedMessages.slice(1);
@@ -2007,11 +2016,20 @@ async function handleSessionMessage(req, res) {
     }
 
     if (!session.projectId || session.projectId.startsWith('NEW_')) {
-      const nameMatch = assistantText.match(/(?:client|nom|name)\s*[:—]\s*([A-ZÀ-ÖØ-Ý][a-zà-öø-ÿ]+(?:\s+[A-ZÀ-ÖØ-Ý][a-zà-öø-ÿ]+)*)/i);
-      if (nameMatch && nameMatch[1]) {
-        const lastName = nameMatch[1].trim().split(/\s+/).pop().toUpperCase();
-        session.projectId = lastName + '_01';
-        session.clientName = nameMatch[1].trim();
+      // Check both assistant and user text for client name patterns
+      const bothText = userText + '\n' + assistantText;
+      // Pattern 1: explicit LASTNAME_XX format (user typed it)
+      const projectIdMatch = bothText.match(/([A-ZÀ-ÖØ-Ý]{2,}[_-]\d{1,2})/);
+      if (projectIdMatch) {
+        session.projectId = projectIdMatch[1].replace('-', '_');
+      } else {
+        // Pattern 2: "Client: Name" or "Nom: Name" in assistant text
+        const nameMatch = assistantText.match(/(?:client|nom|name)\s*[:—]\s*([A-ZÀ-ÖØ-Ý][a-zà-öø-ÿ]+(?:\s+[A-ZÀ-ÖØ-Ý][a-zà-öø-ÿ]+)*)/i);
+        if (nameMatch && nameMatch[1]) {
+          const lastName = nameMatch[1].trim().split(/\s+/).pop().toUpperCase();
+          session.projectId = lastName + '_01';
+          session.clientName = nameMatch[1].trim();
+        }
       }
     }
 

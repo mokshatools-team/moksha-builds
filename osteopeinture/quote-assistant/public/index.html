@@ -839,7 +839,7 @@
 
   /* ─── QUOTE PANEL ─── */
   #quote-panel {
-    flex: 1;
+    flex: 1 1 50%;
     min-width: 300px;
     background: var(--surface-0);
     display: flex;
@@ -3238,6 +3238,22 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden) clearDropState();
 });
 window.addEventListener('blur', clearDropState);
+// Clipboard paste support for images (screenshots, copied photos)
+document.addEventListener('paste', (e) => {
+  const items = e.clipboardData && e.clipboardData.items;
+  if (!items) return;
+  const imageFiles = [];
+  for (const item of items) {
+    if (item.type.startsWith('image/')) {
+      const file = item.getAsFile();
+      if (file) imageFiles.push(file);
+    }
+  }
+  if (imageFiles.length) {
+    e.preventDefault();
+    addFilesToQueue(imageFiles);
+  }
+});
 document.getElementById('email-subject').addEventListener('input', () => markEmailDraftDirty('subject'));
 document.getElementById('email-body').addEventListener('input', () => markEmailDraftDirty('body'));
 document.getElementById('email-to').addEventListener('input', () => markEmailDraftDirty('to'));
