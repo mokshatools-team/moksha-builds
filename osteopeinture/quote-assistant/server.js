@@ -927,8 +927,9 @@ function renderQuoteHTML(data, options = {}) {
         tableHtml += `<tr class="row-spacer"><td colspan="2"></td></tr>`;
       }
 
-      // Floor header for room-based sections (PIÈCE 1, PIÈCE 2, etc.)
-      if (!sec.optional && !sec.excluded && sec.floor && typeof sec.floor === 'string' && sec.floor !== currentFloor) {
+      // Floor header for room-based sections (PIÈCE 1, ACCÈS, RÉPARATIONS, etc.)
+      // Show for all sections including excluded — only the price is excluded, not the header.
+      if (!sec.optional && sec.floor && typeof sec.floor === 'string' && sec.floor !== currentFloor) {
         currentFloor = sec.floor;
         tableHtml += `<tr class="row-floor"><td colspan="2">${esc(sec.floor)}</td></tr>`;
       }
