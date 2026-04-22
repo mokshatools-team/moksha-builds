@@ -443,6 +443,11 @@ Exterior quotes follow a different structure than interior:
 - **Optional add-ons** are clearly flagged at the bottom, excluded from the subtotal
 - Later quotes (2025) use `[approx. $X – $Y]` inline notes and include disclaimers that the quote is an estimate, not a fixed price
 
+### Terminology — Corniche vs Chaperon métallique
+
+- **Corniche (cornice)** — decorative horizontal trim below the roofline, usually wood, painted. Often has denticules on older Montreal houses.
+- **Chaperon métallique (metal roof coping)** — flat metal cap on top of the parapet wall, above the cornice. Painted only when existing finish is failing.
+
 ---
 
 ## 23A. EXTERIOR ASSISTANT GUIDANCE
