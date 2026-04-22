@@ -898,10 +898,24 @@ function renderQuoteHTML(data, options = {}) {
       termsHtml += `<div class="terms-item">${esc(c)}</div>`;
     }
   }
-  const rate = terms.hourlyRate || 65;
-  termsHtml += `<div class="terms-item bold">${isFr
-    ? `Tout travail hors de la portée de cette soumission sera facturé à ${rate}\u00a0$/h + matériaux`
-    : `Any work outside of the scope of this quote will be billed at $${rate}/h + materials, as demanded`}</div>`;
+  // Hourly rates — always in the conditions area (not the footer)
+  if (isExterior) {
+    termsHtml += `<div class="terms-item bold">${isFr
+      ? 'Tout travail de peinture hors de la portée de cette soumission sera facturé à 65\u00a0$/h + matériaux'
+      : 'All painting work outside the scope of this quote will be charged at $65/h + materials'}</div>`;
+    termsHtml += `<div class="terms-item bold">${isFr
+      ? 'Les travaux de menuiserie sont facturés à 75\u00a0$/h + matériaux'
+      : 'Carpentry work is charged at $75/h + materials'}</div>`;
+  } else {
+    const rate = terms.hourlyRate || 65;
+    termsHtml += `<div class="terms-item bold">${isFr
+      ? `Tout travail hors de la portée de cette soumission sera facturé à ${rate}\u00a0$/h + matériaux`
+      : `Any work outside of the scope of this quote will be billed at $${rate}/h + materials`}</div>`;
+  }
+  // Estimate disclaimer — plain italic, right after the conditions (exterior only)
+  if (data.estimateDisclaimer) {
+    termsHtml += `<div class="terms-gap"></div><div class="terms-item" style="font-style:italic;font-size:7.5px;color:#555;text-align:center;padding:4px 0;">${esc(data.estimateDisclaimer)}</div>`;
+  }
 
   // Build sections — detect format
   // Format A: room-based (has `floor` or `name` fields)
@@ -1150,18 +1164,7 @@ body { background:#e8e8e8; font-family:'Montserrat',sans-serif; padding:40px 20p
     <div class="mod-cell"><div class="mod-label">${t.deposit}</div><div class="mod-value">${esc(depositStr)}</div></div>
     <div class="mod-cell"><div class="mod-label">${t.paymentMethod}</div><div class="mod-value small">${esc(mod.paymentMethod || '')}</div></div>
   </div>
-  ${data.estimateDisclaimer ? `<div class="legal-block" style="background:#f9f6f2;border-top:1.5px solid #1a1a1a;">
-    <strong style="color:#7B3A10;">${esc(data.estimateDisclaimer)}</strong>
-  </div>` : ''}
   <div class="legal-block">
-    ${isExterior
-      ? (isFr
-        ? `<strong>Tout travail de peinture hors de la portée de cette soumission sera facturé à 65 $/h + matériaux</strong><br>
-           <strong>Les travaux de menuiserie sont facturés à 75 $/h + matériaux</strong><br>`
-        : `<strong>All painting work outside the scope of this quote will be charged at $65/h + materials</strong><br>
-           <strong>Carpentry work is charged at $75/h + materials</strong><br>`)
-      : `<strong>${t.additionalWork}</strong><br>`
-    }
     ${t.validPeriod}<br>
     ${t.clientResponsibility}
   </div>
