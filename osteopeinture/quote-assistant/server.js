@@ -898,23 +898,9 @@ function renderQuoteHTML(data, options = {}) {
       termsHtml += `<div class="terms-item">${esc(c)}</div>`;
     }
   }
-  // Hourly rates — always in the conditions area (not the footer)
-  if (isExterior) {
-    termsHtml += `<div class="terms-item bold">${isFr
-      ? 'Tout travail de peinture hors de la portée de cette soumission sera facturé à 65\u00a0$/h + matériaux'
-      : 'All painting work outside the scope of this quote will be charged at $65/h + materials'}</div>`;
-    termsHtml += `<div class="terms-item bold">${isFr
-      ? 'Les travaux de menuiserie sont facturés à 75\u00a0$/h + matériaux'
-      : 'Carpentry work is charged at $75/h + materials'}</div>`;
-  } else {
-    const rate = terms.hourlyRate || 65;
-    termsHtml += `<div class="terms-item bold">${isFr
-      ? `Tout travail hors de la portée de cette soumission sera facturé à ${rate}\u00a0$/h + matériaux`
-      : `Any work outside of the scope of this quote will be billed at $${rate}/h + materials`}</div>`;
-  }
-  // Estimate disclaimer — plain italic, right after the conditions (exterior only)
+  // Estimate disclaimer — plain italic, tight against last condition (exterior only)
   if (data.estimateDisclaimer) {
-    termsHtml += `<div class="terms-gap"></div><div class="terms-item" style="font-style:italic;font-size:7.5px;color:#555;text-align:center;padding:4px 0;">${esc(data.estimateDisclaimer)}</div>`;
+    termsHtml += `<div class="terms-item" style="font-style:italic;font-size:7.5px;color:#555;text-align:center;padding:6px 0 0;">${esc(data.estimateDisclaimer)}</div>`;
   }
 
   // Build sections — detect format
@@ -1022,7 +1008,7 @@ function renderQuoteHTML(data, options = {}) {
   }
   const paintTotal = data.paintTotal || paints.reduce((s, p) => s + (p.approxCost || 0), 0);
   if (paintTotal > 0) {
-    paintHtml += `<tr><td class="col-product">${t.paintTotal}</td><td class="col-finish">~ ${fmt(paintTotal)}</td></tr>`;
+    paintHtml += `<tr class="paint-total-row"><td class="col-product">${t.paintTotal}</td><td class="col-finish">~ ${fmt(paintTotal)}</td></tr>`;
   }
 
   // Modalities
@@ -1088,7 +1074,7 @@ body { background:#e8e8e8; font-family:'Montserrat',sans-serif; padding:40px 20p
 .paint-note { text-align:center; font-size:7.8px; font-style:italic; padding:7px 14px; border-bottom:1px solid #ddd; color:#444; }
 .paint-table { width:100%; border-collapse:collapse; border-bottom:1.5px solid #1a1a1a; }
 .paint-table td { padding:5px 12px; font-size:8px; border-bottom:0.5px solid #e8e8e8; font-weight:400; }
-.paint-table tr:last-child td { border-bottom:none; border-top:1px solid #aaa; font-weight:600; }
+.paint-table tr.paint-total-row td { border-bottom:none; border-top:1px solid #aaa; font-weight:600; }
 .paint-table .col-product { width:55%; }
 .paint-table .col-finish { width:45%; color:#555; }
 .paint-table strong { font-weight:700; }
@@ -1579,9 +1565,12 @@ For exterior jobs, output this structure instead. Key differences: sections use 
       "Protection and safeguarding your property from construction damage",
       "A clean and respectful working environment to make the work period as smooth as possible for you"
     ],
-    "conditions": [],
+    "conditions": [
+      "Tout travail de peinture hors de la portée de cette soumission sera facturé à 65 $/h + matériaux",
+      "Les travaux de menuiserie sont facturés à 75 $/h + matériaux"
+    ],
     "hourlyRate": 65,
-    "_NOTE_ON_TERMS": "The following are HARDCODED in the footer — NEVER put them in conditions: painting at 65$/h, carpentry at 75$/h, quote valid 30 days, client responsible for permits. Conditions should ONLY contain job-specific notes (e.g. PVC/aluminum substrate, colour TBD). Leave conditions empty if nothing job-specific."
+    "_NOTE_ON_TERMS": "The two rate lines above (painting 65$/h, carpentry 75$/h) are standard for exterior — always include them in conditions. Add job-specific notes after them (e.g. colour TBD, substrate assumptions). Do NOT add 'quote valid 30 days' or 'client responsible for permits' — those are hardcoded in the footer already."
   },
   "sections": [
     {
