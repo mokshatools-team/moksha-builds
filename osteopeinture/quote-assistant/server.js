@@ -900,7 +900,7 @@ function renderQuoteHTML(data, options = {}) {
   }
   // Estimate disclaimer — plain italic, tight against last condition (exterior only)
   if (data.estimateDisclaimer) {
-    termsHtml += `<div class="terms-item" style="font-style:italic;font-size:7.5px;color:#555;text-align:center;padding:6px 0 0;">${esc(data.estimateDisclaimer)}</div>`;
+    termsHtml += `<div style="font-style:italic;font-size:7.5px;color:#555;text-align:center;padding:8px 14px 2px;">${esc(data.estimateDisclaimer)}</div>`;
   }
 
   // Build sections — detect format
