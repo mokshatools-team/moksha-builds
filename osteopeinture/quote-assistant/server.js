@@ -1528,7 +1528,8 @@ A section can have H1 + H2 + H3 (floor header, then name, then items), or just H
 - Optional add-ons: any section the client has not committed to (e.g., "Option A — Ceilings", "Option B — Baseboards") MUST have "optional": true in the JSON. These are displayed under an "OPTIONAL ADD-ONS" header and excluded from the TOTAL. The total only includes confirmed scope.
 - Excluded items: repairs or items billed hourly use "excluded": true — shown but not in total.
 - Paint approxCost values are materials only, not labour
-- Item descriptions in sections must NEVER include paint product names or finishes — only describe the work (e.g. "Walls and ceiling — 2 coats", NOT "Walls and ceiling — 2 coats, SW Duration Home Low Sheen")
+- Item descriptions in sections must NEVER include paint product names or finishes — only describe the work
+- Item descriptions must NOT restate what is already in the boilerplate inclusions (conditions et inclusions). The inclusions already say "preparation complete", "2 coats on all designated surfaces", "daily protection and cleanup". So item lines should only describe what is UNIQUE to that zone — e.g. "9 groupes/unites (facades avant et arriere)" not "Preparation, appret et 2 couches de finition — 9 groupes/unites". The prep and coats are understood. Keep items short and zone-specific.
 - deposit: always 25% of subtotal, rounded UP to nearest 100
 - modalities.paymentMethod: "The remaining balance is to be paid by cheque or e-transfer, with weekly installments throughout the work." for jobs over 1 week; "The remaining balance is due at completion." for jobs of 1 week or less
 
