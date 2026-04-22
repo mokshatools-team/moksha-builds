@@ -1844,14 +1844,16 @@ async function handleSessionMessage(req, res) {
           const fileId = uuidv4();
           const ext = img.mediaType === 'image/png' ? 'png' : 'jpeg';
           const storagePath = `sessions/${req.params.id}/${fileId}.${ext}`;
+          const imgBuffer = img.buffer || img.data;
+          if (!imgBuffer) { console.warn('[storage] no buffer for image', img.originalName); continue; }
           const { error: uploadErr } = await supabase.storage
             .from(STORAGE_BUCKET)
-            .upload(storagePath, img.data, { contentType: img.mediaType, upsert: false });
+            .upload(storagePath, imgBuffer, { contentType: img.mediaType, upsert: false });
           if (uploadErr) { console.warn('[storage] upload failed:', uploadErr.message); continue; }
           const { data: urlData } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(storagePath);
           await db.run(
             'INSERT INTO attachments (id, session_id, filename, original_name, content_type, size_bytes, storage_path, public_url, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            [fileId, req.params.id, `${fileId}.${ext}`, img.originalName || `${fileId}.${ext}`, img.mediaType, img.data.length, storagePath, urlData.publicUrl, new Date().toISOString()]
+            [fileId, req.params.id, `${fileId}.${ext}`, img.originalName || `${fileId}.${ext}`, img.mediaType, imgBuffer.length, storagePath, urlData.publicUrl, new Date().toISOString()]
           );
         } catch (e) { console.warn('[storage] attach error:', e.message); }
       }

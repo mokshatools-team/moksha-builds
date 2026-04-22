@@ -2433,8 +2433,9 @@ async function deleteSession(id) {
 }
 
 async function loadSession(id) {
-  // Save current session's email form state before switching
+  // Save current session's state before switching
   saveEmailFormState(currentSessionId);
+  saveTogglesForSession(currentSessionId);
   closeSidebar();
   const res = await fetch(`/api/sessions/${id}`);
   const session = await res.json();
@@ -2466,6 +2467,7 @@ async function loadSession(id) {
   }
 
   setStatus(session.status);
+  restoreTogglesForSession(id);
   loadSessionAttachments(id);
 
   document.getElementById('session-badge').style.display = 'none';
@@ -2588,6 +2590,8 @@ async function sendMessage() {
             } else {
               renderAssistantText(typingEl, fullText);
             }
+            // Refresh attachment thumbnails (new images may have been uploaded)
+            loadSessionAttachments(currentSessionId);
             setStatus(payload.status);
             loadSidebar();
           } else if (payload.type === 'error') {
@@ -2631,9 +2635,8 @@ async function loadSessionMeta() {
   const session = await res.json();
   const badge = document.getElementById('session-badge');
   if (session.project_id) {
-    badge.textContent = session.project_id;
-    badge.style.display = '';
     document.getElementById('chat-header-title').textContent = session.project_id;
+    badge.style.display = 'none'; // title already shows the name — badge is redundant
   }
   prefillEmail(session);
 }
@@ -3110,6 +3113,7 @@ function setStatus(status) {
 
 // ── QUOTE TOGGLES ────────────────────────────────────────────────────────
 const quoteToggles = { lang: 'FR', scope: 'Interior', tier: 'High-end', prices: 'Paint prices' };
+const toggleStateBySession = new Map();
 
 function cycleToggle(key, options) {
   const current = quoteToggles[key];
@@ -3118,9 +3122,25 @@ function cycleToggle(key, options) {
   quoteToggles[key] = next;
   const btn = document.getElementById('toggle-' + key);
   btn.textContent = next;
-  // All toggles always show active styling (orange text) — the label
-  // itself communicates the state, no need for active/inactive distinction
   btn.classList.add('active');
+  // Save toggle state for this session
+  if (currentSessionId) toggleStateBySession.set(currentSessionId, { ...quoteToggles });
+}
+
+function saveTogglesForSession(sessionId) {
+  if (sessionId) toggleStateBySession.set(sessionId, { ...quoteToggles });
+}
+
+function restoreTogglesForSession(sessionId) {
+  const saved = sessionId ? toggleStateBySession.get(sessionId) : null;
+  if (saved) {
+    Object.assign(quoteToggles, saved);
+  }
+  // Update the buttons to match
+  for (const [key, val] of Object.entries(quoteToggles)) {
+    const btn = document.getElementById('toggle-' + key);
+    if (btn) btn.textContent = val;
+  }
 }
 
 function getToggleContext() {
