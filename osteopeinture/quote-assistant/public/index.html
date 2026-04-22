@@ -597,18 +597,19 @@
     border: 1px solid var(--border);
   }
 
-  .msg.assistant p { margin-bottom: 6px; }
+  .msg.assistant p { margin: 0 0 4px; }
   .msg.assistant p:last-child { margin-bottom: 0; }
-  .msg.assistant ul, .msg.assistant ol { padding-left: 18px; margin: 4px 0; }
-  .msg.assistant li { margin-bottom: 3px; }
+  .msg.assistant ul, .msg.assistant ol { padding-left: 18px; margin: 2px 0; }
+  .msg.assistant li { margin-bottom: 1px; }
+  .msg.assistant li p { margin: 0; } /* marked wraps li content in p — kill the extra margin */
   .msg.assistant strong { color: #fff; font-weight: 600; }
   .msg.assistant code { font-family: var(--font-mono); font-size: 11px; background: var(--surface-3); padding: 1px 4px; border-radius: 3px; }
-  .msg.assistant table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 11px; }
-  .msg.assistant th, .msg.assistant td { border: 1px solid var(--border); padding: 4px 8px; text-align: left; }
+  .msg.assistant table { width: 100%; border-collapse: collapse; margin: 4px 0; font-size: 11px; }
+  .msg.assistant th, .msg.assistant td { border: 1px solid var(--border); padding: 3px 6px; text-align: left; }
   .msg.assistant th { background: var(--surface-2); font-weight: 600; }
-  .msg.assistant hr { border: none; border-top: 1px solid var(--border-soft); margin: 10px 0; }
-  .msg.assistant h3 { font-size: 13px; font-weight: 700; margin: 10px 0 4px; color: var(--text); }
-  .msg.assistant h4 { font-size: 12px; font-weight: 600; margin: 8px 0 4px; color: var(--text-2); }
+  .msg.assistant hr { border: none; border-top: 1px solid var(--border-soft); margin: 6px 0; }
+  .msg.assistant h3 { font-size: 13px; font-weight: 700; margin: 6px 0 2px; color: var(--text); }
+  .msg.assistant h4 { font-size: 12px; font-weight: 600; margin: 4px 0 2px; color: var(--text-2); }
 
   .msg.system {
     background: transparent;
@@ -2522,6 +2523,13 @@ async function sendMessage() {
   if (fullMessage) formData.append('message', fullMessage);
   for (const f of filesToSend) formData.append('images', f);
 
+  // Show user message FIRST, then typing indicator below it
+  const displayText = text + (filesToSend.length ? ` [${filesToSend.length} image(s)]` : '');
+  if (displayText) appendMessage('user', displayText);
+  input.value = '';
+  autoResize(input);
+  clearAttachmentQueue();
+
   const typingId = 'typing-' + Date.now();
   const typingEl = document.createElement('div');
   typingEl.id = typingId;
@@ -2531,13 +2539,6 @@ async function sendMessage() {
   scrollToBottom();
 
   try {
-    // Show user message immediately
-    const displayText = text + (filesToSend.length ? ` [${filesToSend.length} image(s)]` : '');
-    if (displayText) appendMessage('user', displayText);
-    input.value = '';
-    autoResize(input);
-    clearAttachmentQueue();
-
     const res = await fetch(`/api/sessions/${currentSessionId}/messages`, {
       method: 'POST',
       body: formData,
