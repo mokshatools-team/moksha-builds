@@ -63,7 +63,17 @@
 - 50/50 panel split on desktop
 - Sidebar name extraction from user messages (LASTNAME_XX pattern)
 
-**Latest commit:** `b281001`
+### Image Gallery in Quote Panel (2026-04-21)
+- Gallery is a sibling overlay inside quote-frame-container (position:absolute)
+- Full-size preview + horizontal thumbnail carousel (100px thumbs) pinned at bottom
+- Two tab buttons in header: "Quote" / "Photos" — active one highlighted
+- Auto-shows gallery when images exist but no quote yet
+- Desktop: click thumbnails, arrow keys, click prev/next arrows, Escape to close
+- Mobile: swipe left/right on preview, tap thumbnails
+- Redundant chat thumbnail strip removed — gallery is the single image viewer
+- Counter shows "3 / 13" position
+
+**Latest commit:** `61e7ad1`
 
 ---
 
