@@ -1457,6 +1457,13 @@ EXTERIOR QUOTE REMINDERS (if exterior):
 - Repairs section MUST have "excluded": true, "total": 0, and a "range" field (e.g. "$500 - $800") showing estimated hourly range. Repairs are NEVER a fixed price on exterior.
 - These are non-negotiable for exterior quotes.
 
+EXTERIOR QUOTE STRUCTURE — 3 mandatory H1 sections:
+1. H1: "PREPARATION & PEINTURE" (or French equivalent) — all painting zones go here as H2 sections (fenêtres, corniche, solins, toits, extension, etc.). Each H2 has H3 items describing the zone-specific work (do NOT restate prep/coats — covered in boilerplate).
+2. H1: "ACCES" — scaffold, lift, ladder rental + installation/dismantling. Default: group all access costs together (rental as one H2, installation as another H2). If the user says "split scaffold per zone", instead list each zone's scaffold cost as a separate H2 so the client can see per-zone breakdown and optionally drop sections.
+3. H1: "REPARATIONS" — always excluded from total, always with range. Each repair item as H2 with H3 details.
+
+In JSON terms: use "floor" field for the H1 headers ("PREPARATION & PEINTURE", "ACCES", "REPARATIONS"). Use "name" for H2 zone names. Use "items" for H3 details.
+
 ---
 
 ## QUOTE JSON FORMAT
