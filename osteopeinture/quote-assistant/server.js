@@ -1867,35 +1867,20 @@ async function handleSessionMessage(req, res) {
       return res.status(400).json({ error: 'No message or image' });
     }
 
-    // Trim conversation to last 14 messages (~7 exchanges) to save API tokens.
-    // Full history is stored in the DB, but only the tail is sent to Claude.
-    // If the session has a quoteJson, inject it as context so Claude always
-    // knows the current quote state even if the generating message was trimmed.
-    const fullHistory = buildTextOnlyHistory(session.messages);
-    let trimmedMessages = fullHistory.length > 14 ? fullHistory.slice(-14) : fullHistory;
-    // Strip any messages containing tool_use or tool_result blocks — these are
-    // internal tool calls that can orphan if trimming cuts between a tool_use
-    // and its tool_result, causing "tool_use ids without tool_result" API errors.
-    trimmedMessages = trimmedMessages.filter(m => {
+    // Send full conversation history — context is critical for quoting.
+    // Strip orphaned tool_use/tool_result blocks that cause API errors.
+    const fullHistory = buildTextOnlyHistory(session.messages).filter(m => {
       if (Array.isArray(m.content)) {
         return !m.content.some(b => b.type === 'tool_use' || b.type === 'tool_result');
       }
       return true;
     });
     // Ensure first message is from 'user' (Anthropic API requirement)
-    while (trimmedMessages.length > 0 && trimmedMessages[0].role !== 'user') {
-      trimmedMessages = trimmedMessages.slice(1);
+    while (fullHistory.length > 0 && fullHistory[0].role !== 'user') {
+      fullHistory.shift();
     }
-    // If we trimmed and there's an existing quote, prepend it as context
-    if (fullHistory.length > 14 && session.quoteJson) {
-      trimmedMessages.unshift({
-        role: 'user',
-        content: '[Prior context — current quote JSON for reference:]\n' + JSON.stringify(session.quoteJson).slice(0, 3000),
-      });
-      trimmedMessages.splice(1, 0, { role: 'assistant', content: 'Understood, I have the current quote context.' });
-    }
-    trimmedMessages.push({ role: 'user', content });
-    const messages = trimmedMessages;
+    fullHistory.push({ role: 'user', content });
+    const messages = fullHistory;
 
     // Detect exterior/scaffold sessions to enable tool use
     const conversationText = session.messages
