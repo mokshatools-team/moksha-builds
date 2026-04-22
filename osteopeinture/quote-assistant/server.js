@@ -1050,7 +1050,7 @@ body { background:#e8e8e8; font-family:'Montserrat',sans-serif; padding:40px 20p
 .terms-gap { height:8px; }
 .terms-subtitle { font-size:8px; font-weight:700; margin-bottom:4px; margin-top:2px; }
 .quote-table { width:100%; border-collapse:collapse; }
-.row-floor td { background:#f2f2f2; font-size:7.8px; font-weight:700; letter-spacing:1px; text-transform:uppercase; padding:5px 10px; border-top:1.5px solid #1a1a1a; border-bottom:1px solid #ccc; }
+.row-floor td { background:#f2f2f2; font-size:7.8px; font-weight:700; letter-spacing:1px; text-transform:uppercase; padding:5px 10px; border-top:1.5px solid #1a1a1a; border-bottom:none; }
 .row-section td { padding:5px 10px; font-size:8.2px; font-weight:700; border-top:1.5px solid #1a1a1a; border-bottom:1px solid #bbb; }
 .row-section .col-price { text-align:right; white-space:nowrap; }
 .row-item td { padding:3px 10px; font-size:7.8px; color:#222; border-bottom:0.5px solid #ebebeb; }
