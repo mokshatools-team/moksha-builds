@@ -1182,19 +1182,100 @@ function esc(str) {
 // SYSTEM PROMPT
 // ============================================================
 
-// Return quoting logic trimmed to what's needed for this session.
-// Interior sessions skip §23-34 (exterior, scaffold, lifts) — saves ~5K tokens per request.
-function getRelevantQuotingLogic(isExterior) {
-  const full = getQuotingLogic();
-  if (isExterior) return full; // exterior needs everything
-  // Strip from "## 23. EXTERIOR" to end of file — interior doesn't need it
-  const cutPoint = full.indexOf('## 23. EXTERIOR');
-  if (cutPoint === -1) return full;
-  return full.slice(0, cutPoint).trimEnd() + '\n\n(Exterior/scaffold sections omitted — interior session)\n';
+// ── DYNAMIC SYSTEM PROMPT ────────────────────────────────────
+// Instead of dumping the entire QUOTING_LOGIC.md (~12K tokens) on every
+// message, scan the conversation to detect which topics are relevant and
+// only include those sections. A 2-sentence clarification doesn't need
+// paint prices and scaffold catalogs.
+
+// Extract a named section from QUOTING_LOGIC.md by header number
+function extractSection(full, sectionId) {
+  // Match "## N." or "## NA." pattern
+  const pattern = new RegExp(`(## ${sectionId}\\..*?)(?=\\n## \\d|$)`, 's');
+  const match = full.match(pattern);
+  return match ? match[1].trim() : '';
 }
 
-function buildSystemPrompt(isExterior = false) {
-  const rules = getRelevantQuotingLogic(isExterior);
+// Extract a range of sections
+function extractSections(full, from, to) {
+  const startPattern = new RegExp(`(## ${from}\\.)`);
+  const endPattern = to ? new RegExp(`(## ${to}\\.)`) : null;
+  const startIdx = full.search(startPattern);
+  if (startIdx === -1) return '';
+  const endIdx = endPattern ? full.search(endPattern) : full.length;
+  if (endIdx === -1) return full.slice(startIdx);
+  return full.slice(startIdx, endIdx).trim();
+}
+
+function buildDynamicQuotingLogic(conversationText, userText, isExterior) {
+  const full = getQuotingLogic();
+  const text = (conversationText + ' ' + userText).toLowerCase();
+
+  // Always include: core rules (§1-2), cost assembly (§11), presentation (§12-13),
+  // scope defaults (§15), taxes (§16), deposit (§17), project ID (§18), company (§19)
+  const alwaysInclude = [
+    extractSections(full, '1', '3'),    // §1-2: hierarchy + labour rates
+    extractSections(full, '11', '15'),  // §11-14: cost assembly, presentation, confirmation, tier
+    extractSections(full, '15', '20'),  // §15-19: scope, cash, taxes, deposit, project ID, company
+  ];
+
+  const conditional = [];
+
+  // Benchmarks — include when discussing rooms, surfaces, hours, or generating
+  const needsBenchmarks = /room|pièce|piece|surface|hour|heure|sqft|sq ft|linear|linéaire|baseboard|plinthe|crown|moulure|door|porte|window|fenêtre|closet|garde-robe|staircase|escalier|ceiling|plafond|wall|mur|benchmark|rate|generate|régénère|genere/.test(text);
+  if (needsBenchmarks) {
+    conditional.push(extractSections(full, '3', '5'));   // §3-4: benchmarks + surface assumptions
+    conditional.push(extractSections(full, '3A', '4'));   // §3A-3C: baseboard, crown, production
+  }
+
+  // Coverage + gallon calculation
+  const needsCoverage = /gallon|gal|coverage|couverture|paint qty|quantit|litre/.test(text);
+  if (needsCoverage) {
+    conditional.push(extractSection(full, '5'));  // §5: coverage rates
+  }
+
+  // Paint products — include when discussing products, colors, finishes, or pricing paint
+  const needsPaint = /paint|peinture|product|produit|color|couleur|finish|fini|primer|apprêt|duration|superpaint|regal|advance|pm400|pm200|stain|teinture|benjamin|sherwin|bm |sw /.test(text);
+  if (needsPaint) {
+    conditional.push(extractSections(full, '6', '9'));  // §6-8: paint selection, primers, price ref
+  }
+
+  // Materials + consumables
+  const needsMaterials = /protection|floor cover|matéri|consumable|consommable|setup|material/.test(text);
+  if (needsMaterials) {
+    conditional.push(extractSections(full, '9', '11'));  // §9-10A: floor protection, consumables, operational
+  }
+
+  // Confirmed benchmarks + room price benchmarks
+  const needsBenchmarkRef = /benchmark|confirmed|vérifié|room price|prix par pièce|sanity/.test(text);
+  if (needsBenchmarkRef) {
+    conditional.push(extractSections(full, '20', '22'));  // §20-22: confirmed benchmarks, email, room prices
+  }
+
+  // JSON format — always include when generating or adjusting quotes
+  const needsJson = /generate|régénère|genere|json|quote ready|adjust|modifier|regenerate/.test(text);
+  // Also include on first few messages to show Claude the format early
+  if (needsJson) {
+    conditional.push(extractSections(full, '22', '23'));  // §22 end has interior room benchmarks
+  }
+
+  // Exterior sections
+  if (isExterior) {
+    conditional.push(extractSections(full, '23', '30'));  // §23-29: exterior quoting
+  }
+
+  // Scaffold/lifts — only when mentioned
+  const needsScaffold = /scaffold|échafaud|lift|nacelle|emco|gamma|ladder|échelle/.test(text);
+  if (needsScaffold) {
+    conditional.push(extractSections(full, '30', '36'));  // §30-35: scaffold, EMCO, ladders, lifts
+  }
+
+  const assembled = [...alwaysInclude, ...conditional].filter(Boolean).join('\n\n');
+  return assembled;
+}
+
+function buildSystemPrompt(isExterior = false, conversationText = '', userText = '') {
+  const rules = buildDynamicQuotingLogic(conversationText, userText, isExterior);
   return `You are the internal quote builder for Loric, Lubo, and Graeme at Ostéopeinture. This is an internal estimating tool, not client-facing by default.
 
 Be casual, direct, brief, and operational. Stay task-focused. No flattery, no extra commentary, no tone-policing. Do not encourage abusive or hateful language.
@@ -1896,7 +1977,7 @@ async function handleSessionMessage(req, res) {
     const apiParams = {
       model: 'claude-sonnet-4-6',
       max_tokens: 4096,
-      system: buildSystemPrompt(isExteriorSession),
+      system: buildSystemPrompt(isExteriorSession, conversationText, userText),
       messages,
     };
     // Always provide past quotes search; scaffold only for exterior sessions
