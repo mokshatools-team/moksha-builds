@@ -1154,7 +1154,14 @@ body { background:#e8e8e8; font-family:'Montserrat',sans-serif; padding:40px 20p
     <strong style="color:#7B3A10;">${esc(data.estimateDisclaimer)}</strong>
   </div>` : ''}
   <div class="legal-block">
-    <strong>${t.additionalWork}</strong><br>
+    ${isExterior
+      ? (isFr
+        ? `<strong>Tout travail de peinture hors de la portée de cette soumission sera facturé à 65 $/h + matériaux</strong><br>
+           <strong>Les travaux de menuiserie sont facturés à 75 $/h + matériaux</strong><br>`
+        : `<strong>All painting work outside the scope of this quote will be charged at $65/h + materials</strong><br>
+           <strong>Carpentry work is charged at $75/h + materials</strong><br>`)
+      : `<strong>${t.additionalWork}</strong><br>`
+    }
     ${t.validPeriod}<br>
     ${t.clientResponsibility}
   </div>
@@ -1569,11 +1576,9 @@ For exterior jobs, output this structure instead. Key differences: sections use 
       "Protection and safeguarding your property from construction damage",
       "A clean and respectful working environment to make the work period as smooth as possible for you"
     ],
-    "conditions": [
-      "Additional work or major repairs are excluded from the quote and will be charged at 65 $/h plus taxes and materials"
-    ],
+    "conditions": [],
     "hourlyRate": 65,
-    "_NOTE_ON_TERMS": "For French quotes, translate all terms naturally. Do NOT add filler conditions like 'work limited to designated surfaces'. Only add conditions specific to this job (e.g. PVC/aluminum substrate assumptions, colour TBD)."
+    "_NOTE_ON_TERMS": "The following are HARDCODED in the footer — NEVER put them in conditions: painting at 65$/h, carpentry at 75$/h, quote valid 30 days, client responsible for permits. Conditions should ONLY contain job-specific notes (e.g. PVC/aluminum substrate, colour TBD). Leave conditions empty if nothing job-specific."
   },
   "sections": [
     {
