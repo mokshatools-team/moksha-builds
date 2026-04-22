@@ -939,7 +939,7 @@ function renderQuoteHTML(data, options = {}) {
       }
       const secTotal = sec.total != null ? sec.total : (sec.items || []).reduce((s, i) => s + (i.price || 0), 0);
       const excludedLabel = sec.excluded ? ` <span style="font-size:7px;font-weight:400;color:#999;font-style:italic;">${t.excludedLabel}</span>` : '';
-      const rangeLabel = sec.range ? ` <span style="font-size:7.5px;font-weight:400;color:#888;">${esc(sec.range)}</span>` : '';
+      const rangeLabel = sec.range ? ` <span style="font-size:8px;font-weight:500;color:#777;">[${esc(sec.range)}]</span>` : '';
       // Optional add-ons show price as [+X $] to distinguish from confirmed scope
       const priceDisplay = sec.excluded ? '' : (secTotal ? (sec.optional ? '[+' + fmt(secTotal) + ']' : fmt(secTotal)) : '');
       // `name` = room name under a floor header (e.g. "Chambre (bleu foncé)")
@@ -980,7 +980,7 @@ function renderQuoteHTML(data, options = {}) {
       }
 
       const secTotal = sec.total != null ? sec.total : (sec.items || []).reduce((s, i) => s + (i.price || 0), 0);
-      const rangeLabel = sec.range ? ` <span style="font-size:7.5px;font-weight:400;color:#888;">${esc(sec.range)}</span>` : '';
+      const rangeLabel = sec.range ? ` <span style="font-size:8px;font-weight:500;color:#777;">[${esc(sec.range)}]</span>` : '';
       const excludedLabel = sec.excluded ? ` <span style="font-size:7px;font-weight:400;color:#999;font-style:italic;">${t.excludedLabel}</span>` : '';
       const priceDisplay = sec.excluded ? '' : (secTotal ? (sec.optional ? '[+' + fmt(secTotal) + ']' : fmt(secTotal)) : '');
       tableHtml += `<tr class="row-section"><td class="col-desc">${esc(sec.title || sec.name || '')}${rangeLabel}${excludedLabel}</td><td class="col-price">${priceDisplay}</td></tr>`;
@@ -1542,6 +1542,7 @@ A section can have H1 + H2 + H3 (floor header, then name, then items), or just H
 - Paint approxCost values are materials only, not labour
 - Item descriptions in sections must NEVER include paint product names or finishes — only describe the work
 - Item descriptions must NOT restate what is already in the boilerplate inclusions (conditions et inclusions). The inclusions already say "preparation complete", "2 coats on all designated surfaces", "daily protection and cleanup". So item lines should only describe what is UNIQUE to that zone — e.g. "9 groupes/unites (facades avant et arriere)" not "Preparation, appret et 2 couches de finition — 9 groupes/unites". The prep and coats are understood. Keep items short and zone-specific.
+- CRITICAL: Item descriptions are CLIENT-FACING. NEVER include internal pricing details: no hourly rates (65$/h, 75$/h), no hour counts (39h, 6h), no markup percentages (tampon 10%), no internal material cost breakdowns (planches ~100$-200$). These are estimating internals — the client sees the total price, not how you got there. Only describe the WORK being done, not the math behind it.
 - deposit: always 25% of subtotal, rounded UP to nearest 100
 - modalities.paymentMethod: "The remaining balance is to be paid by cheque or e-transfer, with weekly installments throughout the work." for jobs over 1 week; "The remaining balance is due at completion." for jobs of 1 week or less
 
@@ -1654,6 +1655,7 @@ ${rules}
 - The user's message may end with toggle settings like [Language: French] [Scope: Interior] [Paint tier: High-end] [Paint prices in quote: hide]. ALWAYS respect these:
   - Language: write ALL text in the specified language (projectType, terms, descriptions, modalities)
   - Scope: use interior quoting rules (§1-22) or exterior quoting rules (§23-29) accordingly
+  - Pricing mode: "fixed" = each section has a single "total" number (default for interior). "ranges" = each section has a "range" field like "$1,000 - $1,200" AND a "total" with the recommended midpoint/estimate (default for exterior). Repairs always use ranges regardless of mode. When ranges mode: the section title in the rendered quote shows the range in brackets, e.g. "Corniche [2,500$ - 3,500$]" with the total on the right as the estimated price.
   - Paint tier: use High-end products (Duration Home for walls) or Standard products (SuperPaint for walls) from §6
   - Paint prices: if "hide", set approxCost to 0 in the paints array (the renderer will omit the price column). If "show", include real approxCost values.
 - Do NOT ask the user about language, interior/exterior, or paint tier if the toggles already specify them. Just use the toggle values.

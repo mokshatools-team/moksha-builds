@@ -1967,6 +1967,7 @@
       <button class="qtoggle active" id="toggle-scope" onclick="cycleToggle('scope',['Interior','Exterior'])" title="Interior / Exterior">Interior</button>
       <button class="qtoggle active" id="toggle-tier" onclick="cycleToggle('tier',['High-end','Standard'])" title="Paint tier">High-end</button>
       <button class="qtoggle active" id="toggle-prices" onclick="cycleToggle('prices',['Paint prices','No prices'])" title="Show paint prices in quote">Paint prices</button>
+      <button class="qtoggle active" id="toggle-pricing" onclick="cycleToggle('pricing',['Fixed price','Price ranges'])" title="Fixed price vs ranges">Fixed price</button>
     </div>
     <div id="input-area">
       <div id="image-preview-bar"></div>
@@ -3143,7 +3144,7 @@ function setStatus(status) {
 // ── HELPERS ──────────────────────────────────────────
 
 // ── QUOTE TOGGLES ────────────────────────────────────────────────────────
-const quoteToggles = { lang: 'FR', scope: 'Interior', tier: 'High-end', prices: 'Paint prices' };
+const quoteToggles = { lang: 'FR', scope: 'Interior', tier: 'High-end', prices: 'Paint prices', pricing: 'Fixed price' };
 const toggleStateBySession = new Map();
 
 function cycleToggle(key, options) {
@@ -3181,6 +3182,7 @@ function getToggleContext() {
   parts.push(`[Scope: ${quoteToggles.scope}]`);
   parts.push(`[Paint tier: ${quoteToggles.tier}]`);
   parts.push(`[Paint prices in quote: ${quoteToggles.prices === 'Paint prices' ? 'show' : 'hide'}]`);
+  parts.push(`[Pricing mode: ${quoteToggles.pricing === 'Price ranges' ? 'ranges' : 'fixed'}]`);
   return parts.join(' ');
 }
 
