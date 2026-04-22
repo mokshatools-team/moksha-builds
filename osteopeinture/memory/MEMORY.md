@@ -55,8 +55,9 @@
 - [Cost Update vs Invoice exact format](project_cost_update_invoice_format.md) — Kennerknecht reference, titles, what to include/exclude per doc type
 - [Invoice formatting must match quote template](project_invoice_direction.md) — reuse quote HTML renderer
 
-## Storage
+## Storage & Images
 - [Supabase Storage for attachments](reference_supabase_storage.md) — op-hub-attachments bucket, SDK installed, env vars on Railway
+- [Image gallery in quote panel](project_image_gallery_in_quote_panel.md) — carousel + full preview, reuse quote panel, toggle between quote/gallery
 
 ## Email & Sending
 - [Resend HTTP API for email sending](reference_resend_email.md) — Railway blocks SMTP, Resend with verified osteopeinture.com domain
