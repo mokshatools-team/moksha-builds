@@ -47,7 +47,23 @@
 - QUOTING_LOGIC v10: STEINA Enduradeck $96.95/gal with coverage/cost details
 
 **Live URL:** https://op-quote-assistant.up.railway.app
-**Latest commit:** `099ff75`
+### Dynamic System Prompt (2026-04-21)
+- System prompt now assembles only relevant QUOTING_LOGIC sections per message
+- Keyword scanning: benchmarks, paint, coverage, materials, scaffold, JSON format
+- Saves 50-85% tokens without losing context
+- Full conversation history preserved (trimming reverted — destroyed context)
+
+### Bug Fixes (2026-04-21)
+- Message ordering: user message now appears before assistant response (was reversed)
+- Markdown spacing: tightened p/li/h3/h4 margins, killed p-inside-li double spacing
+- Attachment uploads: fixed img.buffer vs img.data (uploads were silently failing)
+- Per-session toggles: FR/EN, Interior/Exterior, etc. saved and restored per session
+- Duplicate title badge removed
+- Clipboard paste for images
+- 50/50 panel split on desktop
+- Sidebar name extraction from user messages (LASTNAME_XX pattern)
+
+**Latest commit:** `b281001`
 
 ---
 

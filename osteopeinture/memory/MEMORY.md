@@ -20,6 +20,10 @@
 - [Supplies/Consumables reconciliation gap](project_op_finance_tax_gap.md) — ~$22K gap between total supplies and per-job allocations
 - [OP Cash reconciliation gaps](project_op_cash_reconciliation.md) — Jan +$614 missing inflow, Feb–Apr -$316 missing outflow vs. anchors ($550 / $1,125)
 
+## Architecture
+- [Dynamic system prompt](project_dynamic_system_prompt.md) — only include relevant QUOTING_LOGIC sections per message, saves 50-85% tokens
+- [Never trim conversation history](feedback_never_trim_conversation.md) — full context critical for quoting, trimming destroyed FREEMAN_01 session
+
 ## Feedback & Preferences (OP-specific)
 - [Never ask Loric to manually categorize](feedback_automate_categorization.md) — Auto-categorize imports via autocat-rules.json
 - [Overestimate consumables](feedback_overestimate_consumables.md) — Per-job supplies allocations historically underestimated, overestimate going forward
