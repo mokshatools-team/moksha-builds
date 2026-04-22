@@ -1562,15 +1562,18 @@ For exterior jobs, output this structure instead. Key differences: sections use 
   "estimateDisclaimer": "Given the nature of exterior work, this is a cost estimate and not a fixed price. Final price will be billed based on actual preparation time required.",
   "terms": {
     "includes": [
-      "Thorough preparation: scraping, sanding, caulking, priming on all designated surfaces",
-      "2 coats of finish on all designated surfaces",
-      "Daily protection of property and final cleanup"
+      "Proper preparation work, including primer where needed, and 2 coats of paint on all agreed upon surfaces",
+      "Outdoor preparation includes cleaning of surfaces, chipping, and scraping of loose paint, caulking, and puttying",
+      "Full rust protection treatment includes grinding of existing rust, and application of industrial rust-inhibitive metal primer",
+      "Clean up at the end of each day, leaving the space clean",
+      "Protection and safeguarding your property from construction damage",
+      "A clean and respectful working environment to make the work period as smooth as possible for you"
     ],
     "conditions": [
-      "Repairs excluded from fixed price — billed at $65/h + materials",
-      "Quote valid for 30 days"
+      "Additional work or major repairs are excluded from the quote and will be charged at 65 $/h plus taxes and materials"
     ],
-    "hourlyRate": 65
+    "hourlyRate": 65,
+    "_NOTE_ON_TERMS": "For French quotes, translate all terms naturally. Do NOT add filler conditions like 'work limited to designated surfaces'. Only add conditions specific to this job (e.g. PVC/aluminum substrate assumptions, colour TBD)."
   },
   "sections": [
     {
