@@ -1953,7 +1953,7 @@
       </button>
       <button id="convert-to-job-btn" onclick="openConvertFromCurrentSession()" style="display:none;background:var(--sage-dim);color:var(--sage);border:none;padding:4px 10px;border-radius:4px;font-size:11px;font-weight:600;cursor:pointer">→ Job</button>
     </div>
-    <div id="session-attachments" style="display:none;padding:6px 12px;border-bottom:1px solid var(--border-soft);overflow-x:auto;white-space:nowrap;-webkit-overflow-scrolling:touch"></div>
+    <!-- Session attachments strip removed — gallery panel handles this now -->
     <div id="messages">
       <div class="msg system">Select a past quote or start a new one.</div>
     </div>
@@ -3510,19 +3510,11 @@ async function loadJobs() {
 
 // ── ATTACHMENTS GALLERY ─────────────────────────────────────
 async function loadSessionAttachments(sessionId) {
-  const container = document.getElementById('session-attachments');
-  if (!container) return;
   try {
     const res = await fetch('/api/sessions/' + sessionId + '/attachments');
     const files = await res.json();
-    if (!files.length) { container.style.display = 'none'; loadGalleryImages([]); return; }
-    container.style.display = '';
-    container.innerHTML = files.map((f, i) =>
-      '<img src="' + esc(f.public_url) + '" onclick="showGallery();selectGalleryImage(' + i + ')" style="height:48px;width:auto;display:inline-block;margin-right:6px;border-radius:4px;border:1px solid var(--border);cursor:pointer" alt="' + esc(f.original_name) + '">'
-    ).join('');
-    // Populate the gallery panel
     loadGalleryImages(files);
-  } catch (e) { container.style.display = 'none'; loadGalleryImages([]); }
+  } catch (e) { loadGalleryImages([]); }
 }
 
 function renderJobAttachments(attachments) {
