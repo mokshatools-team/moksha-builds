@@ -1996,8 +1996,7 @@
         Back
       </button>
       <div id="quote-header-title">Quote Preview</div>
-      <button class="action-btn" id="btn-show-quote" onclick="hideGallery()" style="display:none">Quote</button>
-      <button class="action-btn" id="btn-show-gallery" onclick="showGallery()" style="display:none">Photos</button>
+      <!-- Quote/Photos toggle removed — mobile has dedicated PICS tab, desktop uses the tab buttons -->
       <button class="action-btn" id="btn-pdf" onclick="downloadPDF()" style="display:none">↓ PDF</button>
       <button class="action-btn" id="btn-email-toggle" onclick="toggleEmailForm()" style="display:none">✉ Email</button>
       <button class="action-btn" id="btn-preview" onclick="refreshPreview()" style="display:none">↺ Refresh</button>
@@ -3399,62 +3398,8 @@ function mobileNavTo(view) {
 }
 
 // ── SWIPE GESTURES — swipe through all 4 tabs continuously ──────────
-(function initSwipeGestures() {
-  const THRESHOLD = 60;
-  const TAB_ORDER = ['chat', 'pics', 'quote', 'email'];
-  let touchStartX = 0;
-  let touchStartY = 0;
-  let swiping = false;
-
-  function isFormElement(target) {
-    if (!target) return false;
-    const tag = (target.tagName || '').toLowerCase();
-    return tag === 'input' || tag === 'textarea' || tag === 'select' || tag === 'button' ||
-           target.isContentEditable ||
-           !!target.closest('input, textarea, select, button, [contenteditable]');
-  }
-
-  document.addEventListener('touchstart', (e) => {
-    if (window.innerWidth > 768) return;
-    // Skip swipe handling when interacting with form inputs (typing, selecting, etc.)
-    if (isFormElement(e.target)) { swiping = false; return; }
-    touchStartX = e.touches[0].clientX;
-    touchStartY = e.touches[0].clientY;
-    swiping = true;
-  }, { passive: true });
-
-  document.addEventListener('touchend', (e) => {
-    if (!swiping || window.innerWidth > 768) return;
-    swiping = false;
-    if (isFormElement(e.target)) return;
-    const dx = e.changedTouches[0].clientX - touchStartX;
-    const dy = e.changedTouches[0].clientY - touchStartY;
-    // Only trigger on horizontal swipes (not vertical scroll)
-    if (Math.abs(dx) < THRESHOLD || Math.abs(dy) > Math.abs(dx) * 0.7) return;
-
-    const currentIdx = TAB_ORDER.indexOf(mobileCurrentView);
-    if (currentIdx === -1) return;
-
-    if (dx < -THRESHOLD && currentIdx < TAB_ORDER.length - 1) {
-      // Swipe left → next tab
-      const next = TAB_ORDER[currentIdx + 1];
-      if (next === 'jobs') {
-        switchSidebarMode('jobs');
-      } else {
-        mobileNavTo(next);
-      }
-    } else if (dx > THRESHOLD && currentIdx > 0) {
-      // Swipe right → previous tab
-      const prev = TAB_ORDER[currentIdx - 1];
-      if (mobileCurrentView === 'jobs') {
-        switchSidebarMode('quotes');
-        mobileNavTo('email');
-      } else {
-        mobileNavTo(prev);
-      }
-    }
-  }, { passive: true });
-})();
+// Tab swipe gestures removed — conflicts with gallery carousel swiping.
+// Users tap the nav tabs directly.
 
 // ── JOB MANAGEMENT ──────────────────────────────────
 
@@ -3606,17 +3551,7 @@ function toggleGalleryView() {
 }
 
 function updateGalleryButtons() {
-  const hasImages = galleryState.images.length > 0;
-  const frame = document.getElementById('quote-frame');
-  const hasQuote = frame && (frame.src || frame.srcdoc);
-  // Show both buttons only when both content types exist
-  document.getElementById('btn-show-quote').style.display = (hasImages && hasQuote) ? '' : 'none';
-  document.getElementById('btn-show-gallery').style.display = hasImages ? '' : 'none';
-  // Highlight the active one
-  document.getElementById('btn-show-quote').style.background = galleryState.visible ? 'transparent' : 'var(--accent)';
-  document.getElementById('btn-show-quote').style.color = galleryState.visible ? 'var(--text-2)' : '#fff';
-  document.getElementById('btn-show-gallery').style.background = galleryState.visible ? 'var(--accent)' : 'transparent';
-  document.getElementById('btn-show-gallery').style.color = galleryState.visible ? '#fff' : 'var(--text-2)';
+  // Toggle buttons removed — mobile uses PICS tab, desktop can use nav
 }
 
 function showGallery() {
