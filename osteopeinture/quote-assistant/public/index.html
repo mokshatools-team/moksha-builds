@@ -597,6 +597,11 @@
     border: 1px solid var(--border);
   }
 
+  /* Hide Quote/Photos toggle on mobile — PICS tab handles it */
+  @media (max-width: 768px) {
+    .desktop-only-toggle { display: none !important; }
+  }
+
   /* Quote frame container needs relative positioning for the absolute gallery overlay */
   #quote-frame-container { position: relative; }
 
@@ -1996,7 +2001,8 @@
         Back
       </button>
       <div id="quote-header-title">Quote Preview</div>
-      <!-- Quote/Photos toggle removed — mobile has dedicated PICS tab, desktop uses the tab buttons -->
+      <button class="action-btn desktop-only-toggle" id="btn-show-quote" onclick="hideGallery()" style="display:none">Quote</button>
+      <button class="action-btn desktop-only-toggle" id="btn-show-gallery" onclick="showGallery()" style="display:none">Photos</button>
       <button class="action-btn" id="btn-pdf" onclick="downloadPDF()" style="display:none">↓ PDF</button>
       <button class="action-btn" id="btn-email-toggle" onclick="toggleEmailForm()" style="display:none">✉ Email</button>
       <button class="action-btn" id="btn-preview" onclick="refreshPreview()" style="display:none">↺ Refresh</button>
@@ -3551,7 +3557,18 @@ function toggleGalleryView() {
 }
 
 function updateGalleryButtons() {
-  // Toggle buttons removed — mobile uses PICS tab, desktop can use nav
+  const hasImages = galleryState.images.length > 0;
+  const frame = document.getElementById('quote-frame');
+  const hasQuote = frame && (frame.src || frame.srcdoc);
+  const btnQuote = document.getElementById('btn-show-quote');
+  const btnGallery = document.getElementById('btn-show-gallery');
+  if (!btnQuote || !btnGallery) return;
+  btnQuote.style.display = (hasImages && hasQuote) ? '' : 'none';
+  btnGallery.style.display = hasImages ? '' : 'none';
+  btnQuote.style.background = galleryState.visible ? 'transparent' : 'var(--accent)';
+  btnQuote.style.color = galleryState.visible ? 'var(--text-2)' : '#fff';
+  btnGallery.style.background = galleryState.visible ? 'var(--accent)' : 'transparent';
+  btnGallery.style.color = galleryState.visible ? '#fff' : 'var(--text-2)';
 }
 
 function showGallery() {
