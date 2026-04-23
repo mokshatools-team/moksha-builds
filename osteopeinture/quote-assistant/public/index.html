@@ -2292,6 +2292,10 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
     Chat
   </button>
+  <button class="mobile-nav-tab" id="nav-pics" onclick="mobileNavTo('pics')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+    Pics
+  </button>
   <button class="mobile-nav-tab" id="nav-quote" onclick="mobileNavTo('quote')">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="7" y1="8" x2="17" y2="8"/><line x1="7" y1="12" x2="14" y2="12"/><line x1="7" y1="16" x2="11" y2="16"/></svg>
     Quote
@@ -3354,6 +3358,15 @@ function mobileNavTo(view) {
     emailForm.classList.remove('minimized');
     jobsPanel.classList.remove('visible');
     jobDetail.classList.remove('visible');
+  } else if (view === 'pics') {
+    // Open quote panel in gallery mode
+    quotePanel.classList.add('mobile-open');
+    quotePanel.classList.remove('email-only');
+    emailForm.classList.remove('open');
+    emailForm.classList.remove('minimized');
+    jobsPanel.classList.remove('visible');
+    jobDetail.classList.remove('visible');
+    showGallery();
   } else if (view === 'quote') {
     quotePanel.classList.add('mobile-open');
     quotePanel.classList.remove('email-only');
@@ -3361,6 +3374,7 @@ function mobileNavTo(view) {
     emailForm.classList.remove('minimized');
     jobsPanel.classList.remove('visible');
     jobDetail.classList.remove('visible');
+    hideGallery();
     setTimeout(updateQuoteScale, 50);
   } else if (view === 'jobs') {
     quotePanel.classList.remove('mobile-open');
@@ -3387,7 +3401,7 @@ function mobileNavTo(view) {
 // ── SWIPE GESTURES — swipe through all 4 tabs continuously ──────────
 (function initSwipeGestures() {
   const THRESHOLD = 60;
-  const TAB_ORDER = ['chat', 'quote', 'email'];
+  const TAB_ORDER = ['chat', 'pics', 'quote', 'email'];
   let touchStartX = 0;
   let touchStartY = 0;
   let swiping = false;
