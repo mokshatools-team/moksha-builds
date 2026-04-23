@@ -1450,7 +1450,7 @@ Scaffolding or lift — rental + install/dismantling as separate lines.
 Once the user confirms, output ONLY the raw JSON with no explanation, no markdown fences. The JSON must be valid and parseable.
 
 EXTERIOR QUOTE REMINDERS (if exterior):
-- ALWAYS include "estimateDisclaimer" field with: "Given the nature of exterior work, this is a cost estimate and not a fixed price. Final price will be billed based on actual preparation time required."
+- ALWAYS include "estimateDisclaimer" field. English: "Given the nature of exterior work, this is an estimate and not a fixed price. The final price will be adjusted to reflect the actual preparation time required." French: "Étant donné la nature des travaux extérieurs, il s'agit d'une estimation et non d'un prix fixe. Le prix final sera ajusté pour refléter le temps de préparation réel requis."
 - Repairs section MUST have "excluded": true, "total": 0, and a "range" field (e.g. "$500 - $800") showing estimated hourly range. Repairs are NEVER a fixed price on exterior.
 - These are non-negotiable for exterior quotes.
 
@@ -1555,7 +1555,7 @@ For exterior jobs, output this structure instead. Key differences: sections use 
   "address": "Street Address, Montréal",
   "date": "April 4, 2026",
   "projectType": "Exterior Painting Work",
-  "estimateDisclaimer": "Given the nature of exterior work, this is a cost estimate and not a fixed price. Final price will be billed based on actual preparation time required.",
+  "estimateDisclaimer": "Given the nature of exterior work, this is an estimate and not a fixed price. The final price will be adjusted to reflect the actual preparation time required.",
   "terms": {
     "includes": [
       "Proper preparation work, including primer where needed, and 2 coats of paint on all agreed upon surfaces",
