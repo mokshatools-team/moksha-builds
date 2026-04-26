@@ -1,0 +1,25 @@
+# Fidelio Post-Production Pipeline
+# Install: pip install -r requirements.txt
+
+# Core
+flask>=3.0.0
+python-dotenv>=1.0.0
+requests>=2.31.0
+watchdog>=4.0.0
+
+# Google Sheets
+gspread>=6.0.0
+google-auth>=2.27.0
+google-auth-oauthlib>=1.2.0
+
+# AI / APIs
+openai>=1.30.0          # Whisper API
+anthropic>=0.28.0       # Claude metadata gen
+fal-client>=0.4.0       # FAL.ai thumbnail gen
+
+# Media
+# ffmpeg-python>=0.2.0  # ffprobe/ffmpeg — uses /opt/homebrew/bin/ffmpeg directly
+
+# Utils
+Pillow>=10.0.0
+dropbox>=12.0.0

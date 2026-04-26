@@ -1,0 +1,460 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ client.display_name }} — Review &amp; Sign Off</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #faf9f6;
+      --card: #fff;
+      --text: #1a1a16;
+      --muted: #8c8880;
+      --accent: #b8873c;
+      --border: #e8e4da;
+      --surface: #f0ede6;
+      --ok: #2a8a5e;
+      --err: #b84040;
+      --shadow: 0 16px 40px rgba(26,26,22,0.06);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "DM Sans", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .page {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 52px 24px 80px;
+    }
+
+    header {
+      padding: 0 0 28px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 40px;
+    }
+
+    .eyebrow {
+      font-size: 0.76rem;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--accent);
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+
+    h1 {
+      margin: 0;
+      font-family: "Cormorant Garamond", serif;
+      font-size: clamp(2.4rem, 6vw, 4rem);
+      line-height: 0.95;
+      letter-spacing: -0.025em;
+      font-weight: 600;
+    }
+
+    .sub {
+      margin: 14px 0 0;
+      font-size: 1rem;
+      color: var(--muted);
+      line-height: 1.65;
+      max-width: 560px;
+    }
+
+    /* Grid */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 22px;
+    }
+
+    /* Clip card */
+    .clip-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .clip-thumb {
+      width: 100%;
+      aspect-ratio: 9/16;
+      background: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      color: var(--muted);
+      flex-shrink: 0;
+      overflow: hidden;
+    }
+
+    .clip-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .clip-thumb video {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+      background: #000;
+    }
+
+    .clip-body {
+      padding: 18px 20px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex: 1;
+    }
+
+    .clip-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.74rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .clip-status.pending { color: var(--accent); }
+    .clip-status.approved { color: var(--ok); }
+    .clip-status.revision { color: var(--err); }
+
+    .clip-title {
+      font-family: "Cormorant Garamond", serif;
+      font-size: 1.18rem;
+      font-weight: 600;
+      line-height: 1.3;
+      letter-spacing: -0.01em;
+      margin: 0;
+    }
+
+    .clip-meta {
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+
+    .clip-desc {
+      font-size: 0.88rem;
+      color: var(--muted);
+      line-height: 1.65;
+      margin: 4px 0 0;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .clip-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 14px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      appearance: none;
+      border-radius: 999px;
+      padding: 9px 16px;
+      font: inherit;
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.18s ease;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      white-space: nowrap;
+    }
+
+    .btn-watch {
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: var(--text);
+    }
+    .btn-watch:hover { border-color: var(--accent); color: var(--accent); }
+
+    .btn-approve {
+      border: 1px solid var(--ok);
+      background: var(--ok);
+      color: #fff;
+    }
+    .btn-approve:hover { opacity: 0.88; }
+    .btn-approve:disabled { opacity: 0.5; cursor: default; }
+
+    .btn-revise {
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+    }
+    .btn-revise:hover { border-color: var(--err); color: var(--err); }
+
+    /* Revision form */
+    .revise-form {
+      display: none;
+      margin-top: 10px;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .revise-form.open { display: flex; }
+
+    .revise-form textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font: inherit;
+      font-size: 0.9rem;
+      resize: vertical;
+      min-height: 68px;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .revise-form textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .revise-send {
+      align-self: flex-end;
+      border: 1px solid var(--err);
+      background: var(--err);
+      color: #fff;
+      padding: 8px 16px;
+      border-radius: 999px;
+      font: inherit;
+      font-size: 0.86rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    /* Empty + loading states */
+    .state {
+      padding: 64px 24px;
+      text-align: center;
+      color: var(--muted);
+    }
+
+    .state-icon { font-size: 2.4rem; margin-bottom: 14px; }
+
+    .state h2 {
+      font-family: "Cormorant Garamond", serif;
+      font-size: 1.8rem;
+      font-weight: 500;
+      color: var(--text);
+      margin: 0 0 8px;
+    }
+
+    .state p { font-size: 0.98rem; margin: 0; }
+
+    footer {
+      margin-top: 60px;
+      padding-top: 22px;
+      border-top: 1px solid var(--border);
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+
+    @media (max-width: 600px) {
+      .page { padding: 36px 18px 64px; }
+      .clip-actions { flex-direction: column; }
+      .btn { justify-content: center; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header>
+      <div class="eyebrow">{{ client.display_name }}</div>
+      <h1>Review &amp; Sign Off</h1>
+      <p class="sub">Watch each clip below and let us know if it's good to go — or flag any changes needed before it goes live.</p>
+    </header>
+
+    <div id="content">
+      <div class="state">
+        <div class="state-icon">⧗</div>
+        <h2>Loading...</h2>
+      </div>
+    </div>
+
+    <footer>Questions? Reach out to Robert directly.</footer>
+  </div>
+
+  <script>
+    const CLIENT_ID = {{ client.client_id | tojson }};
+    const TOKEN = {{ token | tojson }};
+
+    function statusClass(s) {
+      if (s === 'Client Approved') return 'approved';
+      if (s.startsWith('Needs Revision')) return 'revision';
+      return 'pending';
+    }
+
+    function statusLabel(s) {
+      if (s === 'Client Approved') return '✓ Approved';
+      if (s.startsWith('Needs Revision')) return '↩ Revision Requested';
+      return 'Awaiting Review';
+    }
+
+    function renderCards(items) {
+      if (!items.length) {
+        return `<div class="state">
+          <div class="state-icon">✓</div>
+          <h2>All caught up</h2>
+          <p>Nothing to review right now. Check back soon.</p>
+        </div>`;
+      }
+      return `<div class="grid">${items.map(renderCard).join('')}</div>`;
+    }
+
+    function renderCard(item) {
+      const sc = statusClass(item.status);
+      const sl = statusLabel(item.status);
+      const isDone = sc !== 'pending';
+      const hasThumb = item.thumbnail_url;
+      // Only treat review_url as a video if it's a real CDN URL (not a local Review UI link)
+      const hasVideo = item.review_url && !item.review_url.includes('localhost') && !item.review_url.includes('127.0.0.1');
+
+      let thumbHtml;
+      if (hasVideo) {
+        const poster = hasThumb ? `poster="${item.thumbnail_url}"` : '';
+        thumbHtml = `<video controls preload="none" ${poster} src="${item.review_url}" playsinline></video>`;
+      } else if (hasThumb) {
+        thumbHtml = `<img src="${item.thumbnail_url}" alt="" loading="lazy">`;
+      } else {
+        thumbHtml = `<span>▶</span>`;
+      }
+
+      const watchBtn = '';  // video plays inline; fallback when no CDN URL yet handled above
+
+      const approveBtn = isDone
+        ? `<button class="btn btn-approve" disabled>✓ Looks good</button>`
+        : `<button class="btn btn-approve" onclick="approve(this, '${esc(item.file_name)}')">✓ Looks good</button>`;
+
+      const reviseBtn = isDone
+        ? ''
+        : `<button class="btn btn-revise" onclick="toggleRevise(this)">↩ Request revision</button>`;
+
+      const reviseForm = isDone ? '' : `
+        <div class="revise-form" id="rf-${btoa(item.file_name).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_')}">
+          <textarea placeholder="What needs to change? Be as specific as you like..."></textarea>
+          <button class="revise-send" onclick="sendRevision(this, '${esc(item.file_name)}')">Send revision note</button>
+        </div>`;
+
+      return `
+        <div class="clip-card" data-fn="${esc(item.file_name)}">
+          <div class="clip-thumb">${thumbHtml}</div>
+          <div class="clip-body">
+            <div class="clip-status ${sc}">${sl}</div>
+            <h2 class="clip-title">${esc(item.title)}</h2>
+            <div class="clip-meta">${item.duration ? item.duration + ' · ' : ''}${item.export_date}</div>
+            ${item.description ? `<p class="clip-desc">${esc(item.description)}</p>` : ''}
+            <div class="clip-actions">
+              ${watchBtn}
+              ${approveBtn}
+              ${reviseBtn}
+            </div>
+            ${reviseForm}
+          </div>
+        </div>`;
+    }
+
+    function esc(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function toggleRevise(btn) {
+      const card = btn.closest('.clip-card');
+      const fn = card.dataset.fn;
+      const key = btoa(fn).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
+      const form = document.getElementById('rf-' + key);
+      if (form) form.classList.toggle('open');
+    }
+
+    async function approve(btn, fileName) {
+      btn.disabled = true;
+      btn.textContent = 'Sending...';
+      try {
+        const r = await fetch(`/api/client/${CLIENT_ID}/approve/${encodeURIComponent(fileName)}?token=${TOKEN}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        if (!r.ok) throw new Error('Failed');
+        const card = btn.closest('.clip-card');
+        card.querySelector('.clip-status').textContent = '✓ Approved';
+        card.querySelector('.clip-status').className = 'clip-status approved';
+        btn.textContent = '✓ Looks good';
+        card.querySelectorAll('.btn-revise').forEach(b => b.remove());
+        card.querySelectorAll('.revise-form').forEach(f => f.remove());
+      } catch {
+        btn.disabled = false;
+        btn.textContent = '✓ Looks good';
+        alert('Something went wrong. Please try again.');
+      }
+    }
+
+    async function sendRevision(btn, fileName) {
+      const form = btn.closest('.revise-form');
+      const comment = form.querySelector('textarea').value.trim();
+      btn.disabled = true;
+      btn.textContent = 'Sending...';
+      try {
+        const r = await fetch(`/api/client/${CLIENT_ID}/revise/${encodeURIComponent(fileName)}?token=${TOKEN}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ comment }),
+        });
+        if (!r.ok) throw new Error('Failed');
+        const card = btn.closest('.clip-card');
+        card.querySelector('.clip-status').textContent = '↩ Revision Requested';
+        card.querySelector('.clip-status').className = 'clip-status revision';
+        card.querySelectorAll('.btn-approve').forEach(b => { b.disabled = true; b.textContent = '✓ Looks good'; });
+        card.querySelectorAll('.btn-revise').forEach(b => b.remove());
+        form.remove();
+      } catch {
+        btn.disabled = false;
+        btn.textContent = 'Send revision note';
+        alert('Something went wrong. Please try again.');
+      }
+    }
+
+    async function loadQueue() {
+      try {
+        const r = await fetch(`/api/client/${CLIENT_ID}/queue?token=${TOKEN}`);
+        if (!r.ok) throw new Error('Failed to load');
+        const data = await r.json();
+        document.getElementById('content').innerHTML = renderCards(data.items || []);
+      } catch {
+        document.getElementById('content').innerHTML = `<div class="state">
+          <div class="state-icon">✗</div>
+          <h2>Couldn't load clips</h2>
+          <p>Check your link or contact Robert.</p>
+        </div>`;
+      }
+    }
+
+    loadQueue();
+  </script>
+</body>
+</html>

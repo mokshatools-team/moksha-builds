@@ -1,0 +1,14 @@
+{
+  "client_id": "dre-alexandra",
+  "display_name": "Dre Alexandra",
+  "brand_profile_url": "https://brand.mokshatools.com/dre-alexandra",
+  "ingest_folder": "/Users/YOUR_USERNAME/path/to/your/ingest-folder",
+  "watch_folder": "/Users/YOUR_USERNAME/path/to/your/exports-folder",
+  "watch_folder_long": "/Users/YOUR_USERNAME/path/to/your/exports-folder",
+  "watch_folder_short": "/Users/YOUR_USERNAME/path/to/your/exports-folder",
+  "platforms": ["youtube", "instagram", "tiktok", "facebook"],
+  "sheets_id": "1RbGcPeLYwZc9uTYfqC8FUry8kaUGuIBoNf8ueydyUi4",
+  "language": "fr-CA",
+  "notes": "Quebec French medical education. YouTube primary (long-form + shorts), Instagram secondary.",
+  "review_token": "465fa8e6a366a1798133b866939daf35a7d4f1ac"
+}

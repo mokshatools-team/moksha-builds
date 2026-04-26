@@ -1,0 +1,715 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fidelio Pipeline — Editor Setup Guide</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #faf9f6;
+      --surface: #f0ede6;
+      --card: #fff;
+      --text: #1a1a16;
+      --muted: #8c8880;
+      --accent: #b8873c;
+      --border: #e8e4da;
+      --shadow: 0 20px 40px rgba(26, 26, 22, 0.05);
+    }
+
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "DM Sans", sans-serif;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+
+    .page {
+      max-width: 740px;
+      margin: 0 auto;
+      padding: 56px 24px 80px;
+    }
+
+    header {
+      padding: 10px 0 24px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 34px;
+    }
+
+    .eyebrow {
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--accent);
+      margin-bottom: 14px;
+      font-weight: 700;
+    }
+
+    h1 {
+      margin: 0;
+      font-family: "Cormorant Garamond", serif;
+      font-size: clamp(3.4rem, 8vw, 5rem);
+      line-height: 0.94;
+      letter-spacing: -0.03em;
+      font-weight: 600;
+    }
+
+    .subtitle {
+      max-width: 640px;
+      margin: 18px 0 0;
+      font-size: 1.05rem;
+      line-height: 1.7;
+      color: var(--muted);
+    }
+
+    main {
+      display: flex;
+      flex-direction: column;
+      gap: 34px;
+    }
+
+    .step {
+      position: relative;
+      padding-top: 14px;
+    }
+
+    .step-number {
+      position: absolute;
+      top: -8px;
+      left: 22px;
+      font-family: "Cormorant Garamond", serif;
+      font-size: 9rem;
+      line-height: 0.9;
+      color: var(--accent);
+      opacity: 0.06;
+      pointer-events: none;
+      user-select: none;
+      z-index: 0;
+    }
+
+    .step-card {
+      position: relative;
+      z-index: 1;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 40px;
+      box-shadow: var(--shadow);
+    }
+
+    .step-label {
+      display: inline-block;
+      margin-bottom: 10px;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      font-size: 0.74rem;
+      font-weight: 700;
+    }
+
+    .step-title {
+      margin: 0;
+      font-family: "Cormorant Garamond", serif;
+      font-size: clamp(2rem, 4vw, 2.6rem);
+      line-height: 1;
+      letter-spacing: -0.02em;
+      font-weight: 600;
+    }
+
+    .step-desc {
+      margin: 14px 0 0;
+      color: var(--muted);
+      line-height: 1.75;
+      font-size: 0.98rem;
+    }
+
+    .prompt-block {
+      margin-top: 28px;
+      background: var(--surface);
+      border: 1px solid rgba(184, 135, 60, 0.12);
+      border-radius: 10px;
+      padding: 18px 18px 16px;
+    }
+
+    .prompt-meta {
+      margin-bottom: 12px;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      font-size: 0.72rem;
+      font-weight: 700;
+    }
+
+    .prompt-text {
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      color: var(--text);
+      font-family: "DM Sans", sans-serif;
+      font-size: 0.95rem;
+      line-height: 1.72;
+    }
+
+    .copy-btn {
+      margin-top: 18px;
+      appearance: none;
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: var(--text);
+      padding: 11px 16px;
+      border-radius: 999px;
+      font: inherit;
+      font-size: 0.92rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+    }
+
+    .copy-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .copy-btn:active {
+      transform: translateY(1px);
+    }
+
+    .copy-btn.copied {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    footer {
+      margin-top: 52px;
+      padding-top: 22px;
+      border-top: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    [data-reveal] {
+      opacity: 0;
+      transform: translateY(28px);
+      transition: opacity 0.55s ease, transform 0.55s ease;
+    }
+
+    [data-reveal].visible {
+      opacity: 1;
+      transform: none;
+    }
+
+    .step:nth-child(1) { transition-delay: 0s; }
+    .step:nth-child(2) { transition-delay: 0.05s; }
+    .step:nth-child(3) { transition-delay: 0.1s; }
+    .step:nth-child(4) { transition-delay: 0.15s; }
+    .step:nth-child(5) { transition-delay: 0.2s; }
+    .step:nth-child(6) { transition-delay: 0.25s; }
+    .step:nth-child(7) { transition-delay: 0.3s; }
+
+    /* System Requirements bar */
+    .sys-req {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: 10px;
+      padding: 13px 22px;
+      margin-bottom: 40px;
+    }
+    .sr-item {
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: var(--text);
+      white-space: nowrap;
+      padding: 2px 0;
+    }
+    .sr-dot {
+      color: var(--accent);
+      opacity: 0.45;
+      padding: 0 10px;
+      font-size: 0.85rem;
+    }
+
+    /* Pre-step callout blocks */
+    .prereq-block, .arch-block {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 36px 40px;
+      box-shadow: var(--shadow);
+    }
+    .prereq-label, .arch-label {
+      display: inline-block;
+      margin-bottom: 10px;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      font-size: 0.74rem;
+      font-weight: 700;
+    }
+    .prereq-title, .arch-title {
+      margin: 0 0 12px;
+      font-family: "Cormorant Garamond", serif;
+      font-size: clamp(1.8rem, 3.5vw, 2.4rem);
+      line-height: 1;
+      letter-spacing: -0.02em;
+      font-weight: 600;
+    }
+    .prereq-desc, .arch-intro {
+      margin: 0 0 24px;
+      color: var(--muted);
+      line-height: 1.75;
+      font-size: 0.98rem;
+    }
+
+    /* API key table */
+    .key-table {
+      display: flex;
+      flex-direction: column;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .key-row {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      align-items: start;
+      padding: 13px 18px;
+      gap: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .key-row:last-child { border-bottom: none; }
+    .key-row:nth-child(odd) { background: var(--bg); }
+    .key-name {
+      font-family: "SF Mono", "Fira Mono", "Consolas", monospace;
+      font-size: 0.82rem;
+      color: var(--accent);
+      font-weight: 600;
+      word-break: break-all;
+      padding-top: 2px;
+    }
+    .key-meta { display: flex; flex-direction: column; gap: 3px; }
+    .key-platform { font-size: 0.88rem; font-weight: 600; color: var(--text); }
+    .key-link {
+      font-size: 0.83rem;
+      color: var(--accent);
+      text-decoration: none;
+      opacity: 0.8;
+    }
+    .key-link:hover { opacity: 1; text-decoration: underline; }
+    .key-note { font-size: 0.83rem; color: var(--muted); }
+
+    /* LOCAL vs SHARED block */
+    .arch-cols {
+      display: grid;
+      grid-template-columns: 1fr 1px 1fr;
+      gap: 24px;
+      margin-bottom: 20px;
+    }
+    .arch-divider { background: var(--border); }
+    .arch-col-head {
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--accent);
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+    .arch-list {
+      margin: 0; padding: 0; list-style: none;
+      display: flex; flex-direction: column; gap: 5px;
+    }
+    .arch-list li {
+      font-size: 0.85rem;
+      color: var(--text);
+      padding: 6px 10px;
+      background: var(--surface);
+      border-radius: 6px;
+      font-family: "SF Mono", "Fira Mono", "Consolas", monospace;
+      line-height: 1.4;
+    }
+    .arch-note {
+      font-size: 0.88rem;
+      color: var(--muted);
+      line-height: 1.75;
+      padding: 14px 18px;
+      background: var(--surface);
+      border-radius: 8px;
+      border-left: 3px solid var(--border);
+    }
+    .arch-note strong { color: var(--text); }
+
+    @media (max-width: 700px) {
+      .page { padding: 40px 18px 64px; }
+      .step-card { padding: 28px 22px; }
+      .step-number { left: 12px; font-size: 6.5rem; top: 4px; }
+      .subtitle, .step-desc, .prompt-text { font-size: 0.94rem; }
+      .prereq-block, .arch-block { padding: 28px 22px; }
+      .key-row { grid-template-columns: 1fr; gap: 5px; }
+      .arch-cols { grid-template-columns: 1fr; }
+      .arch-divider { width: 100%; height: 1px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header>
+      <div class="eyebrow">Fidelio Pipeline</div>
+      <h1>Editor Setup Guide</h1>
+      <p class="subtitle">Seven steps to get your local pipeline running. Each step includes a Claude Code prompt — paste it into VS Code and Claude will walk you through it.</p>
+    </header>
+
+    <div class="sys-req">
+      <span class="sr-item">macOS 12+</span>
+      <span class="sr-dot">·</span>
+      <span class="sr-item">Python 3.11+</span>
+      <span class="sr-dot">·</span>
+      <span class="sr-item">Homebrew + ffmpeg</span>
+      <span class="sr-dot">·</span>
+      <span class="sr-item">Git</span>
+      <span class="sr-dot">·</span>
+      <span class="sr-item">Claude Code CLI</span>
+      <span class="sr-dot">·</span>
+      <span class="sr-item">DaVinci Resolve</span>
+    </div>
+
+    <main>
+      <!-- API Keys pre-step -->
+      <div class="prereq-block" data-reveal>
+        <div class="prereq-label">Before You Begin</div>
+        <h2 class="prereq-title">API Keys You'll Need</h2>
+        <p class="prereq-desc">Get these six keys in hand before starting. Robert sends you the Google credentials file and the Blotato key — the rest you create yourself on each platform.</p>
+        <div class="key-table">
+          <div class="key-row">
+            <span class="key-name">OPENAI_API_KEY</span>
+            <div class="key-meta">
+              <span class="key-platform">OpenAI — Whisper transcription</span>
+              <a class="key-link" href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">platform.openai.com → API keys</a>
+              <span class="key-note">Create a new secret key. Billing must be active.</span>
+            </div>
+          </div>
+          <div class="key-row">
+            <span class="key-name">ANTHROPIC_API_KEY</span>
+            <div class="key-meta">
+              <span class="key-platform">Anthropic — Claude metadata generation</span>
+              <a class="key-link" href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com → API keys</a>
+              <span class="key-note">Create a new key. Add credits to your account first.</span>
+            </div>
+          </div>
+          <div class="key-row">
+            <span class="key-name">FAL_KEY</span>
+            <div class="key-meta">
+              <span class="key-platform">fal.ai — AI thumbnail generation</span>
+              <a class="key-link" href="https://fal.ai/dashboard/keys" target="_blank" rel="noopener">fal.ai/dashboard → Keys</a>
+              <span class="key-note">Format: <code style="font-size:0.8rem">key-id:secret</code> — two parts separated by a colon.</span>
+            </div>
+          </div>
+          <div class="key-row">
+            <span class="key-name">GOOGLE_SERVICE_ACCOUNT_JSON</span>
+            <div class="key-meta">
+              <span class="key-platform">Google Sheets access</span>
+              <span class="key-note" style="color:var(--text); font-weight:500">Robert sends you this file. Save it somewhere permanent (not the Desktop), then set this env var to the full file path.</span>
+            </div>
+          </div>
+          <div class="key-row">
+            <span class="key-name">BLOTATO_API_KEY</span>
+            <div class="key-meta">
+              <span class="key-platform">Blotato — social scheduling (Dre's account)</span>
+              <span class="key-note" style="color:var(--text); font-weight:500">Robert sends you this key. Do not share it.</span>
+            </div>
+          </div>
+          <div class="key-row">
+            <span class="key-name">FLASK_SECRET_KEY</span>
+            <div class="key-meta">
+              <span class="key-platform">Local — Flask session secret</span>
+              <span class="key-note">Any random string. Generate one: <code style="font-size:0.8rem">python3 -c "import secrets; print(secrets.token_hex(32))"</code></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- LOCAL vs SHARED explainer -->
+      <div class="arch-block" data-reveal>
+        <div class="arch-label">How It Works</div>
+        <h2 class="arch-title">Your Machine vs. What's Shared</h2>
+        <p class="arch-intro">Each editor runs their own independent pipeline. You don't need anyone else online to process clips — everything happens on your Mac. Google Sheets is the shared record that everyone can see after each run.</p>
+        <div class="arch-cols">
+          <div class="arch-col">
+            <div class="arch-col-head">Your Mac Only</div>
+            <ul class="arch-list">
+              <li>File watcher (Pass 1 &amp; 2)</li>
+              <li>Monitor UI — localhost:5401</li>
+              <li>Review UI — localhost:5400</li>
+              <li>.env + API keys</li>
+              <li>credentials.json</li>
+              <li>Footage &amp; export folders</li>
+            </ul>
+          </div>
+          <div class="arch-divider"></div>
+          <div class="arch-col">
+            <div class="arch-col-head">Shared</div>
+            <ul class="arch-list">
+              <li>Google Sheets (pipeline log)</li>
+              <li>Blotato (Dre's social accounts)</li>
+              <li>FAL thumbnails (public CDN)</li>
+            </ul>
+          </div>
+        </div>
+        <div class="arch-note">
+          <strong>Updating the code:</strong> When Robert pushes a change to GitHub, run <code style="font-size:0.82rem">git pull</code> in your repo folder and restart the daemon. Your local config (folder paths, .env) is yours — never pushed, never overwritten.
+        </div>
+      </div>
+
+      <section class="step" data-reveal>
+        <div class="step-number">01</div>
+        <div class="step-card">
+          <div class="step-header">
+            <span class="step-label">Step 01</span>
+            <h2 class="step-title">Clone the Repository</h2>
+            <p class="step-desc">Get the Fidelio pipeline code onto your machine. You'll need Git installed. The repo is private — log in with the shared <strong>mokshatools@gmail.com</strong> GitHub account (get the password from Robert).</p>
+          </div>
+          <div class="prompt-block">
+            <div class="prompt-meta">Claude Code Prompt</div>
+            <pre class="prompt-text">I'm setting up the Fidelio post-production pipeline on my Mac. I need to clone the private GitHub repository.
+
+The repo is: https://github.com/mokshatools-team/fidelio-pipeline
+GitHub login: mokshatools@gmail.com (ask Robert for the password)
+
+Please:
+1. Check that Git is installed — run: git --version (if missing, install via Homebrew: brew install git)
+2. Help me choose where to clone it (suggest ~/Documents/ if I'm unsure)
+3. Run: git clone https://github.com/mokshatools-team/fidelio-pipeline.git
+   — when prompted for GitHub username/password, use mokshatools@gmail.com + the password Robert gave me
+   — if it asks for a "personal access token" instead of password, let me know and we'll handle that
+4. Confirm the folder structure looks right — I should see: local/, web/, config/, setup.sh, onboarding.html
+5. Check Python 3.11+ is installed — run: python3 --version (if missing or too old: brew install python@3.11)</pre>
+            <button class="copy-btn" onclick="copyPrompt(this)">Copy Prompt</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="step" data-reveal>
+        <div class="step-number">02</div>
+        <div class="step-card">
+          <div class="step-header">
+            <span class="step-label">Step 02</span>
+            <h2 class="step-title">Run Setup</h2>
+            <p class="step-desc">One script installs everything — Python dependencies, virtual environment, and cache directories.</p>
+          </div>
+          <div class="prompt-block">
+            <div class="prompt-meta">Claude Code Prompt</div>
+            <pre class="prompt-text">I've cloned the Fidelio pipeline repo. Now I need to run the setup script.
+
+The repo is at: [PASTE YOUR REPO PATH HERE — e.g. ~/Documents/fidelio-pipeline]
+
+Please:
+1. Run: bash setup.sh from inside the repo folder
+2. Tell me if any errors appear during install
+3. Confirm the venv/ folder was created
+4. Show me that the key dependencies installed (requests, flask, openai, anthropic, google-auth)
+
+If setup.sh fails, read the error and fix it before continuing.</pre>
+            <button class="copy-btn" onclick="copyPrompt(this)">Copy Prompt</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="step" data-reveal>
+        <div class="step-number">03</div>
+        <div class="step-card">
+          <div class="step-header">
+            <span class="step-label">Step 03</span>
+            <h2 class="step-title">Fill In Your API Keys</h2>
+            <p class="step-desc">Robert will send you a message or notes doc with all the keys. Paste it into Claude in one go — no hunting key by key.</p>
+          </div>
+          <div class="prompt-block">
+            <div class="prompt-meta">Claude Code Prompt</div>
+            <pre class="prompt-text">I need to fill in my API keys for the Fidelio pipeline. Robert has sent me all the keys in one message — I'll paste them below.
+
+The .env file is at: [PASTE YOUR REPO PATH]/.env
+
+Here are the keys Robert sent me:
+[PASTE ROBERT'S KEYS MESSAGE HERE]
+
+Please:
+1. Read all the keys from what I just pasted
+2. Open my .env file
+3. Fill in every key you can match — OPENAI_API_KEY, ANTHROPIC_API_KEY, FAL_KEY, BLOTATO_API_KEY, DROPBOX_ACCESS_TOKEN, GOOGLE_SERVICE_ACCOUNT_JSON
+4. Generate a random FLASK_SECRET_KEY for me (I don't need to supply this one)
+5. Save the file and confirm everything is filled in</pre>
+            <button class="copy-btn" onclick="copyPrompt(this)">Copy Prompt</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="step" data-reveal>
+        <div class="step-number">04</div>
+        <div class="step-card">
+          <div class="step-header">
+            <span class="step-label">Step 04</span>
+            <h2 class="step-title">Google Sheets Access</h2>
+            <p class="step-desc">The pipeline logs everything to a shared Google Sheet. Robert has already set it up — you just need to connect your credentials file to it.</p>
+          </div>
+          <div class="prompt-block">
+            <div class="prompt-meta">Claude Code Prompt</div>
+            <pre class="prompt-text">I need to connect the Fidelio pipeline to Google Sheets.
+
+The shared Sheet is already set up — here's the direct link:
+https://docs.google.com/spreadsheets/d/1RbGcPeLYwZc9uTYfqC8FUry8kaUGuIBoNf8ueydyUi4
+
+Robert has sent me a credentials file (service-account.json or similar). I'll tell you where I saved it.
+
+Please:
+1. Ask me where the credentials file is on my machine
+2. Update GOOGLE_SERVICE_ACCOUNT_JSON in my .env file to point to it
+3. Verify the connection works — try reading the first row of the Exports tab from the Sheet above
+4. If it fails with a permissions error, tell me to message Robert so he can share the Sheet with the service account email shown in the JSON
+
+The .env file is at: [PASTE YOUR REPO PATH]/.env</pre>
+            <button class="copy-btn" onclick="copyPrompt(this)">Copy Prompt</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="step" data-reveal>
+        <div class="step-number">05</div>
+        <div class="step-card">
+          <div class="step-header">
+            <span class="step-label">Step 05</span>
+            <h2 class="step-title">Set Your Watch Folders</h2>
+            <p class="step-desc">The config ships with placeholder paths — <strong>you must replace them with your own local folders</strong> before anything runs. Tell Claude where your raw footage drops and where your finished exports land.</p>
+          </div>
+          <div class="prompt-block">
+            <div class="prompt-meta">Claude Code Prompt</div>
+            <pre class="prompt-text">I need to set my local folder paths in the Fidelio client config before I can run the pipeline.
+
+Open config/clients/dre-alexandra.json — it has placeholder values like "/Users/YOUR_USERNAME/path/to/your/ingest-folder" that need to be replaced with my real paths.
+
+Please:
+1. Open config/clients/dre-alexandra.json and show me the current placeholder values
+2. Ask me where I want my ingest folder (raw footage drops here — Pass 1 picks it up)
+3. Ask me where I want my exports/watch folder (finished edited exports drop here — Pass 2 picks them up)
+4. Update ingest_folder, watch_folder, watch_folder_long, and watch_folder_short with my real paths
+5. Save the file
+6. Confirm those folders exist on disk — if not, create them</pre>
+            <button class="copy-btn" onclick="copyPrompt(this)">Copy Prompt</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="step" data-reveal>
+        <div class="step-number">06</div>
+        <div class="step-card">
+          <div class="step-header">
+            <span class="step-label">Step 06</span>
+            <h2 class="step-title">Connect Blotato</h2>
+            <p class="step-desc">Blotato handles scheduling posts to YouTube, Instagram, TikTok, and Facebook. The account is already set up under Dre — Robert sends you the API key, you just drop it into your .env.</p>
+          </div>
+          <div class="prompt-block">
+            <div class="prompt-meta">Claude Code Prompt</div>
+            <pre class="prompt-text">I need to add the Blotato API key to my Fidelio pipeline setup.
+
+Robert has sent me the BLOTATO_API_KEY value (it connects to Dre's social media workspace — YouTube, Instagram, TikTok, Facebook are already connected there).
+
+Please:
+1. Open my .env file at [PASTE YOUR REPO PATH]/.env
+2. Set BLOTATO_API_KEY to the value Robert sent me
+3. Save the file
+
+That's it for this step — no account creation needed, the workspace is already live.</pre>
+            <button class="copy-btn" onclick="copyPrompt(this)">Copy Prompt</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="step" data-reveal>
+        <div class="step-number">07</div>
+        <div class="step-card">
+          <div class="step-header">
+            <span class="step-label">Step 07</span>
+            <h2 class="step-title">Smoke Test</h2>
+            <p class="step-desc">Start the pipeline and run one clip through it end-to-end. If it completes, you're set up.</p>
+          </div>
+          <div class="prompt-block">
+            <div class="prompt-meta">Claude Code Prompt</div>
+            <pre class="prompt-text">I've finished setup and I want to run a smoke test on the Fidelio pipeline.
+
+The repo is at: [PASTE YOUR REPO PATH]
+My client ID is: [CLIENT ID — e.g. dre-alexandra]
+
+Please:
+1. Activate the venv and start the daemon: python local/start.py --client [CLIENT ID]
+2. Open two browser tabs: localhost:5401 (Monitor) and localhost:5400/review/[CLIENT ID] (Review UI)
+3. Tell me what a healthy startup looks like in the Monitor — what should I see?
+4. Drop a short test video clip into my ingest_folder and watch it process
+5. Confirm Pass 1 completes — I should see the clip appear in the Review UI with a transcript
+6. If anything fails, read the error in the Monitor and help me fix it
+
+Walk me through the whole thing step by step.</pre>
+            <button class="copy-btn" onclick="copyPrompt(this)">Copy Prompt</button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      Questions? Ask Claude Code. It knows the pipeline.
+    </footer>
+  </div>
+
+  <script>
+    function fallbackCopy(text) {
+      const area = document.createElement('textarea');
+      area.value = text;
+      area.setAttribute('readonly', '');
+      area.style.position = 'absolute';
+      area.style.left = '-9999px';
+      document.body.appendChild(area);
+      area.select();
+      document.execCommand('copy');
+      document.body.removeChild(area);
+    }
+
+    function copyPrompt(btn) {
+      const text = btn.closest('.prompt-block').querySelector('.prompt-text').textContent;
+      const finish = () => {
+        btn.textContent = 'Copied!';
+        btn.classList.add('copied');
+        setTimeout(() => {
+          btn.textContent = 'Copy Prompt';
+          btn.classList.remove('copied');
+        }, 1500);
+      };
+
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text.trim()).then(finish).catch(() => {
+          fallbackCopy(text.trim());
+          finish();
+        });
+      } else {
+        fallbackCopy(text.trim());
+        finish();
+      }
+    }
+
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(e => {
+        if (e.isIntersecting) e.target.classList.add('visible');
+      });
+    }, { threshold: 0.1 });
+
+    document.querySelectorAll('[data-reveal]').forEach(el => observer.observe(el));
+  </script>
+</body>
+</html>

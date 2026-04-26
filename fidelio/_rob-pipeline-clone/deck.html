@@ -1,0 +1,999 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fidelio — How It Works</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --ink:    #0f0e0c;
+      --parch:  #faf9f6;
+      --warm:   #f0ede6;
+      --amber:  #b8873c;
+      --amber2: #d4a55a;
+      --muted:  #8c8880;
+      --border: rgba(184,135,60,0.18);
+      --ease:   cubic-bezier(0.76, 0, 0.24, 1);
+    }
+
+    html, body {
+      width: 100%; height: 100%;
+      overflow: hidden;
+      font-family: "DM Sans", sans-serif;
+      -webkit-font-smoothing: antialiased;
+      background: var(--ink);
+    }
+
+    /* ── DECK WRAPPER ───────────────────────── */
+    .deck {
+      position: fixed;
+      inset: 0;
+      display: flex;
+    }
+
+    .slide {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 80px;
+      transition: transform 0.7s var(--ease), opacity 0.5s ease;
+      will-change: transform;
+      overflow: hidden;
+    }
+
+    .slide[data-state="before"] { transform: translateX(100%); opacity: 0; pointer-events: none; }
+    .slide[data-state="active"]  { transform: translateX(0);    opacity: 1; pointer-events: auto; }
+    .slide[data-state="after"]   { transform: translateX(-100%); opacity: 0; pointer-events: none; }
+
+    /* ── THEMES ─────────────────────────────── */
+    .dark  { background: var(--ink);   color: var(--parch); }
+    .light { background: var(--parch); color: var(--ink); }
+    .amber-bg { background: var(--amber); color: var(--ink); }
+
+    /* ── SLIDE INNER ────────────────────────── */
+    .slide-inner {
+      width: 100%;
+      max-width: 1100px;
+      position: relative;
+      z-index: 2;
+    }
+
+    /* ── TYPOGRAPHY ─────────────────────────── */
+    .eyebrow {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      font-weight: 700;
+      color: var(--amber);
+      margin-bottom: 20px;
+      display: block;
+    }
+    .dark .eyebrow  { color: var(--amber2); }
+    .amber-bg .eyebrow { color: rgba(15,14,12,0.55); }
+
+    h1 {
+      font-family: "Cormorant Garamond", serif;
+      font-size: clamp(4.5rem, 10vw, 8.5rem);
+      line-height: 0.9;
+      letter-spacing: -0.03em;
+      font-weight: 600;
+    }
+
+    h2 {
+      font-family: "Cormorant Garamond", serif;
+      font-size: clamp(2.8rem, 6vw, 5.2rem);
+      line-height: 0.95;
+      letter-spacing: -0.025em;
+      font-weight: 600;
+    }
+
+    h3 {
+      font-family: "Cormorant Garamond", serif;
+      font-size: clamp(1.6rem, 3vw, 2.4rem);
+      font-weight: 600;
+      line-height: 1.1;
+      letter-spacing: -0.015em;
+    }
+
+    .body-text {
+      font-size: clamp(0.95rem, 1.4vw, 1.1rem);
+      line-height: 1.75;
+      max-width: 620px;
+      font-weight: 300;
+    }
+    .dark .body-text { color: rgba(250,249,246,0.72); }
+    .light .body-text { color: #5a5750; }
+
+    .large-text {
+      font-size: clamp(1.15rem, 2vw, 1.45rem);
+      line-height: 1.65;
+      font-weight: 300;
+      max-width: 700px;
+    }
+    .dark .large-text  { color: rgba(250,249,246,0.78); }
+    .light .large-text { color: #4a4740; }
+
+    /* ── WATERMARK NUMBER ───────────────────── */
+    .watermark {
+      position: absolute;
+      font-family: "Cormorant Garamond", serif;
+      font-size: clamp(18rem, 35vw, 30rem);
+      line-height: 0.85;
+      font-weight: 700;
+      right: -0.05em;
+      bottom: -0.1em;
+      z-index: 1;
+      pointer-events: none;
+      user-select: none;
+      letter-spacing: -0.05em;
+    }
+    .dark  .watermark { color: rgba(255,255,255,0.028); }
+    .light .watermark { color: rgba(0,0,0,0.042); }
+
+    /* ── DIVIDER ────────────────────────────── */
+    .divider {
+      width: 48px;
+      height: 2px;
+      background: var(--amber);
+      margin: 28px 0;
+      border-radius: 2px;
+    }
+    .dark .divider { background: var(--amber2); }
+
+    /* ── PIPELINE FLOW ──────────────────────── */
+    .flow {
+      display: flex;
+      align-items: flex-start;
+      gap: 0;
+      margin-top: 44px;
+      flex-wrap: nowrap;
+    }
+
+    .flow-node {
+      flex: 1;
+      min-width: 0;
+      position: relative;
+    }
+
+    .flow-node + .flow-node::before {
+      content: '→';
+      position: absolute;
+      left: -14px;
+      top: 18px;
+      font-size: 1.1rem;
+      color: var(--amber2);
+      opacity: 0.7;
+    }
+
+    .flow-tag {
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      font-weight: 700;
+      color: var(--amber2);
+      margin-bottom: 8px;
+      display: block;
+      padding-left: 16px;
+    }
+
+    .flow-card {
+      margin: 0 8px;
+      padding: 18px 16px;
+      border: 1px solid rgba(184,135,60,0.2);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.03);
+    }
+
+    .flow-title {
+      font-family: "Cormorant Garamond", serif;
+      font-size: 1.3rem;
+      font-weight: 600;
+      line-height: 1.1;
+      margin-bottom: 8px;
+      color: var(--parch);
+    }
+
+    .flow-steps {
+      list-style: none;
+      font-size: 0.78rem;
+      line-height: 1.8;
+      color: rgba(250,249,246,0.5);
+      font-weight: 300;
+    }
+
+    .flow-steps li::before {
+      content: '·  ';
+      color: var(--amber2);
+    }
+
+    /* ── TWO-COL ────────────────────────────── */
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 40px;
+      margin-top: 40px;
+    }
+
+    .col-block {
+      padding: 28px 28px 26px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+    }
+    .dark  .col-block { background: rgba(255,255,255,0.04); }
+    .light .col-block { background: rgba(0,0,0,0.03); }
+
+    .col-label {
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      font-weight: 700;
+      color: var(--amber);
+      margin-bottom: 16px;
+      display: block;
+    }
+    .dark .col-label { color: var(--amber2); }
+
+    .col-list {
+      list-style: none;
+      font-size: 0.9rem;
+      line-height: 2;
+      font-weight: 300;
+    }
+    .dark  .col-list { color: rgba(250,249,246,0.65); }
+    .light .col-list { color: #5a5750; }
+
+    .col-list li::before {
+      content: '— ';
+      opacity: 0.4;
+    }
+
+    /* ── STAGE CARDS ────────────────────────── */
+    .stage-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      margin-top: 44px;
+    }
+
+    .stage-card {
+      padding: 28px 24px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+    }
+    .dark  .stage-card { background: rgba(255,255,255,0.04); }
+    .light .stage-card { background: rgba(0,0,0,0.03); }
+
+    .stage-num {
+      font-family: "Cormorant Garamond", serif;
+      font-size: 2.4rem;
+      font-weight: 700;
+      line-height: 1;
+      color: var(--amber2);
+      margin-bottom: 12px;
+      display: block;
+    }
+    .light .stage-num { color: var(--amber); }
+
+    .stage-title {
+      font-family: "Cormorant Garamond", serif;
+      font-size: 1.35rem;
+      font-weight: 600;
+      margin-bottom: 10px;
+      line-height: 1.1;
+    }
+
+    .stage-desc {
+      font-size: 0.83rem;
+      line-height: 1.7;
+      font-weight: 300;
+    }
+    .dark  .stage-desc { color: rgba(250,249,246,0.5); }
+    .light .stage-desc { color: #6a6760; }
+
+    /* ── STEP LIST ──────────────────────────── */
+    .step-list {
+      list-style: none;
+      margin-top: 36px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      max-width: 680px;
+    }
+
+    .step-item {
+      display: flex;
+      align-items: baseline;
+      gap: 18px;
+    }
+
+    .step-n {
+      font-family: "Cormorant Garamond", serif;
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--amber2);
+      min-width: 28px;
+      flex-shrink: 0;
+    }
+    .light .step-n { color: var(--amber); }
+
+    .step-text {
+      font-size: 1rem;
+      line-height: 1.6;
+      font-weight: 300;
+    }
+    .dark  .step-text { color: rgba(250,249,246,0.75); }
+    .light .step-text { color: #4a4740; }
+
+    .step-text strong {
+      font-weight: 500;
+    }
+    .dark  .step-text strong { color: var(--parch); }
+    .light .step-text strong { color: var(--ink); }
+
+    /* ── HIGHLIGHT PILL ─────────────────────── */
+    .pill {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      background: rgba(184,135,60,0.15);
+      color: var(--amber2);
+      font-family: "DM Sans", monospace;
+    }
+
+    /* ── QUOTE ──────────────────────────────── */
+    .pull-quote {
+      font-family: "Cormorant Garamond", serif;
+      font-size: clamp(2rem, 4vw, 3.2rem);
+      font-style: italic;
+      font-weight: 400;
+      line-height: 1.3;
+      letter-spacing: -0.01em;
+      max-width: 820px;
+    }
+    .dark  .pull-quote { color: rgba(250,249,246,0.88); }
+    .light .pull-quote { color: rgba(15,14,12,0.8); }
+
+    /* ── CTA ────────────────────────────────── */
+    .cta-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 40px;
+      padding: 14px 28px;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-decoration: none;
+      background: var(--amber);
+      color: var(--ink);
+      transition: background 0.2s;
+    }
+    .cta-btn:hover { background: var(--amber2); }
+
+    /* ── NAV ────────────────────────────────── */
+    .nav {
+      position: fixed;
+      bottom: 36px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      z-index: 100;
+    }
+
+    .nav-arrow {
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.06);
+      color: rgba(255,255,255,0.7);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      transition: background 0.2s, border-color 0.2s;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+    .nav-arrow:hover {
+      background: rgba(255,255,255,0.12);
+      border-color: rgba(255,255,255,0.25);
+      color: #fff;
+    }
+    .nav-arrow:disabled { opacity: 0.2; cursor: default; }
+
+    .nav-dots {
+      display: flex;
+      gap: 7px;
+      align-items: center;
+    }
+
+    .dot {
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.22);
+      cursor: pointer;
+      transition: background 0.25s, transform 0.25s;
+    }
+    .dot.active {
+      background: var(--amber2);
+      transform: scale(1.4);
+    }
+
+    .slide-counter {
+      font-size: 0.72rem;
+      letter-spacing: 0.08em;
+      color: rgba(255,255,255,0.35);
+      font-weight: 500;
+      min-width: 48px;
+      text-align: center;
+    }
+
+    /* ── KEYBOARD HINT ──────────────────────── */
+    .key-hint {
+      position: fixed;
+      top: 28px;
+      right: 36px;
+      font-size: 0.68rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.2);
+      font-weight: 500;
+      z-index: 100;
+    }
+
+    /* ── SLIDE-SPECIFIC ─────────────────────── */
+
+    /* Title slide logo-mark */
+    .title-mark {
+      font-family: "Cormorant Garamond", serif;
+      font-size: 0.82rem;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      font-weight: 500;
+      color: var(--amber2);
+      margin-bottom: 60px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .title-mark::before {
+      content: '';
+      display: block;
+      width: 28px;
+      height: 1px;
+      background: var(--amber2);
+      opacity: 0.6;
+    }
+
+    /* Grid overview */
+    .overview-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 12px;
+      margin-top: 44px;
+    }
+
+    .ov-cell {
+      padding: 20px 14px;
+      border-radius: 8px;
+      border: 1px solid rgba(184,135,60,0.15);
+      background: rgba(255,255,255,0.03);
+      text-align: center;
+    }
+
+    .ov-icon {
+      font-size: 1.6rem;
+      margin-bottom: 10px;
+      display: block;
+      filter: saturate(0.7);
+    }
+
+    .ov-name {
+      font-family: "Cormorant Garamond", serif;
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--parch);
+      margin-bottom: 6px;
+      display: block;
+    }
+
+    .ov-desc {
+      font-size: 0.72rem;
+      color: rgba(250,249,246,0.42);
+      line-height: 1.5;
+      font-weight: 300;
+    }
+
+    .ov-arrow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: rgba(184,135,60,0.4);
+      font-size: 1rem;
+      padding-top: 28px;
+    }
+
+    /* What you do callout */
+    .you-do {
+      margin-top: 32px;
+      padding: 16px 20px;
+      border-left: 2px solid var(--amber2);
+      background: rgba(184,135,60,0.06);
+      border-radius: 0 6px 6px 0;
+    }
+
+    .you-do-label {
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      font-weight: 700;
+      color: var(--amber2);
+      margin-bottom: 6px;
+      display: block;
+    }
+
+    .you-do-text {
+      font-size: 0.92rem;
+      line-height: 1.6;
+      font-weight: 400;
+      color: rgba(250,249,246,0.8);
+    }
+
+    .light .you-do {
+      border-left-color: var(--amber);
+      background: rgba(184,135,60,0.06);
+    }
+    .light .you-do-label { color: var(--amber); }
+    .light .you-do-text  { color: #3a3730; }
+
+    /* ── RESPONSIVE ─────────────────────────── */
+    @media (max-width: 900px) {
+      .slide { padding: 40px 32px; }
+      .flow  { flex-direction: column; gap: 16px; }
+      .flow-node + .flow-node::before { display: none; }
+      .overview-grid { grid-template-columns: repeat(3, 1fr); }
+      .stage-row  { grid-template-columns: 1fr; gap: 12px; }
+      .two-col    { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="deck" id="deck">
+
+  <!-- ══ SLIDE 1 — TITLE ══════════════════════════════════════════ -->
+  <div class="slide dark" data-index="0">
+    <div class="slide-inner">
+      <div class="title-mark">Fidelio Pipeline</div>
+      <h1>Drop a file.<br>Get a post.</h1>
+      <div class="divider"></div>
+      <p class="large-text">A walkthrough of the AI post-production<br>pipeline walkthrough for the whole team.</p>
+    </div>
+    <div class="watermark">F</div>
+  </div>
+
+  <!-- ══ SLIDE 2 — WHAT IS IT ══════════════════════════════════════ -->
+  <div class="slide light" data-index="1">
+    <div class="slide-inner">
+      <span class="eyebrow">The Big Idea</span>
+      <h2>Two folders.<br>Everything else is automatic.</h2>
+      <div class="divider"></div>
+      <p class="large-text">You drop a raw clip into one folder. You drop a finished export into another. The pipeline does the rest — transcription, metadata, thumbnails, client sign-off, and scheduled posting.</p>
+      <div class="you-do" style="margin-top: 36px; max-width: 560px;">
+        <span class="you-do-label">Your only job</span>
+        <span class="you-do-text">Move files. Review the output. Hit Approve.</span>
+      </div>
+    </div>
+    <div class="watermark" style="opacity:0.03;">2</div>
+  </div>
+
+  <!-- ══ SLIDE 3 — OVERVIEW PIPELINE ══════════════════════════════ -->
+  <div class="slide dark" data-index="2">
+    <div class="slide-inner">
+      <span class="eyebrow">Full Pipeline</span>
+      <h2>Seven stages.<br>One continuous flow.</h2>
+      <div class="overview-grid" style="grid-template-columns: repeat(7,1fr)">
+        <div class="ov-cell">
+          <span class="ov-icon">📁</span>
+          <span class="ov-name">Raw Clip</span>
+          <span class="ov-desc">Drops into ingest folder</span>
+        </div>
+        <div class="ov-cell">
+          <span class="ov-icon">🎙</span>
+          <span class="ov-name">Pass 1</span>
+          <span class="ov-desc">Whisper transcribes · Sheets logged</span>
+        </div>
+        <div class="ov-cell">
+          <span class="ov-icon">🎬</span>
+          <span class="ov-name">Edit</span>
+          <span class="ov-desc">Editor cuts in DaVinci Resolve</span>
+        </div>
+        <div class="ov-cell">
+          <span class="ov-icon">✂️</span>
+          <span class="ov-name">Pass 2</span>
+          <span class="ov-desc">Export drops · Claude writes · FAL generates</span>
+        </div>
+        <div class="ov-cell">
+          <span class="ov-icon">🖥</span>
+          <span class="ov-name">Review UI</span>
+          <span class="ov-desc">Editor approves titles, thumbnail, schedule</span>
+        </div>
+        <div class="ov-cell">
+          <span class="ov-icon">👁</span>
+          <span class="ov-name">Client Page</span>
+          <span class="ov-desc">Client watches, signs off before it goes live</span>
+        </div>
+        <div class="ov-cell">
+          <span class="ov-icon">📤</span>
+          <span class="ov-name">Posted</span>
+          <span class="ov-desc">Blotato publishes to YouTube · IG · TikTok</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SLIDE 4 — PASS 1 ══════════════════════════════════════════ -->
+  <div class="slide dark" data-index="3">
+    <div class="slide-inner">
+      <span class="eyebrow">Stage 1 of 7 — Pass 1</span>
+      <h2>The raw clip lands.</h2>
+      <div class="divider"></div>
+      <ul class="step-list">
+        <li class="step-item">
+          <span class="step-n">1</span>
+          <span class="step-text"><strong>File watcher detects the clip</strong> — the moment it appears in your ingest folder, Pass 1 starts automatically</span>
+        </li>
+        <li class="step-item">
+          <span class="step-n">2</span>
+          <span class="step-text"><strong>Whisper transcribes the audio</strong> — OpenAI's speech-to-text runs locally on the file. Supports French and English</span>
+        </li>
+        <li class="step-item">
+          <span class="step-n">3</span>
+          <span class="step-text"><strong>A row is written to Google Sheets</strong> — clip name, date, transcript summary. Everyone can see it immediately in the shared Sheet</span>
+        </li>
+      </ul>
+      <div class="you-do">
+        <span class="you-do-label">What you do</span>
+        <span class="you-do-text">Drop the raw clip. Watch the Monitor at <span class="pill">localhost:5401</span> to see it process.</span>
+      </div>
+    </div>
+    <div class="watermark">1</div>
+  </div>
+
+  <!-- ══ SLIDE 5 — DAVINCI ══════════════════════════════════════════ -->
+  <div class="slide light" data-index="4">
+    <div class="slide-inner">
+      <span class="eyebrow">Stage 2 of 7 — Edit</span>
+      <h2>You edit.<br>DaVinci does the rest.</h2>
+      <div class="divider"></div>
+      <p class="large-text">This is the human step. Take the raw clip, cut it in DaVinci Resolve — trim, colour grade, add music, export. The pipeline waits.</p>
+      <ul class="step-list" style="margin-top:32px;">
+        <li class="step-item">
+          <span class="step-n">1</span>
+          <span class="step-text"><strong>Open the clip in DaVinci Resolve</strong> — use the Pass 1 transcript as your edit reference if helpful</span>
+        </li>
+        <li class="step-item">
+          <span class="step-n">2</span>
+          <span class="step-text"><strong>Cut, grade, mix</strong> — full creative control. Nothing automated here. This is your work</span>
+        </li>
+        <li class="step-item">
+          <span class="step-n">3</span>
+          <span class="step-text"><strong>Export the final file</strong> — drop it into your watch folder. Pass 2 detects it automatically and picks up from there</span>
+        </li>
+      </ul>
+    </div>
+    <div class="watermark" style="font-size:clamp(10rem,22vw,18rem);bottom:-0.05em;color:rgba(0,0,0,0.04);">✂</div>
+  </div>
+
+  <!-- ══ SLIDE 6 — PASS 2 ══════════════════════════════════════════ -->
+  <div class="slide light" data-index="5">
+    <div class="slide-inner">
+      <span class="eyebrow">Stage 3 of 7 — Pass 2</span>
+      <h2>The edited export lands.</h2>
+      <div class="divider"></div>
+      <ul class="step-list">
+        <li class="step-item">
+          <span class="step-n">1</span>
+          <span class="step-text"><strong>Whisper transcribes the final cut</strong> — a clean, complete transcript of the finished video</span>
+        </li>
+        <li class="step-item">
+          <span class="step-n">2</span>
+          <span class="step-text"><strong>Claude generates metadata</strong> — 3 title options, a full description, and tags. Written in the client's voice, informed by the transcript</span>
+        </li>
+        <li class="step-item">
+          <span class="step-n">3</span>
+          <span class="step-text"><strong>FAL generates the thumbnail</strong> — AI image generation using the client's brand references. Automatic first pass, editable in Review</span>
+        </li>
+        <li class="step-item">
+          <span class="step-n">4</span>
+          <span class="step-text"><strong>Video uploads to Dropbox</strong> — a direct streaming link is stored in Sheets so the client can watch and sign off</span>
+        </li>
+      </ul>
+      <div class="you-do">
+        <span class="you-do-label">What you do</span>
+        <span class="you-do-text">Drop the finished export. Pass 2 runs in the background — usually 2–4 minutes.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SLIDE 6 — MONITOR ═════════════════════════════════════════ -->
+  <div class="slide dark" data-index="6">
+    <div class="slide-inner">
+      <span class="eyebrow">Stage 4 of 7 — Monitor</span>
+      <h2>Watch it happen in real time.</h2>
+      <div class="divider"></div>
+      <p class="large-text">The Monitor is a local dashboard that shows every clip currently processing — what stage it's on, whether it succeeded, and any errors.</p>
+      <div class="two-col" style="margin-top: 36px;">
+        <div class="col-block">
+          <span class="col-label">Open it at</span>
+          <p style="font-family:'Cormorant Garamond',serif; font-size:1.6rem; font-weight:600; color:var(--parch); letter-spacing:-0.01em;">localhost:5401</p>
+          <p style="font-size:0.82rem; color:rgba(250,249,246,0.45); margin-top:8px; line-height:1.6;">Starts automatically when you run the pipeline. No setup needed.</p>
+        </div>
+        <div class="col-block">
+          <span class="col-label">You'll see</span>
+          <ul class="col-list">
+            <li>Active processing stages</li>
+            <li>Progress per clip</li>
+            <li>Completion or error status</li>
+            <li>Live log stream</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="watermark" style="font-size: clamp(10rem, 22vw, 20rem); bottom: -0.05em;">M</div>
+  </div>
+
+  <!-- ══ SLIDE 7 — REVIEW UI ═══════════════════════════════════════ -->
+  <div class="slide light" data-index="7">
+    <div class="slide-inner">
+      <span class="eyebrow">Stage 5 of 7 — Review UI</span>
+      <h2>Your editorial desk.</h2>
+      <div class="divider"></div>
+      <p class="body-text">Once Pass 2 completes, the clip appears in your Review UI. This is where you make every creative decision before anything is scheduled.</p>
+      <div class="stage-row" style="grid-template-columns: repeat(4,1fr); margin-top: 32px;">
+        <div class="stage-card">
+          <span class="stage-num">①</span>
+          <div class="stage-title">Pick a title</div>
+          <div class="stage-desc">Claude gives you 3 options. Select the best one — or edit it.</div>
+        </div>
+        <div class="stage-card">
+          <span class="stage-num">②</span>
+          <div class="stage-title">Refine the thumbnail</div>
+          <div class="stage-desc">Regenerate, adjust frame position, override the prompt entirely.</div>
+        </div>
+        <div class="stage-card">
+          <span class="stage-num">③</span>
+          <div class="stage-title">Review metadata</div>
+          <div class="stage-desc">Description and tags are editable inline before scheduling.</div>
+        </div>
+        <div class="stage-card">
+          <span class="stage-num">④</span>
+          <div class="stage-title">Approve &amp; schedule</div>
+          <div class="stage-desc">Set a publish time. Choose platforms. Hit Approve.</div>
+        </div>
+      </div>
+      <div class="you-do" style="margin-top:24px;">
+        <span class="you-do-label">Open it at</span>
+        <span class="you-do-text"><span class="pill" style="background:rgba(184,135,60,0.12); color:var(--amber);">localhost:5400/review/dre-alexandra</span></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SLIDE 8 — CLIENT PAGE ═════════════════════════════════════ -->
+  <div class="slide dark" data-index="8">
+    <div class="slide-inner">
+      <span class="eyebrow">Stage 6 of 7 — Client Sign-Off</span>
+      <h2>Before it goes live,<br>the client says yes.</h2>
+      <div class="divider"></div>
+      <p class="large-text">A private, password-protected page where the client can watch each clip, approve it, or send it back with a note — on their phone, anywhere.</p>
+      <div class="two-col" style="margin-top:36px;">
+        <div class="col-block">
+          <span class="col-label">What they see</span>
+          <ul class="col-list">
+            <li>Thumbnail + title</li>
+            <li>Inline video player</li>
+            <li>Approve button</li>
+            <li>Request revision (with comment)</li>
+          </ul>
+        </div>
+        <div class="col-block">
+          <span class="col-label">What happens after</span>
+          <ul class="col-list">
+            <li>Status updates in Sheets</li>
+            <li>Approved clips move to post queue</li>
+            <li>Revision notes visible to editor</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="watermark" style="font-size: clamp(10rem, 22vw, 20rem); bottom: -0.05em;">C</div>
+  </div>
+
+  <!-- ══ SLIDE 9 — POSTING ═════════════════════════════════════════ -->
+  <div class="slide light" data-index="9">
+    <div class="slide-inner">
+      <span class="eyebrow">Stage 7 of 7 — Publishing</span>
+      <h2>Scheduled.<br>Posted. Done.</h2>
+      <div class="divider"></div>
+      <p class="body-text">Approved clips are pushed to Blotato — the client's social scheduling tool — at the exact time you set in the Review UI.</p>
+      <div class="stage-row" style="margin-top:36px;">
+        <div class="stage-card">
+          <span class="stage-num" style="font-size:2rem;">▶</span>
+          <div class="stage-title">YouTube</div>
+          <div class="stage-desc">Long-form episodes and Shorts. Title, description, tags, and thumbnail all pre-filled.</div>
+        </div>
+        <div class="stage-card">
+          <span class="stage-num" style="font-size:2rem;">◈</span>
+          <div class="stage-title">Instagram</div>
+          <div class="stage-desc">Reels and feed posts. Vertical thumbnails auto-detected.</div>
+        </div>
+        <div class="stage-card">
+          <span class="stage-num" style="font-size:2rem;">◉</span>
+          <div class="stage-title">TikTok</div>
+          <div class="stage-desc">Short-form vertical clips. Same metadata, platform-appropriate formatting.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SLIDE 10 — WHAT'S LOCAL, WHAT'S SHARED ══════════════════ -->
+  <div class="slide dark" data-index="10">
+    <div class="slide-inner">
+      <span class="eyebrow">Architecture</span>
+      <h2>Fully autonomous.<br>No live sharing needed.</h2>
+      <div class="divider"></div>
+      <p class="body-text" style="margin-bottom:0;">Each editor runs the complete pipeline independently on their own machine. There's no server to connect to, no live session to share.</p>
+      <div class="two-col" style="margin-top:28px;">
+        <div class="col-block">
+          <span class="col-label">Lives on your Mac only</span>
+          <ul class="col-list">
+            <li>File watcher (Pass 1 &amp; 2)</li>
+            <li>Monitor UI — localhost:5401</li>
+            <li>Review UI — localhost:5400</li>
+            <li>Your footage &amp; exports</li>
+            <li>.env + API keys</li>
+            <li>credentials.json</li>
+          </ul>
+        </div>
+        <div class="col-block">
+          <span class="col-label">Shared by everyone</span>
+          <ul class="col-list">
+            <li>Google Sheets — pipeline log</li>
+            <li>Blotato — client post queue</li>
+            <li>FAL thumbnails — public CDN</li>
+            <li>Dropbox — client review videos</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SLIDE 11 — GOOGLE SHEETS ═════════════════════════════════ -->
+  <div class="slide light" data-index="11">
+    <div class="slide-inner">
+      <span class="eyebrow">The Shared Log</span>
+      <h2>Google Sheets is<br>the paper trail.</h2>
+      <div class="divider"></div>
+      <p class="large-text">It's not a live feed between editors — it's a running record. Every clip that moves through the pipeline leaves a row. Useful for tracking, reviewing history, and knowing what's gone out.</p>
+      <div class="two-col" style="margin-top:36px;">
+        <div class="col-block">
+          <span class="col-label">Exports tab</span>
+          <ul class="col-list">
+            <li>File name + export date</li>
+            <li>Duration + content type</li>
+            <li>Transcript summary</li>
+            <li>Status (Processing → Ready → Approved → Posted)</li>
+          </ul>
+        </div>
+        <div class="col-block">
+          <span class="col-label">Metadata tab</span>
+          <ul class="col-list">
+            <li>3 title options</li>
+            <li>Description + tags</li>
+            <li>Thumbnail URL</li>
+            <li>Review URL (Dropbox link)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SLIDE 12 — READY ══════════════════════════════════════════ -->
+  <div class="slide dark" data-index="12">
+    <div class="slide-inner">
+      <span class="eyebrow">You're up</span>
+      <h1>Let's set<br>it up.</h1>
+      <div class="divider"></div>
+      <p class="large-text">The onboarding guide walks you through every step — from cloning the repo to dropping your first test clip. Each step has a copy-paste Claude prompt that does the work for you.</p>
+      <a href="onboarding.html" class="cta-btn">Open Setup Guide →</a>
+    </div>
+    <div class="watermark" style="font-size: clamp(12rem, 28vw, 26rem);">→</div>
+  </div>
+
+</div><!-- /deck -->
+
+<!-- Navigation -->
+<div class="nav" id="nav">
+  <button class="nav-arrow" id="prev" onclick="go(-1)" aria-label="Previous">‹</button>
+  <div class="nav-dots" id="dots"></div>
+  <button class="nav-arrow" id="next" onclick="go(1)" aria-label="Next">›</button>
+</div>
+
+<div class="key-hint">← → to navigate</div>
+
+<span class="slide-counter" id="counter" style="position:fixed;bottom:36px;right:36px;z-index:100;font-size:0.7rem;letter-spacing:0.1em;color:rgba(255,255,255,0.25);font-weight:500;"></span>
+
+<script>
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  const dotsEl = document.getElementById('dots');
+  const counter = document.getElementById('counter');
+  const total = slides.length;
+  let current = 0;
+
+  // Build dots
+  slides.forEach((_, i) => {
+    const d = document.createElement('div');
+    d.className = 'dot' + (i === 0 ? ' active' : '');
+    d.onclick = () => goTo(i);
+    dotsEl.appendChild(d);
+  });
+
+  function render() {
+    slides.forEach((s, i) => {
+      if (i < current)       s.dataset.state = 'after';
+      else if (i === current) s.dataset.state = 'active';
+      else                   s.dataset.state = 'before';
+    });
+    document.querySelectorAll('.dot').forEach((d, i) => {
+      d.classList.toggle('active', i === current);
+    });
+    counter.textContent = `${current + 1} / ${total}`;
+    document.getElementById('prev').disabled = current === 0;
+    document.getElementById('next').disabled = current === total - 1;
+  }
+
+  function go(dir) { goTo(current + dir); }
+
+  function goTo(n) {
+    n = Math.max(0, Math.min(total - 1, n));
+    if (n === current) return;
+    current = n;
+    render();
+  }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown'  || e.key === ' ') { e.preventDefault(); go(1); }
+    if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')                       { e.preventDefault(); go(-1); }
+    if (e.key === 'Home') goTo(0);
+    if (e.key === 'End')  goTo(total - 1);
+  });
+
+  // Touch / swipe
+  let tx = 0;
+  document.addEventListener('touchstart', e => { tx = e.touches[0].clientX; }, { passive: true });
+  document.addEventListener('touchend',   e => {
+    const dx = e.changedTouches[0].clientX - tx;
+    if (Math.abs(dx) > 50) go(dx < 0 ? 1 : -1);
+  }, { passive: true });
+
+  // Init
+  slides.forEach((s, i) => { s.dataset.state = i === 0 ? 'active' : 'before'; });
+  render();
+</script>
+
+</body>
+</html>

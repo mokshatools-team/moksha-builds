@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fidelio Pipeline — Review</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #f5f3f0; color: #2c2a27; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 13px; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+
+  /* NAV */
+  .nav { background: #1a1816; color: #f0ece5; padding: 0 20px; display: flex; align-items: center; gap: 16px; height: 44px; flex-shrink: 0; }
+  .nav-brand { font-size: 13px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+  .nav-sep { width: 1px; height: 14px; background: #2a2826; }
+  .nav-client { font-size: 11px; color: #6a6560; }
+  .nav-spacer { flex: 1; }
+  .nav-badge { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; padding: 3px 10px; border-radius: 2px; background: #f59e0b; color: #1a1816; }
+  .btn-timeline { border: 1px solid #32455f; background: #182634; color: #dbeafe; border-radius: 6px; padding: 6px 10px; font-size: 11px; font-weight: 600; cursor: pointer; }
+  .btn-timeline:hover { background: #213244; }
+  .nav-user { font-size: 11px; color: #5a5550; }
+
+  /* LAYOUT */
+  .layout { display: flex; flex: 1; overflow: hidden; }
+
+  /* SIDEBAR */
+  .sidebar { width: 248px; flex-shrink: 0; background: #fff; border-right: 1px solid #e8e4de; display: flex; flex-direction: column; }
+  .sidebar-head { padding: 14px 16px 10px; border-bottom: 1px solid #f0ede8; display: flex; flex-direction: column; gap: 10px; }
+  .sidebar-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em; color: #9a9590; }
+  .approve-selected-btn { display: none; width: 100%; padding: 9px 10px; border: 1px solid #d1d5db; border-radius: 6px; background: #f8fafc; color: #1f2937; font-size: 11px; font-weight: 700; cursor: pointer; }
+  .approve-selected-btn:hover { background: #eef2f7; }
+  .sidebar-scroll { overflow-y: auto; flex: 1; }
+
+  .qi { padding: 11px 16px; border-bottom: 1px solid #f5f2ee; cursor: pointer; border-left: 2px solid transparent; transition: background 0.1s; display: flex; gap: 10px; align-items: flex-start; }
+  .qi:hover { background: #faf8f5; }
+  .qi.active { background: #eff6ff; border-left-color: #3b82f6; }
+  .qi-check { padding-top: 2px; flex-shrink: 0; }
+  .item-check { width: 14px; height: 14px; accent-color: #3b82f6; cursor: pointer; }
+  .qi-body { min-width: 0; flex: 1; }
+  .qi-name { font-size: 11px; font-weight: 600; color: #1a1816; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: 'SF Mono', 'Menlo', monospace; }
+  .qi-dismiss { flex-shrink: 0; border: none; background: none; color: #b4b0a8; font-size: 16px; line-height: 1; cursor: pointer; padding: 0 2px; opacity: 0; transition: opacity 0.15s, color 0.15s; }
+  .qi:hover .qi-dismiss { opacity: 1; }
+  .qi-dismiss:hover { color: #ef4444; }
+  .qi-sub { font-size: 10px; color: #9a9590; margin-bottom: 6px; }
+  .qi-pill { display: inline-block; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; padding: 2px 7px; border-radius: 10px; }
+  .pill-pending { background: #fef9c3; color: #a16207; }
+  .pill-scheduled { background: #dcfce7; color: #15803d; }
+  .pill-posted { background: #f1f5f9; color: #64748b; }
+  .pill-approved { background: #dcfce7; color: #15803d; }
+
+  /* MAIN */
+  .main { flex: 1; overflow-y: auto; padding: 22px 26px; }
+
+  .file-header { margin-bottom: 18px; }
+  .file-name { font-size: 16px; font-weight: 700; color: #1a1816; margin-bottom: 3px; font-family: 'SF Mono', 'Menlo', monospace; }
+  .file-meta { font-size: 11px; color: #8a8580; }
+
+  .review-grid { display: grid; grid-template-columns: 1fr 380px; gap: 16px; align-items: start; }
+
+  /* PANELS */
+  .panel { background: #fff; border: 1px solid #e8e4de; border-radius: 7px; padding: 16px; margin-bottom: 14px; }
+  .panel-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.13em; color: #9a9590; margin-bottom: 12px; }
+
+  /* TITLE OPTIONS */
+  .title-opts { display: flex; flex-direction: column; gap: 7px; }
+  .title-opt { border: 1.5px solid #e8e4de; border-radius: 6px; padding: 11px 14px; cursor: pointer; transition: border-color 0.12s, background 0.12s; display: grid; grid-template-columns: 28px 1fr 20px; gap: 10px; align-items: center; }
+  .title-opt:hover { border-color: #b0c4e0; background: #f8fbff; }
+  .title-opt.sel { border-color: #3b82f6; background: #eff6ff; }
+  .opt-num { font-size: 18px; font-weight: 700; color: #d4cfc8; line-height: 1; user-select: none; transition: color 0.12s; }
+  .title-opt.sel .opt-num { color: #3b82f6; }
+  .opt-text { font-size: 13px; font-weight: 500; color: #1a1816; line-height: 1.4; }
+  .opt-check { width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid #d4cfc8; display: flex; align-items: center; justify-content: center; font-size: 10px; color: transparent; flex-shrink: 0; transition: all 0.12s; }
+  .title-opt.sel .opt-check { background: #3b82f6; border-color: #3b82f6; color: #fff; }
+
+  /* DESCRIPTION */
+  .desc-area { width: 100%; border: 1.5px solid #e8e4de; border-radius: 6px; padding: 11px 13px; font-family: inherit; font-size: 12px; color: #2c2a27; line-height: 1.6; background: #faf8f5; resize: vertical; min-height: 108px; transition: border-color 0.12s; }
+  .desc-area:focus { outline: none; border-color: #93c5fd; background: #fff; }
+
+  /* TAGS */
+  .tags-row { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tag { background: #f0ede8; border: 1px solid #e8e4de; border-radius: 12px; padding: 3px 10px; font-size: 11px; color: #5a5550; }
+
+  /* TRANSCRIPT */
+  .transcript { font-size: 11px; color: #7a7570; line-height: 1.65; background: #faf8f5; border: 1px solid #e8e4de; border-radius: 6px; padding: 11px; max-height: 110px; overflow-y: auto; }
+
+  /* THUMBNAIL */
+  .thumb-box { background: #fff; border: 1px solid #e8e4de; border-radius: 7px; overflow: hidden; margin-bottom: 14px; }
+  .thumb-box.portrait { padding-top: 12px; }
+  .thumb-img { width: 100%; aspect-ratio: 16/9; background: linear-gradient(135deg, #e8f0f0 0%, #b0d0d0 50%, #0088c0 100%); position: relative; }
+  .thumb-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .thumb-box.portrait .thumb-img { width: min(100%, 240px); aspect-ratio: 9/16; margin: 0 auto; background: #f5f3f0; border-radius: 6px; overflow: hidden; }
+  .thumb-box.portrait .thumb-img img { object-fit: contain; background: #f5f3f0; }
+  .thumb-placeholder { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #9a9590; flex-direction: column; gap: 6px; background: #f5f3f0; }
+  .brand-refs-row { display: flex; gap: 8px; padding: 8px 13px; flex-wrap: wrap; align-items: flex-start; }
+  .brand-ref-chip { border-radius: 6px; border: 2px solid #e8e4de; cursor: pointer; overflow: hidden; background: #faf8f5; flex: 0 0 auto; width: 108px; transition: border-color 0.12s; }
+  .brand-ref-chip img { width: 100%; display: block; aspect-ratio: 16/9; object-fit: cover; }
+  .brand-ref-chip.portrait { width: 70px; }
+  .brand-ref-chip.portrait img { aspect-ratio: 9/16; }
+  .brand-ref-chip-label { font-size: 9px; font-weight: 600; text-align: center; padding: 3px 4px; color: #7a7570; text-transform: uppercase; letter-spacing: 0.06em; }
+  .brand-ref-chip.selected { border-color: #2563eb; }
+  .brand-ref-chip.selected .brand-ref-chip-label { color: #2563eb; }
+  .thumb-text-wrap { padding: 10px 13px 0; border-top: 1px solid #f0ede8; }
+  .thumb-text-input { width: 100%; box-sizing: border-box; border: 1.5px solid #e8e4de; border-radius: 5px; padding: 6px 9px; font-family: inherit; font-size: 12px; color: #2c2a27; background: #faf8f5; transition: border-color 0.12s; }
+  .thumb-text-input:focus { outline: none; border-color: #93c5fd; }
+  .thumb-text-hint { font-size: 10px; color: #a8a29e; margin-top: 4px; }
+  .prompt-override-toggle { margin-top: 8px; font-size: 10px; color: #a8a29e; cursor: pointer; user-select: none; display: inline-flex; align-items: center; gap: 4px; }
+  .prompt-override-toggle:hover { color: #b8873c; }
+  .prompt-override-toggle.active { color: #b8873c; font-weight: 600; }
+  .prompt-override-wrap { display: none; margin-top: 8px; }
+  .prompt-override-wrap.open { display: block; }
+  .prompt-override-input { width: 100%; box-sizing: border-box; border: 1.5px solid #b8873c44; border-radius: 5px; padding: 7px 9px; font-family: inherit; font-size: 11px; color: #2c2a27; background: #fffdf8; resize: vertical; min-height: 72px; transition: border-color 0.12s; }
+  .prompt-override-input:focus { outline: none; border-color: #b8873c; }
+  .prompt-override-hint { font-size: 10px; color: #b8873c; margin-top: 3px; }
+  .frame-pickers { padding: 10px 13px 0; display: flex; flex-direction: column; gap: 10px; }
+  .frame-picker-row { display: flex; align-items: center; gap: 10px; }
+  .frame-picker-label { font-size: 11px; font-weight: 600; color: #9a9590; width: 36px; flex-shrink: 0; }
+  .frame-picker-slider { flex: 1; }
+  .frame-preview { width: 120px; height: 68px; background: #f0ede8; border-radius: 4px; flex-shrink: 0; overflow: hidden; }
+  .frame-preview img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .thumb-box.portrait .frame-preview { width: 72px; height: 128px; }
+  .thumb-box.portrait .frame-preview img { object-fit: cover; }
+  .thumb-actions { padding: 8px 13px 10px; display: flex; gap: 8px; }
+  .btn-sm { font-size: 11px; font-weight: 500; padding: 5px 11px; border: 1px solid #e8e4de; border-radius: 4px; background: #fff; color: #5a5550; cursor: pointer; transition: background 0.1s; }
+  .btn-sm:hover { background: #f5f3f0; }
+  .resize-handle { width: 5px; cursor: col-resize; background: transparent; position: absolute; left: -3px; top: 0; bottom: 0; z-index: 10; }
+  .resize-handle:hover { background: #3b82f620; }
+
+  /* SCHEDULE */
+  .schedule-box { background: #fff; border: 1px solid #e8e4de; border-radius: 7px; padding: 15px; margin-bottom: 14px; }
+  .platform-row { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid #f5f2ee; }
+  .platform-row:last-of-type { border-bottom: none; margin-bottom: 10px; }
+  .platform-row.unavailable { opacity: 0.58; }
+  .platform-dot { width: 7px; height: 7px; border-radius: 50%; background: #22c55e; flex-shrink: 0; }
+  .platform-dot.off { background: #d4cfc8; }
+  .platform-name { font-size: 12px; font-weight: 500; flex: 1; }
+  .platform-status { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #22c55e; min-width: 28px; text-align: right; }
+  .platform-status.off { color: #a8a29e; }
+  .platform-status.unavailable { color: #b45309; min-width: 74px; }
+  .platform-toggle { width: 40px; height: 22px; border: none; border-radius: 999px; background: #d6d3d1; position: relative; cursor: pointer; transition: background 0.14s ease; padding: 0; flex-shrink: 0; }
+  .platform-toggle::after { content: ''; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.18); transition: transform 0.14s ease; }
+  .platform-toggle.on { background: #22c55e; }
+  .platform-toggle.on::after { transform: translateX(18px); }
+  .platform-toggle:disabled { opacity: 0.45; cursor: not-allowed; }
+  .platform-summary { font-size: 10px; color: #8a8580; margin: 8px 0 0; font-family: 'SF Mono', 'Menlo', monospace; }
+  .field-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: #9a9590; margin-bottom: 5px; }
+  .date-input { width: 100%; border: 1.5px solid #e8e4de; border-radius: 6px; padding: 7px 11px; font-family: inherit; font-size: 12px; color: #2c2a27; background: #faf8f5; transition: border-color 0.12s; }
+  .date-input:focus { outline: none; border-color: #93c5fd; }
+
+  /* APPROVE BTN */
+  .approve-btn { width: 100%; padding: 12px; background: #1a1816; color: #f0e8d8; border: none; border-radius: 6px; font-size: 13px; font-weight: 600; letter-spacing: 0.04em; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: background 0.15s, transform 0.1s; margin-top: 2px; }
+  .approve-btn:hover { background: #2c2a27; transform: translateY(-1px); }
+  .approve-btn:active { transform: translateY(0); }
+  .approve-btn.loading { background: #6a6560; cursor: wait; }
+  .approve-btn.success { background: #15803d; }
+  .stitch-note { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 10px; padding: 8px 10px; border-radius: 999px; background: #ecfdf5; color: #166534; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; border: 1px solid #bbf7d0; }
+  .stitch-note-dot { width: 7px; height: 7px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 0 3px #dcfce7; }
+  .sync-note { text-align: center; font-size: 10px; color: #b4b0a8; margin-top: 10px; font-family: 'SF Mono', 'Menlo', monospace; }
+
+  /* EMPTY STATE */
+  .empty { display: flex; align-items: center; justify-content: center; flex: 1; flex-direction: column; gap: 10px; color: #9a9590; }
+  .empty-icon { font-size: 32px; opacity: 0.3; }
+
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #d4cfc8; border-radius: 4px; }
+  @keyframes fin { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+</style>
+</head>
+<body>
+
+<div class="nav">
+  <div class="nav-brand">Fidelio Pipeline</div>
+  <div class="nav-sep"></div>
+  <div class="nav-client" id="nav-client">Loading...</div>
+  <div class="nav-spacer"></div>
+  <div class="nav-badge" id="nav-badge">—</div>
+  <button class="btn-timeline" onclick="buildTimeline()">Build Resolve Timeline</button>
+  <div class="nav-sep"></div>
+  <div class="nav-user">{{ request.remote_addr or 'Team' }}</div>
+</div>
+
+<div class="layout">
+  <div class="sidebar">
+    <div class="sidebar-head">
+      <div class="sidebar-label">Review Queue</div>
+      <button id="approve-selected-btn" class="approve-selected-btn" onclick="approveSelected()">Approve Selected (0)</button>
+    </div>
+    <div class="sidebar-scroll" id="queue-list">
+      <div class="empty" style="padding:30px 16px;text-align:center;color:#b4b0a8;font-size:11px;">Loading queue...</div>
+    </div>
+  </div>
+
+  <div class="main" id="main-panel">
+    <div class="empty">
+      <div class="empty-icon">📋</div>
+      <div>Select an item from the queue</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const CLIENT_ID = "{{ client.client_id }}";
+  let queueItems = [];
+  let activeItem = null;
+  const platforms = {{ client.platforms | tojson }};
+  const platformAvailability = {{ platform_availability | tojson }};
+  let enabledPlatforms = new Set(platforms.filter(p => platformAvailability[p]));
+  const selectedItems = new Set();
+  const _dismissedKey = `fidelio_dismissed_${CLIENT_ID}`;
+  const dismissedItems = new Set(JSON.parse(localStorage.getItem(_dismissedKey) || '[]'));
+  let queueInitialized = false;
+  let isLoadingQueue = false;
+  let panelLocked = false;        // true during approve / regen — blocks auto-poll re-render
+  let lastRenderedStem = null;    // track which item is rendered so we don't re-render needlessly
+  let lastRenderedStatus = null;  // track status so we only re-render on actual change
+  let selectedBrandRef = null;
+  let hostFramePos = null;
+  let guestFramePos = null;
+  let guestEnabled = true;
+  let brandRefsCache = [];
+  let brandRefsLoaded = false;
+  let brandRefsRequest = null;
+  const framePreviewTimers = { host: null, guest: null };
+  let reviewGridWidth = 380;
+  let resizeDragActive = false;
+  let resizeStartX = 0;
+  let resizeStartW = 380;
+  let resizeHandleBound = false;
+  let thumbnailHistory = [];      // [{url}] — built up as user regenerates
+  let thumbnailHistoryIdx = -1;   // index into thumbnailHistory currently shown
+
+  function showToast(msg, isErr = false) {
+    const t = document.createElement('div');
+    t.style.cssText = 'position:fixed;bottom:20px;right:20px;background:' + (isErr ? '#ef4444' : '#22c55e') + ';color:#fff;padding:10px 16px;border-radius:8px;font-size:13px;z-index:999;animation:fin .2s ease';
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 4000);
+  }
+
+  // ── Load queue ───────────────────────────────────────────
+  async function loadQueue() {
+    if (isLoadingQueue) return;
+    isLoadingQueue = true;
+    try {
+      const res = await fetch(`/api/${CLIENT_ID}/queue`);
+      if (!res.ok) throw new Error(`Queue request failed: ${res.status}`);
+      const data = await res.json();
+      if (!Array.isArray(data.items)) throw new Error('Queue payload missing items array');
+
+      const nextItems = data.items.filter(i => !dismissedItems.has(i.file_name));
+      const previousActive = activeItem ? activeItem.file_name : null;
+      queueItems = nextItems;
+      if (!queueInitialized) {
+        queueItems.filter(i => i.status === 'Ready for Review').forEach(i => selectedItems.add(i.file_name));
+        queueInitialized = true;
+      } else {
+        const liveNames = new Set(queueItems.map(i => i.file_name));
+        [...selectedItems].forEach(stem => { if (!liveNames.has(stem)) selectedItems.delete(stem); });
+      }
+
+      document.getElementById('nav-client').textContent = `client: ${(data.client || '').toLowerCase()}`;
+
+      const pending = queueItems.filter(i => i.status === 'Ready for Review').length;
+      const badge = document.getElementById('nav-badge');
+      badge.textContent = pending > 0 ? `${pending} Pending` : 'All Clear';
+      badge.style.background = pending > 0 ? '#f59e0b' : '#22c55e';
+
+      let shouldResetPanelState = false;
+      if (previousActive) {
+        activeItem = queueItems.find(i => i.file_name === previousActive) || null;
+      }
+      if (!activeItem) {
+        activeItem = queueItems.find(i => i.status === 'Ready for Review') || queueItems[0] || null;
+        shouldResetPanelState = !!activeItem;
+      } else if (previousActive !== activeItem.file_name) {
+        shouldResetPanelState = true;
+      }
+
+      renderQueue();
+      if (activeItem) {
+        const newStem = activeItem.file_name;
+        const newStatus = activeItem.pub_status || activeItem.status;
+        const stemChanged = newStem !== lastRenderedStem;
+        const statusChanged = newStatus !== lastRenderedStatus;
+
+        if (stemChanged) {
+          // Switched to a different item — full re-render, reset state
+          resetThumbnailState();
+          lastRenderedStem = newStem;
+          lastRenderedStatus = newStatus;
+          renderMainPanel();
+        } else if (statusChanged && !panelLocked) {
+          // Same item, status changed (e.g. scheduled) — re-render only if safe
+          lastRenderedStatus = newStatus;
+          renderMainPanel();
+        }
+        // Otherwise: same item, same status, or panel is locked — do nothing
+      }
+    } catch (err) {
+      console.warn('Queue refresh skipped:', err);
+    } finally {
+      isLoadingQueue = false;
+    }
+  }
+
+  function renderQueue() {
+    const list = document.getElementById('queue-list');
+    if (!queueItems.length) {
+      list.innerHTML = '<div style="padding:20px 16px;text-align:center;color:#b4b0a8;font-size:11px;">No items in queue</div>';
+      updateApproveBtn();
+      return;
+    }
+    list.innerHTML = queueItems.map(item => {
+      const isActive = activeItem && activeItem.file_name === item.file_name;
+      const pill = statusPill(item);
+      const checked = selectedItems.has(item.file_name) ? 'checked' : '';
+      return `<div class="qi queue-item ${isActive ? 'active' : ''}" onclick="selectItem('${item.file_name}')">
+        <div class="qi-check" onclick="event.stopPropagation()">
+          <input type="checkbox" class="item-check" data-stem="${item.file_name}" onchange="toggleSelect(this)" ${checked}>
+        </div>
+        <div class="qi-body">
+          <div class="qi-name">${item.file_name}</div>
+          <div class="qi-sub">${item.export_date} · ${item.duration}</div>
+          ${pill}
+        </div>
+        <button class="qi-dismiss" title="Dismiss" onclick="event.stopPropagation(); dismissItem('${item.file_name}')">×</button>
+      </div>`;
+    }).join('');
+    updateApproveBtn();
+  }
+
+  function statusPill(item) {
+    const s = item.pub_status || item.status;
+    if (s === 'Scheduled') return `<span class="qi-pill pill-scheduled">Scheduled</span>`;
+    if (s === 'Posted') return `<span class="qi-pill pill-posted">Posted</span>`;
+    if (s === 'Approved') return `<span class="qi-pill pill-approved">Approved</span>`;
+    if (s === 'Ready for Review') return `<span class="qi-pill pill-pending">Pending Review</span>`;
+    return `<span class="qi-pill pill-posted">${s || 'Processing'}</span>`;
+  }
+
+  function hasStitchedCover(item) {
+    const s = String(item?.pub_status || item?.status || '').trim();
+    return !!item?.thumbnail_url && (s === 'Scheduled' || s === 'Posted' || s === 'Approved');
+  }
+
+  // ── Select item ──────────────────────────────────────────
+  function dismissItem(fileName) {
+    dismissedItems.add(fileName);
+    localStorage.setItem(_dismissedKey, JSON.stringify([...dismissedItems]));
+    selectedItems.delete(fileName);
+    queueItems = queueItems.filter(i => i.file_name !== fileName);
+    if (activeItem && activeItem.file_name === fileName) {
+      activeItem = queueItems.find(i => i.status === 'Ready for Review') || queueItems[0] || null;
+      if (activeItem) { lastRenderedStem = activeItem.file_name; lastRenderedStatus = activeItem.pub_status || activeItem.status; renderMainPanel(); }
+    }
+    renderQueue();
+  }
+
+  function selectItem(fileName) {
+    activeItem = queueItems.find(i => i.file_name === fileName);
+    if (!activeItem) return;
+    enabledPlatforms = new Set(platforms.filter(p => platformAvailability[p]));
+    resetThumbnailState();
+    lastRenderedStem = activeItem.file_name;
+    lastRenderedStatus = activeItem.pub_status || activeItem.status;
+    renderQueue();
+    renderMainPanel();
+  }
+
+  function resetThumbnailState() {
+    selectedBrandRef = null;
+    hostFramePos = null;
+    guestFramePos = null;
+    guestEnabled = true;
+    thumbnailHistory = [];
+    thumbnailHistoryIdx = -1;
+    clearTimeout(framePreviewTimers.host);
+    clearTimeout(framePreviewTimers.guest);
+  }
+
+  function renderMainPanel() {
+    const item = activeItem;
+    const main = document.getElementById('main-panel');
+    const isPortraitThumb = String(item.content_type || '').toLowerCase().includes('short-form');
+    const stitchedStatus = hasStitchedCover(item);
+
+    main.innerHTML = `
+      <div class="file-header">
+        <div class="file-name">${item.file_name}</div>
+        <div class="file-meta">${item.duration} &nbsp;·&nbsp; Exported ${item.export_date} &nbsp;·&nbsp; ${platforms.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' + ')}</div>
+      </div>
+      <div class="review-grid">
+        <div>
+          <!-- TITLES -->
+          <div class="panel">
+            <div class="panel-title">Title Options — Select One</div>
+            <div class="title-opts" id="title-opts">
+              ${titleOption(1, item.title_1, true)}
+              ${titleOption(2, item.title_2, false)}
+              ${titleOption(3, item.title_3, false)}
+            </div>
+          </div>
+          <!-- DESCRIPTION -->
+          <div class="panel">
+            <div class="panel-title">Description — Editable</div>
+            <textarea class="desc-area" id="desc-area">${item.description || ''}</textarea>
+          </div>
+          <!-- TAGS -->
+          <div class="panel">
+            <div class="panel-title">Tags</div>
+            <div class="tags-row">${(item.tags || '').split(',').map(t => t.trim()).filter(Boolean).map(t => `<div class="tag">${t}</div>`).join('')}</div>
+          </div>
+          <!-- TRANSCRIPT -->
+          <div class="panel">
+            <div class="panel-title" style="display:flex;justify-content:space-between;align-items:center;">
+              Final Cut Transcript (Pass 2)
+              <button onclick="toggleTranscript(this)" style="font-size:10px;background:none;border:none;color:#9a9590;cursor:pointer;padding:0;">Show all</button>
+            </div>
+            <div class="transcript" id="transcript-box">${item.transcript_summary || 'No transcript available.'}</div>
+          </div>
+        </div>
+        <div style="position:relative;">
+          <div class="resize-handle" id="resize-handle"></div>
+          <!-- THUMBNAIL -->
+          <div class="thumb-box ${isPortraitThumb ? 'portrait' : ''}">
+            <div class="thumb-img" id="thumb-img" style="position:relative;">
+              ${item.thumbnail_url
+                ? `<img src="${item.thumbnail_url}" alt="Thumbnail" id="thumb-main-img">`
+                : `<div class="thumb-placeholder"><span>🖼</span><span>Thumbnail generating...</span></div>`
+              }
+              <div id="thumb-nav" style="display:none;position:absolute;bottom:8px;right:8px;flex-direction:row;gap:6px;align-items:center;">
+                <button onclick="thumbNavPrev()" style="background:rgba(0,0,0,0.55);color:#fff;border:none;border-radius:4px;padding:3px 8px;cursor:pointer;font-size:14px;">‹</button>
+                <span id="thumb-nav-label" style="color:#fff;font-size:10px;background:rgba(0,0,0,0.5);padding:2px 6px;border-radius:3px;"></span>
+                <button onclick="thumbNavNext()" style="background:rgba(0,0,0,0.55);color:#fff;border:none;border-radius:4px;padding:3px 8px;cursor:pointer;font-size:14px;">›</button>
+              </div>
+            </div>
+            <div id="brand-refs-wrap" style="display:none;">
+              <div class="panel-title" style="padding:8px 13px 0;margin:0;font-size:9px;">Format Style</div>
+              <div class="brand-refs-row" id="brand-refs-row"></div>
+            </div>
+            <div class="thumb-text-wrap">
+              <input id="thumb-text" class="thumb-text-input" type="text" placeholder="Thumbnail text..." value="${item.title_1 || ''}">
+              <div class="thumb-text-hint">Short, punchy — different from the video title if needed</div>
+              <div class="prompt-override-toggle" id="prompt-toggle" onclick="togglePromptOverride()">↳ Override prompt</div>
+              <div class="prompt-override-wrap" id="prompt-override-wrap">
+                <textarea id="prompt-override" class="prompt-override-input" placeholder="Write a custom FAL prompt — overrides the auto-generated one completely. Reference images (frames, brand refs) still apply on top."></textarea>
+                <div class="prompt-override-hint">Active — this prompt will be used instead of the auto-generated one</div>
+              </div>
+            </div>
+            <div class="frame-pickers">
+              <div class="frame-picker-row">
+                <div class="frame-picker-label">Host</div>
+                <input type="range" min="0" max="100" value="10" class="frame-picker-slider" oninput="queueFramePreview('host', this.value)">
+                <div class="frame-preview" id="host-frame-preview"></div>
+              </div>
+              <div class="frame-picker-row" id="guest-row">
+                <div class="frame-picker-label" style="display:flex;align-items:center;gap:4px;width:auto;min-width:52px;">
+                  Guest
+                  <button id="guest-toggle-btn" onclick="toggleGuest()" style="font-size:9px;padding:1px 5px;border:1px solid #d4cfc8;border-radius:3px;background:#f5f3f0;cursor:pointer;color:#7a7570;">${guestEnabled ? 'ON' : 'OFF'}</button>
+                </div>
+                <input type="range" min="0" max="100" value="10" class="frame-picker-slider" id="guest-slider" oninput="queueFramePreview('guest', this.value)" ${guestEnabled ? '' : 'disabled style="opacity:0.4"'}>
+                <div class="frame-preview" id="guest-frame-preview" style="${guestEnabled ? '' : 'opacity:0.3'}"></div>
+              </div>
+            </div>
+            <div class="thumb-actions">
+              <button class="btn-sm" onclick="regenerateThumbnail(event)">Regenerate</button>
+              <button class="btn-sm" onclick="downloadThumb()" id="download-btn">Download</button>
+            </div>
+          </div>
+          <!-- SCHEDULE -->
+          <div class="schedule-box">
+            <div class="panel-title" style="margin-bottom:10px;">Platforms</div>
+            ${platforms.map(p => `
+              <div class="platform-row ${platformAvailability[p] ? '' : 'unavailable'}">
+                <div class="platform-dot ${enabledPlatforms.has(p) ? '' : 'off'}" id="dot-${p}"></div>
+                <div class="platform-name">${p.charAt(0).toUpperCase() + p.slice(1)}</div>
+                <div class="platform-status ${platformAvailability[p] ? (enabledPlatforms.has(p) ? '' : 'off') : 'unavailable'}" id="status-${p}">${platformAvailability[p] ? (enabledPlatforms.has(p) ? 'ON' : 'OFF') : 'UNAVAILABLE'}</div>
+                <button type="button" class="platform-toggle ${enabledPlatforms.has(p) ? 'on' : ''}" id="toggle-${p}" onclick="togglePlatform('${p}')" aria-pressed="${enabledPlatforms.has(p) ? 'true' : 'false'}" title="Toggle ${p}" ${platformAvailability[p] ? '' : 'disabled'}></button>
+              </div>
+            `).join('')}
+            <div class="platform-summary" id="platform-summary">${platformSummary()}</div>
+            <div class="field-label" style="margin-top:10px;">Publish date &amp; time</div>
+            <input type="datetime-local" class="date-input" id="schedule-time" value="${defaultScheduleTime()}">
+          </div>
+          <!-- APPROVE -->
+          <button class="approve-btn" id="approve-btn" onclick="approveAndSchedule()">
+            Approve &amp; Schedule &nbsp;→
+          </button>
+          ${stitchedStatus ? `<div class="stitch-note"><span class="stitch-note-dot"></span><span>Cover Stitched</span></div>` : ''}
+          <div class="sync-note">syncs to google sheets · publish queue</div>
+        </div>
+      </div>`;
+    loadBrandRefs();
+    initResizeHandle();
+  }
+
+  function titleOption(num, text, selected) {
+    if (!text) return '';
+    return `<div class="title-opt ${selected ? 'sel' : ''}" onclick="selectTitle(this)">
+      <div class="opt-num">${num}</div>
+      <div class="opt-text">${text}</div>
+      <div class="opt-check">${selected ? '✓' : ''}</div>
+    </div>`;
+  }
+
+  function selectTitle(el) {
+    document.querySelectorAll('.title-opt').forEach(o => {
+      o.classList.remove('sel');
+      o.querySelector('.opt-check').textContent = '';
+    });
+    el.classList.add('sel');
+    el.querySelector('.opt-check').textContent = '✓';
+    // Sync thumb text with selected title (user can still overwrite)
+    const thumbInput = document.getElementById('thumb-text');
+    if (thumbInput) thumbInput.value = el.querySelector('.opt-text').textContent;
+  }
+
+  function getThumbText() {
+    const thumbInput = document.getElementById('thumb-text');
+    return thumbInput ? thumbInput.value.trim() : '';
+  }
+
+  function getCustomPrompt() {
+    const el = document.getElementById('prompt-override');
+    return el ? el.value.trim() : '';
+  }
+
+  function togglePromptOverride() {
+    const wrap = document.getElementById('prompt-override-wrap');
+    const toggle = document.getElementById('prompt-toggle');
+    if (!wrap || !toggle) return;
+    const isOpen = wrap.classList.toggle('open');
+    toggle.classList.toggle('active', isOpen);
+    if (!isOpen && document.getElementById('prompt-override')) {
+      document.getElementById('prompt-override').value = '';
+    }
+  }
+
+  function getSelectedTitle() {
+    const sel = document.querySelector('.title-opt.sel .opt-text');
+    return sel ? sel.textContent : '';
+  }
+
+  async function loadBrandRefs() {
+    const wrap = document.getElementById('brand-refs-wrap');
+    const row = document.getElementById('brand-refs-row');
+    if (!wrap || !row) return;
+    if (brandRefsLoaded) {
+      renderBrandRefs();
+      return;
+    }
+    if (brandRefsRequest) {
+      await brandRefsRequest;
+      renderBrandRefs();
+      return;
+    }
+    brandRefsRequest = (async () => {
+      try {
+        const res = await fetch(`/api/${CLIENT_ID}/brand-refs`);
+        const data = await res.json();
+        brandRefsCache = Array.isArray(data.refs) ? data.refs : [];
+        brandRefsLoaded = true;
+      } catch (e) {
+        brandRefsCache = [];
+        brandRefsLoaded = true;
+      } finally {
+        brandRefsRequest = null;
+      }
+    })();
+    await brandRefsRequest;
+    renderBrandRefs();
+  }
+
+  function renderBrandRefs() {
+    const wrap = document.getElementById('brand-refs-wrap');
+    const row = document.getElementById('brand-refs-row');
+    if (!wrap || !row) return;
+    if (!brandRefsCache.length) {
+      wrap.style.display = 'none';
+      row.innerHTML = '';
+      return;
+    }
+    const ytRefs = brandRefsCache
+      .filter(ref => String(ref.name || '').startsWith('yt_'))
+      .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+    const displayRefs = [];
+    if (ytRefs.length) {
+      displayRefs.push({
+        ...ytRefs[0],
+        displayLabel: 'YouTube Podcast',
+        portrait: false,
+      });
+    }
+    brandRefsCache
+      .filter(ref => !String(ref.name || '').startsWith('yt_'))
+      .forEach(ref => {
+        const name = String(ref.name || '');
+        displayRefs.push({
+          ...ref,
+          displayLabel: name
+            .replace(/\.[^.]+$/, '')
+            .replace(/_/g, ' ')
+            .replace(/^ig /i, 'IG · ')
+            .replace(/^tt /i, 'TikTok · '),
+          portrait: name.startsWith('ig_'),
+        });
+      });
+    wrap.style.display = '';
+    row.innerHTML = displayRefs.map(ref => {
+      return `<div class="brand-ref-chip ${ref.portrait ? 'portrait ' : ''}${selectedBrandRef === ref.name ? 'selected' : ''}" onclick="toggleBrandRef('${ref.name}')">
+        <img src="${ref.url}" alt="${ref.name}">
+        <div class="brand-ref-chip-label">${ref.displayLabel}</div>
+      </div>`;
+    }).join('');
+  }
+
+  function downloadThumb() {
+    if (!activeItem) return;
+    const img = document.getElementById('thumb-main-img');
+    if (!img) return;
+    const a = document.createElement('a');
+    a.href = img.src;
+    a.download = activeItem.file_name.replace(/\.[^.]+$/, '') + '_thumb.png';
+    a.click();
+  }
+
+  function toggleBrandRef(name) {
+    selectedBrandRef = selectedBrandRef === name ? null : name;
+    renderBrandRefs();
+  }
+
+  function queueFramePreview(kind, value) {
+    const pos = Number(value) / 100;
+    if (kind === 'host') hostFramePos = pos;
+    if (kind === 'guest') guestFramePos = pos;
+    const timerKey = kind;
+    clearTimeout(framePreviewTimers[timerKey]);
+    framePreviewTimers[timerKey] = setTimeout(() => loadFramePreview(kind, pos), 400);
+  }
+
+  async function loadFramePreview(kind, pos) {
+    if (!activeItem) return;
+    const preview = document.getElementById(`${kind}-frame-preview`);
+    const fileName = activeItem.file_name;
+    try {
+      const res = await fetch(`/api/${CLIENT_ID}/frame?file_name=${encodeURIComponent(fileName)}&t=${pos}`);
+      if (!res.ok) throw new Error('frame fetch failed');
+      const blob = await res.blob();
+      if (!activeItem || activeItem.file_name !== fileName) return;
+      const url = URL.createObjectURL(blob);
+      if (preview) preview.innerHTML = `<img src="${url}" alt="${kind} frame">`;
+    } catch (e) {
+      if (activeItem && activeItem.file_name === fileName && preview && !preview.innerHTML) {
+        preview.innerHTML = '';
+      }
+    }
+  }
+
+  function platformSummary() {
+    const selected = [...enabledPlatforms].map(p => p.charAt(0).toUpperCase() + p.slice(1));
+    const unavailable = platforms.filter(p => !platformAvailability[p]).map(p => p.charAt(0).toUpperCase() + p.slice(1));
+    if (!selected.length && !unavailable.length) return 'Selected: none';
+    if (!unavailable.length) return selected.length ? `Selected: ${selected.join(' + ')}` : 'Selected: none';
+    return `${selected.length ? `Selected: ${selected.join(' + ')}` : 'Selected: none'} · Unavailable: ${unavailable.join(' + ')}`;
+  }
+
+  function togglePlatform(p) {
+    if (!platformAvailability[p]) return;
+    if (enabledPlatforms.has(p)) {
+      enabledPlatforms.delete(p);
+      document.getElementById(`dot-${p}`).classList.add('off');
+      document.getElementById(`toggle-${p}`).classList.remove('on');
+      document.getElementById(`toggle-${p}`).setAttribute('aria-pressed', 'false');
+      document.getElementById(`status-${p}`).classList.add('off');
+      document.getElementById(`status-${p}`).textContent = 'OFF';
+    } else {
+      enabledPlatforms.add(p);
+      document.getElementById(`dot-${p}`).classList.remove('off');
+      document.getElementById(`toggle-${p}`).classList.add('on');
+      document.getElementById(`toggle-${p}`).setAttribute('aria-pressed', 'true');
+      document.getElementById(`status-${p}`).classList.remove('off');
+      document.getElementById(`status-${p}`).textContent = 'ON';
+    }
+    document.getElementById('platform-summary').textContent = platformSummary();
+  }
+
+  function buildTimeline() {
+    fetch(`/api/${CLIENT_ID}/build-timeline`, {method: 'POST'})
+      .then(r => r.json())
+      .then(d => {
+        if (d.success) showToast(`Timeline built: ${d.timeline_name} (${d.clip_count} clips)`);
+        else showToast(`Timeline failed: ${d.error}`, true);
+      })
+      .catch(e => showToast('Timeline request failed', true));
+  }
+
+  function toggleSelect(checkbox) {
+    const stem = checkbox.dataset.stem;
+    if (checkbox.checked) selectedItems.add(stem);
+    else selectedItems.delete(stem);
+    updateApproveBtn();
+  }
+
+  function updateApproveBtn() {
+    const btn = document.getElementById('approve-selected-btn');
+    if (!btn) return;
+    if (selectedItems.size > 0) {
+      btn.style.display = '';
+      btn.textContent = `Approve Selected (${selectedItems.size})`;
+    } else {
+      btn.style.display = 'none';
+      btn.textContent = 'Approve Selected (0)';
+    }
+  }
+
+  function defaultScheduleTime() {
+    const d = new Date();
+    d.setDate(d.getDate() + 3);
+    d.setHours(10, 0, 0, 0);
+    return d.toISOString().slice(0, 16);
+  }
+
+  function getFormStateForStem(stem) {
+    const item = queueItems.find(i => i.file_name === stem);
+    if (!item) return null;
+    const isActive = activeItem && activeItem.file_name === stem;
+    return {
+      file_name: stem,
+      approved_title: isActive ? (getSelectedTitle() || item.title_1 || item.file_name) : (item.title_1 || item.file_name),
+      description: isActive ? document.getElementById('desc-area').value : (item.description || ''),
+      tags: item.tags || '',
+      platforms: isActive ? [...enabledPlatforms] : platforms.filter(p => platformAvailability[p]),
+      schedule_time: isActive ? new Date(document.getElementById('schedule-time').value).toISOString() : new Date(defaultScheduleTime()).toISOString(),
+      approved_by: 'Team',
+    };
+  }
+
+  async function approveSelected() {
+    panelLocked = true;
+    const items = [...selectedItems];
+    let done = 0;
+    for (const stem of items) {
+      const payload = getFormStateForStem(stem);
+      const qItem = queueItems.find(i => i.file_name === stem);
+      if (!payload || !qItem) continue;
+      done++;
+      showToast(`Approving ${done} of ${items.length}: ${stem}...`);
+      try {
+        const r = await fetch(`/api/${CLIENT_ID}/approve`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(payload),
+        });
+        const d = await r.json();
+        if (d.success) {
+          qItem.status = 'Approved';
+          qItem.pub_status = 'Approved';
+          selectedItems.delete(stem);
+          const check = [...document.querySelectorAll('.item-check')].find(el => el.dataset.stem === stem);
+          if (check) check.checked = false;
+          const pill = [...document.querySelectorAll('.item-check')].find(el => el.dataset.stem === stem)?.closest('.queue-item')?.querySelector('.qi-pill');
+          if (pill) {
+            pill.className = 'qi-pill pill-approved';
+            pill.textContent = 'Approved';
+          }
+        } else {
+          showToast(`Failed: ${stem}`, true);
+        }
+      } catch (e) {
+        showToast(`Failed: ${stem}`, true);
+      }
+    }
+    updateApproveBtn();
+    showToast(`${done} items approved and scheduled`);
+    panelLocked = false;
+  }
+
+  async function approveAndSchedule() {
+    const btn = document.getElementById('approve-btn');
+    const title = getSelectedTitle();
+    const description = document.getElementById('desc-area').value;
+    const schedule_time = document.getElementById('schedule-time').value;
+
+    if (!title) { alert('Please select a title.'); return; }
+    if (!schedule_time) { alert('Please set a schedule time.'); return; }
+    if (!enabledPlatforms.size) { alert('Please enable at least one platform.'); return; }
+
+    panelLocked = true;
+    btn.textContent = 'Scheduling...';
+    btn.classList.add('loading');
+    btn.disabled = true;
+
+    try {
+      const res = await fetch(`/api/${CLIENT_ID}/approve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          file_name: activeItem.file_name,
+          approved_title: title,
+          description: description,
+          tags: activeItem.tags,
+          platforms: [...enabledPlatforms],
+          schedule_time: new Date(schedule_time).toISOString(),
+          approved_by: 'Team',
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        btn.textContent = '✓ Scheduled';
+        btn.classList.remove('loading');
+        btn.classList.add('success');
+        if (activeItem) {
+          activeItem.pub_status = 'Scheduled';
+          activeItem.status = 'Approved';
+          lastRenderedStatus = 'Scheduled';
+        }
+        renderQueue();
+      } else {
+        btn.textContent = 'Approve & Schedule →';
+        btn.classList.remove('loading');
+        btn.disabled = false;
+        alert('Some platforms failed: ' + JSON.stringify(data.results));
+      }
+    } catch (e) {
+      btn.textContent = 'Approve & Schedule →';
+      btn.classList.remove('loading');
+      btn.disabled = false;
+      alert('Request failed: ' + e.message);
+    } finally {
+      panelLocked = false;
+    }
+  }
+
+  async function regenerateThumbnail(event) {
+    if (!activeItem) { showToast('No item selected', true); return; }
+    const btn = event.currentTarget || event.target;
+    if (!btn) { showToast('Button ref lost', true); return; }
+    const title = getThumbText() || getSelectedTitle();
+    const body = { file_name: activeItem.file_name, title, content_type: activeItem.content_type || '' };
+    const customPrompt = getCustomPrompt();
+    if (customPrompt) body.custom_prompt = customPrompt;
+    const hostSlider = document.querySelector('.frame-picker-slider');
+    if (selectedBrandRef) body.brand_ref = selectedBrandRef;
+    if (selectedBrandRef && selectedBrandRef.startsWith('ig_host')) {
+      const sliderVal = hostFramePos !== null ? hostFramePos : ((Number(hostSlider?.value || 10)) / 100);
+      body.host_frame = sliderVal;
+    } else if (selectedBrandRef && selectedBrandRef.startsWith('ig_stock')) {
+      // No subject frame for stock mode.
+    } else {
+      if (hostFramePos !== null) body.host_frame = hostFramePos;
+      if (guestEnabled && guestFramePos !== null) body.guest_frame = guestFramePos;
+    }
+    btn.textContent = 'Generating...';
+    btn.disabled = true;
+    panelLocked = true;
+    try {
+      const res = await fetch(`/api/${CLIENT_ID}/regenerate_thumbnail`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const d = await res.json();
+      if (d.success) {
+        const url = d.thumbnail_url + '?t=' + Date.now();
+        thumbnailHistory.push(url);
+        thumbnailHistoryIdx = thumbnailHistory.length - 1;
+        updateThumbDisplay(url);
+        showToast('Thumbnail regenerated');
+      } else {
+        showToast('Regen failed: ' + (d.error || 'unknown'), true);
+      }
+    } catch(e) {
+      showToast('Regen request failed', true);
+    } finally {
+      btn.textContent = 'Regenerate';
+      btn.disabled = false;
+      panelLocked = false;
+    }
+  }
+
+  function updateThumbDisplay(url) {
+    const container = document.getElementById('thumb-img');
+    if (!container) return;
+    let img = document.getElementById('thumb-main-img');
+    if (!img) {
+      container.innerHTML = `<img id="thumb-main-img" src="${url}" alt="Thumbnail">`;
+    } else {
+      img.src = url;
+    }
+    const nav = document.getElementById('thumb-nav');
+    const label = document.getElementById('thumb-nav-label');
+    if (nav && label && thumbnailHistory.length > 1) {
+      nav.style.display = 'flex';
+      label.textContent = `${thumbnailHistoryIdx + 1} / ${thumbnailHistory.length}`;
+    } else if (nav) {
+      nav.style.display = 'none';
+    }
+  }
+
+  function thumbNavPrev() {
+    if (thumbnailHistoryIdx > 0) {
+      thumbnailHistoryIdx--;
+      updateThumbDisplay(thumbnailHistory[thumbnailHistoryIdx]);
+    }
+  }
+
+  function thumbNavNext() {
+    if (thumbnailHistoryIdx < thumbnailHistory.length - 1) {
+      thumbnailHistoryIdx++;
+      updateThumbDisplay(thumbnailHistory[thumbnailHistoryIdx]);
+    }
+  }
+
+  function toggleGuest() {
+    guestEnabled = !guestEnabled;
+    const btn = document.getElementById('guest-toggle-btn');
+    const slider = document.getElementById('guest-slider');
+    const preview = document.getElementById('guest-frame-preview');
+    if (btn) btn.textContent = guestEnabled ? 'ON' : 'OFF';
+    if (slider) { slider.disabled = !guestEnabled; slider.style.opacity = guestEnabled ? '' : '0.4'; }
+    if (preview) preview.style.opacity = guestEnabled ? '' : '0.3';
+    if (!guestEnabled) guestFramePos = null;
+  }
+
+  function initResizeHandle() {
+    const handle = document.getElementById('resize-handle');
+    const grid = document.querySelector('.review-grid');
+    if (!handle || !grid) return;
+    grid.style.gridTemplateColumns = `1fr ${reviewGridWidth}px`;
+    handle.onmousedown = e => {
+      resizeDragActive = true;
+      resizeStartX = e.clientX;
+      const currentGrid = document.querySelector('.review-grid');
+      resizeStartW = parseInt(getComputedStyle(currentGrid).gridTemplateColumns.split(' ')[1]);
+      document.body.style.cursor = 'col-resize';
+      e.preventDefault();
+    };
+    if (resizeHandleBound) return;
+    document.addEventListener('mousemove', e => {
+      if (!resizeDragActive) return;
+      const currentGrid = document.querySelector('.review-grid');
+      if (!currentGrid) return;
+      const delta = resizeStartX - e.clientX;
+      const newW = Math.max(280, Math.min(600, resizeStartW + delta));
+      reviewGridWidth = newW;
+      currentGrid.style.gridTemplateColumns = `1fr ${newW}px`;
+    });
+    document.addEventListener('mouseup', () => { resizeDragActive = false; document.body.style.cursor = ''; });
+    resizeHandleBound = true;
+  }
+
+  function toggleTranscript(btn) {
+    const box = document.getElementById('transcript-box');
+    if (!box) return;
+    const expanded = box.style.maxHeight === 'none';
+    box.style.maxHeight = expanded ? '110px' : 'none';
+    btn.textContent = expanded ? 'Show all' : 'Collapse';
+  }
+
+  // Init
+  loadQueue();
+  // Auto-refresh queue every 10s so in-progress items update without reload
+  setInterval(loadQueue, 10000);
+</script>
+</body>
+</html>
