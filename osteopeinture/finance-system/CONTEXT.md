@@ -415,80 +415,22 @@ Available on Google Drive for May–Dec 2024 (monthly CSVs + formatted compilati
 
 ---
 
-## Current Status (as of 2026-04-05)
-
-### What's in the Live Sheet
-- **155 rows in Transactions** — 5 opening balances (WRONG — see below) + 98 bank imports (RBC + BMO, auto-categorized) + 21 bank mirrors + 18 cash entries + 13 cash mirrors
-- **14 rows in Wages** — Edler, Yann, Fred (Jan–Apr 2026, migrated from old sheet)
-- **Per-Job P&L live:** CHAUT_01 ($29,290 rev / $24,605 net), KENNERKNECHT_01 ($15,000 rev / $13,380 net), ADAMS_01 ($1,000 deposit)
-- **Monthly P&L working** — Jan–Mar broken down by category
-- **Owner Balances:** Loric $7,489, Graeme $10,200, Lubo $10,200, Boss $2,750
+## Current Status
 
 ### KNOWN ISSUE — Opening Balances Are Wrong
-The 5 opening balance rows (rows 2–6) use **Dec 31, 2024** figures, not Dec 31, 2025. A full year of 2025 activity is missing from the starting point. Loric is still correcting the 2025 ledger in the old Tiller sheet. **Do not fix until Loric confirms the 2025 ledger is final.** When ready: pull final Cash and Bank balance from the last December row in the 2025 ledger, replace the 5 opening balance rows.
+The 5 opening balance rows (rows 2–6) use **Dec 31, 2024** figures, not Dec 31, 2025. A full year of 2025 activity is missing from the starting point. Loric is still correcting the 2025 ledger in the old Tiller sheet. **Do not fix until Loric confirms the 2025 ledger is final.**
 
 This affects Account Balances (Cash, RBC, BMO MC, AR) but NOT the P&L, job profitability, or owner advance tracking.
 
-### What's Built
-- All 12 tabs live with correct formulas (ITC fixed — was SUMPRODUCT(…,0) bug)
-- **Write contract columns** (K–N) on Transactions: entry_id, source_system, source_id, created_at — all 155 rows backfilled, columns hidden
-- **Cash Movement section** on Dashboard: starting balance → revenue → expenses by category → ending balance (auto-updates monthly)
-- **GST/QST archive** on Tracker tab: 2023-2025 history, 2026 quarterly instalment schedule ($3,008/quarter), unpaid 2025 balances flagged, payment log
-- **Supplies gap analysis completed**: $35,819 gap = ~$8.4K tax (23%) + ~$3.5K inventory (10%) + ~$5-8K non-job purchases (15-22%) + ~$16-19K underestimation (45-53%). Policy: overestimate consumables per job going forward.
-- `create-sheet.gs` — tab builder + `addBossOwner()` fixup (in repo + pushed to Apps Script)
-- `import-csv.gs` — bank CSV importer with French header support, BOM stripping, YYYYMMDD dates, pre-2026 filter, dedup on date+amount+account (in repo + pushed to Apps Script via clasp)
-- `mirror-entries.py` — double-entry mirror generator for all Transfer-category rows (in repo)
-- `autocat-rules.json` — keyword-to-category lookup from Tiller AutoCat (in repo)
-- `cash-entry-sidebar.gs` + `sidebar.html` — in original folder + pushed to Apps Script
-- Custom OstéoPeinture menu in Apps Script
-- Script properties set, hourly trigger installed
-- Clasp authenticated (can push .gs files to Apps Script)
-- OP Bank Imports folder on Drive: `1rx7sYNTGya2wxMPP0Bf12_f9Dnbt3pgu`
+### Active blockers
+- Opening balances wrong (blocked on Loric finalizing 2025 ledger)
+- GST/QST ITC formula shows 0 for eligible expenses (minor)
+- Conversational interface not built (spec exists: `docs/OP-FINANCE-CHAT-SPEC.md`)
 
-### Import Pipeline (working)
-1. Drop CSV in OP Bank Imports Drive folder
-2. Claude Code downloads via gws, parses with correct bank detection (FR/EN headers)
-3. Auto-categorizes using `autocat-rules.json`
-4. Stages in Import tab with dedup formulas
-5. Writes to Transactions via Sheets API
-6. Generates mirror entries via `mirror-entries.py` for all Transfers
-7. Uncategorized rows flagged for manual review (15 out of 98 needed Loric input)
+### Next step
+Fix opening balances when Loric confirms the 2025 ledger is final.
 
-### What's NOT Done
-- **Opening balances** — blocked on Loric finalizing 2025 ledger
-- **GST/QST ITC formula** — shows 0 for eligible expenses (minor formula issue, revenue/collected side works)
-- **KENNERKNECHT_01 missing revenue** — $2,000 Dec 2025 deposit not in Per-Job P&L (depends on opening balance fix)
-- **DUFRESNE_01 revenue** — $2,075 was cash, not yet entered (need Jan/Feb cash transaction details from Loric)
-- **Conversational interface** — build spec written (`docs/OP-FINANCE-CHAT-SPEC.md`), 6 sessions planned
-- **Invoice generator** — separate session after finance system is live
-- **Jibble integration** — to be scoped (Loric to check: does Jibble API exist? Are jobs tagged in Jibble?)
-- **clasp run not working** — API executable deployed but OAuth client mismatch. clasp push works. Low priority.
-
----
-
-## Priority Order for Next Session
-
-1. **Fix opening balances** — when Loric confirms 2025 ledger is final
-2. **Enter remaining cash transactions** — Jan/Feb cash that hasn't been entered yet, plus DUFRESNE_01 revenue
-3. **Fix GST/QST ITC formula** — minor, expenses showing 0
-4–6. **Job Management build (8 sessions)** — unified Jibble CSV import + activity mapping + client updates + invoices + payments + finance sync. Built inside quote-assistant. See `docs/OP-JOB-MANAGEMENT-SPEC.md`.
-7. **Rebuild GST/QST Tracker** — fix ITC formula, add quarterly instalment schedule, payment tracking, due dates, balance owing, prior year carryover. Pull archive data from old SALES TAX tab.
-8. **Reconcile supplies/consumables gap** — quantify the ~$22K gap (tax, inventory, underestimation), design proper handling in 2026 system
-9. **Build conversational interface** — Session 1: scaffold + deploy (see `docs/OP-FINANCE-CHAT-SPEC.md`)
-10. **Cash Movement on Dashboard** — monthly cash in/out breakdown (starting balance → revenue → expenses → owner advances → ending balance)
-
----
-
-## How to Work
-
-1. Read this CONTEXT.md first — it has everything
-2. Read both Google Sheets (2026 + 2025 Tiller) before touching anything
-3. Audit: what's there, what works, what's broken, what's missing
-4. Report in plain language before doing anything
-5. Propose step-by-step plan
-6. Get confirmation before each step
-7. Small changes, verified before moving on
-8. Update this CONTEXT.md at end of session and push
+For detailed build status, session history, and priority queue, see `JOURNAL.md`.
 
 ---
 
@@ -502,4 +444,4 @@ This affects Account Balances (Cash, RBC, BMO MC, AR) but NOT the P&L, job profi
 
 ---
 
-*OstéoPeinture 2026 Finance System — MOKSHA BUILDS. Last updated: 2026-04-05.*
+*OstéoPeinture 2026 Finance System — MOKSHA BUILDS.*
