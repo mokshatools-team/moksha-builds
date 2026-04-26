@@ -13,7 +13,8 @@ from datetime import datetime
 from flask import Flask, request, jsonify
 
 # Add scripts to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "scripts"))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "scripts"))
 
 from config_loader import load_config, get_platforms_for_format, get_sheet_columns
 from youtube_upload import upload_to_youtube
