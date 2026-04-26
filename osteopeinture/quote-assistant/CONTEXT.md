@@ -1,6 +1,56 @@
 # CONTEXT.md — OstéoPeinture OP Hub (fka Quote Assistant)
-# Last updated: April 21, 2026
-# Session: I — Streaming, markdown, file attachments, cost update, multi-tab
+# Last updated: April 26, 2026
+# Session: J — Draft editor, quote renderer fixes, email persistence
+
+---
+
+## STATE AS OF 2026-04-26 (Session J)
+
+### Draft Editor (new feature)
+- Editable document view in right panel — Apple Notes feel, replaces quote preview as default tab
+- Panel mode system: `setPanelMode()` enum replaces scattered show/hide toggles (`placeholder | draft | pdf | gallery`)
+- All quote fields editable: client info, sections, items, prices, terms, modalities
+- In-memory `draftQuoteJson` state — inputs update it directly, never scrape DOM
+- Debounced auto-save (800ms) to `/api/sessions/:id/adjust-quote` + immediate on blur
+- Save queue with version counter to prevent stale overwrites
+- Live totals recalculation (subtotal, TPS, TVQ, grand total) on every price change
+- H2 total override: editable section totals with lock/unlock toggle. When locked, items become informational
+- Sections without items allowed (just name + total)
+- Contextual add buttons: + Group (H1), + Section (H2) per group, + Item (H3) per section
+- Undo system: toast + Cmd+Z for deleted items/sections (single-level undo buffer)
+- Toggle excluded/optional per section (☆/☐ buttons, visual tags + dimming)
+- Drag-to-reorder: native HTML drag-and-drop for sections and items, cross-section item moves
+- "Format Quote" button saves draft → switches to PDF view → refreshes preview
+- Chat ↔ Draft sync: system prompt injects current quoteJson so Claude sees manual edits
+- Mobile polish: 14px fonts (no iOS zoom), always-visible menus/handles, single-column modalities
+
+### Quote Renderer Fixes
+- Exact totals: removed $50 rounding on subtotal and grand total
+- TPS/TVQ rounded to cent, grand total shows cents (e.g. 8 019,51 $)
+- H1 group totals in header bar (not separate subtotal row)
+- Pre-compute handles inherited floor (AI only sets floor on first section of each group)
+- Sections with both `floor` + `title` now render correctly (was only checking `name`)
+- Range labels `[X $ – Y $]` bolded inline in section names
+- Optional sections with just `title` now show name + price (was missing)
+- Spacer rows suppressed for sections without items
+- Options header: "OPTIONS ADDITIONNELLES" (removed parenthetical), thick borders top+bottom, taller gap
+- System prompt: sum tree rule (H3→H2→H1→TOTAL), floor on every section in group, no ranges in H1 names
+
+### Email Persistence
+- Client email extracted from chat (regex fallback) + quoteJson.clientEmail → session.emailRecipient → prefills email-to
+- Generated email drafts saved immediately to in-memory Map + sessionStorage (survives tab switch + page reload)
+- Refine also saves immediately
+
+### Server Fixes
+- `/api/sessions/:id/adjust-quote`: now skips excluded/optional sections in total, updates emailRecipient from clientEmail, returns totalAmount
+
+**Live URL:** https://op-quote-assistant.up.railway.app
+**Latest deploy:** 2026-04-26
+
+### Next Steps
+- Test Draft editor end-to-end on iPhone PWA
+- Phase 3 optional: internal-only fields (hours, margins), keyboard shortcuts
+- Investigate db-backup failure (Service Account storage quota — needs shared drive or OAuth delegation)
 
 ---
 

@@ -9,6 +9,7 @@
 ## OP Hub / Quote Assistant
 - [Quote Assistant — status & pending](project_quotes_status.md) — Live deploy, all shipped fixes, next-session tasks
 - [Quote Assistant — technical architecture](project_quotes_architecture.md) — Stack, Docker fix, quoting pipeline, JSON structure, paint pricing rules
+- [Draft editor architecture](project_draft_editor.md) — state-driven editable doc, panel mode enum, total overrides, Codex-reviewed
 
 ## Workflow & Discovery
 - [Jibble workflow — 3 use cases](project_op_jibble_workflow.md) — Time data feeds wages, client weekly updates, AND invoices. LAVAL contract as reference.

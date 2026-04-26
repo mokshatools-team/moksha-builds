@@ -254,12 +254,11 @@ async function convertSessionToJob(sessionId, overrides = {}) {
   }
   if (recomputed > 0) session.totalAmount = recomputed;
 
-  // Round subtotal to nearest $50 for display consistency with the PDF
-  // renderer (renderQuoteHTML). JSON values stay untouched — this only
-  // affects the stored job totals used in the job card UI.
-  const rawSubtotalCents = Math.round((session.totalAmount || 0) * 100);
-  const subtotalCents = Math.round(rawSubtotalCents / 5000) * 5000;
-  const taxCents = Math.round(subtotalCents * 0.14975);
+  // Exact subtotal in cents — no rounding, matches renderQuoteHTML
+  const subtotalCents = Math.round((session.totalAmount || 0) * 100);
+  const tpsCents = Math.round(subtotalCents * 0.05);
+  const tvqCents = Math.round(subtotalCents * 0.09975);
+  const taxCents = tpsCents + tvqCents;
   const totalCents = subtotalCents + taxCents;
 
   // Cash jobs: no taxes, agreed_total overrides computed total
@@ -800,9 +799,11 @@ if (fs.existsSync(SIG_PATH)) {
 // QUOTE HTML RENDERER
 // ============================================================
 
-function fmt(n) {
+// Format dollar amount — whole numbers by default, cents when needed
+function fmt(n, { cents = false } = {}) {
   if (n == null) return '';
-  return Number(n).toLocaleString('fr-CA', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' $';
+  const decimals = cents ? 2 : 0;
+  return Number(n).toLocaleString('fr-CA', { minimumFractionDigits: decimals, maximumFractionDigits: decimals }) + ' $';
 }
 
 function renderQuoteHTML(data, options = {}) {
@@ -874,14 +875,11 @@ function renderQuoteHTML(data, options = {}) {
       }
     }
   }
-  // Taxes computed from raw subtotal to preserve correct percentages.
-  const tps = rawSubtotal * 0.05;
-  const tvq = rawSubtotal * 0.09975;
-  const rawGrandTotal = rawSubtotal + tps + tvq;
-  // Display-level $50 rounding on subtotal and grand total only.
-  // Line items and section totals remain exact. JSON values untouched.
-  const subtotal = Math.round(rawSubtotal / 50) * 50;
-  const grandTotal = Math.round(rawGrandTotal / 50) * 50;
+  // --- Totals: exact sums, no rounding ---
+  const subtotal = rawSubtotal;
+  const tps = Math.round(subtotal * 0.05 * 100) / 100;       // 5% TPS, rounded to cent
+  const tvq = Math.round(subtotal * 0.09975 * 100) / 100;    // 9.975% TVQ, rounded to cent
+  const grandTotal = subtotal + tps + tvq;
 
   // Build terms block
   const terms = data.terms || {};
@@ -910,44 +908,66 @@ function renderQuoteHTML(data, options = {}) {
 
   let tableHtml = '';
   if (isRoomBased) {
+    // Pre-compute totals per floor/title group so we can show them in the header row.
+    // Sections without a floor inherit the current group (AI only sets floor on the first section of each group).
+    const groupTotals = {};
+    let activeGroup = null;
+    for (const sec of sections) {
+      if (sec.excluded || sec.optional) { activeGroup = null; continue; }
+      if (sec.floor) activeGroup = sec.floor;
+      else if (sec.title && !sec.name) activeGroup = sec.title; // standalone title starts new group
+      const key = activeGroup || '';
+      if (!key) continue;
+      const secTotal = sec.total != null ? sec.total : (sec.items || []).reduce((s, i) => s + (i.price || 0), 0);
+      groupTotals[key] = (groupTotals[key] || 0) + secTotal;
+    }
+
     let currentFloor = null;
     let addedOptionalDivider = false;
+
     for (let si = 0; si < sections.length; si++) {
       const sec = sections[si];
 
-      // Optional add-ons divider (same pattern as category-based renderer)
+      // Optional add-ons divider
       if (sec.optional && !addedOptionalDivider) {
+        currentFloor = null;
         addedOptionalDivider = true;
-        tableHtml += `<tr class="row-spacer"><td colspan="2"></td></tr>`;
-        tableHtml += `<tr class="row-floor"><td colspan="2">${isFr ? 'OPTIONS (non incluses dans le total)' : 'OPTIONAL ADD-ONS (not included in total)'}</td></tr>`;
+        tableHtml += `<tr class="row-options-gap"><td colspan="2"></td></tr>`;
+        tableHtml += `<tr class="row-options-header"><td colspan="2">${isFr ? 'OPTIONS ADDITIONNELLES' : 'OPTIONAL ADD-ONS'}</td></tr>`;
       }
 
       // Excluded section divider
       if (sec.excluded && !sec.optional) {
+        currentFloor = null;
         tableHtml += `<tr class="row-spacer"><td colspan="2"></td></tr>`;
       }
 
-      // Floor header for room-based sections (PIÈCE 1, ACCÈS, RÉPARATIONS, etc.)
-      // Show for all sections including excluded — only the price is excluded, not the header.
+      // Floor header with group total in the header bar
       if (!sec.optional && sec.floor && typeof sec.floor === 'string' && sec.floor !== currentFloor) {
         currentFloor = sec.floor;
-        tableHtml += `<tr class="row-floor"><td colspan="2">${esc(sec.floor)}</td></tr>`;
+        const gt = groupTotals[sec.floor];
+        const gtDisplay = gt ? fmt(gt) : '';
+        tableHtml += `<tr class="row-floor"><td>${esc(sec.floor)}</td><td class="col-price">${gtDisplay}</td></tr>`;
       }
-      // Standalone sections with `title` (no floor) get the same grey header
-      // bar as PIÈCE 1/2/3. Covers repairs, extras, grouped items.
+      // Standalone sections with `title` (no floor) — header with group total
       if (sec.title && !sec.floor && !sec.optional) {
-        tableHtml += `<tr class="row-floor"><td colspan="2">${esc(sec.title)}</td></tr>`;
+        currentFloor = sec.title;
+        const gt = groupTotals[sec.title];
+        const gtDisplay = gt ? fmt(gt) : '';
+        tableHtml += `<tr class="row-floor"><td>${esc(sec.title)}</td><td class="col-price">${gtDisplay}</td></tr>`;
       }
+
       const secTotal = sec.total != null ? sec.total : (sec.items || []).reduce((s, i) => s + (i.price || 0), 0);
       const excludedLabel = sec.excluded ? ` <span style="font-size:7px;font-weight:400;color:#999;font-style:italic;">${t.excludedLabel}</span>` : '';
       const rangeLabel = sec.range ? ` <span style="font-size:8px;font-weight:500;color:#777;">[${esc(sec.range)}]</span>` : '';
-      // Optional add-ons show price as [+X $] to distinguish from confirmed scope
       const priceDisplay = sec.excluded ? '' : (secTotal ? (sec.optional ? '[+' + fmt(secTotal) + ']' : fmt(secTotal)) : '');
-      // `name` = room name under a floor header (e.g. "Chambre (bleu foncé)")
-      // `title` = already rendered as the grey header above, so skip the section row
-      const sectionName = sec.name || '';
+
+      // Section name: `name` for interior, `title` for exterior (when floor is H1), or `title` for optional/excluded standalone sections
+      const sectionName = sec.name || (sec.floor && sec.title ? sec.title : '') || ((sec.optional || sec.excluded) && sec.title ? sec.title : '') || '';
       if (sectionName) {
-        tableHtml += `<tr class="row-section"><td class="col-desc">${esc(sectionName)}${rangeLabel}${excludedLabel}</td><td class="col-price">${priceDisplay}</td></tr>`;
+        // Bold any inline price ranges like [1 850 $ – 2 500 $]
+        const nameHtml = esc(sectionName).replace(/(\[[\d\s,$–—-]+\$\s*[\s–—-]+\s*[\d\s,$]+\$\])/g, '<strong style="font-weight:700">$1</strong>');
+        tableHtml += `<tr class="row-section"><td class="col-desc">${nameHtml}${rangeLabel}${excludedLabel}</td><td class="col-price">${priceDisplay}</td></tr>`;
       }
       for (const item of (sec.items || [])) {
         const itemPrice = (sec.excluded || !item.price) ? '' : (sec.optional ? '[+' + fmt(item.price) + ']' : fmt(item.price));
@@ -958,7 +978,8 @@ function renderQuoteHTML(data, options = {}) {
       }
       const nextSec = sections[si + 1];
       const nextIsNewFloor = nextSec && nextSec.floor && nextSec.floor !== currentFloor;
-      if (si < sections.length - 1 && !nextIsNewFloor && !sec.optional && !(nextSec && nextSec.optional)) {
+      const hasItems = (sec.items || []).length > 0;
+      if (si < sections.length - 1 && !nextIsNewFloor && !sec.optional && !(nextSec && nextSec.optional) && hasItems) {
         tableHtml += `<tr class="row-spacer"><td colspan="2"></td></tr>`;
       }
     }
@@ -971,8 +992,8 @@ function renderQuoteHTML(data, options = {}) {
       // Insert divider before first optional section
       if (sec.optional && !addedOptionalDivider) {
         addedOptionalDivider = true;
-        tableHtml += `<tr class="row-spacer"><td colspan="2"></td></tr>`;
-        tableHtml += `<tr class="row-floor"><td colspan="2">OPTIONAL ADD-ONS (not included in total)</td></tr>`;
+        tableHtml += `<tr class="row-options-gap"><td colspan="2"></td></tr>`;
+        tableHtml += `<tr class="row-options-header"><td colspan="2">${isFr ? 'OPTIONS ADDITIONNELLES' : 'OPTIONAL ADD-ONS'}</td></tr>`;
       }
 
       // Insert divider before excluded section (repairs)
@@ -984,7 +1005,8 @@ function renderQuoteHTML(data, options = {}) {
       const rangeLabel = sec.range ? ` <span style="font-size:8px;font-weight:500;color:#777;">[${esc(sec.range)}]</span>` : '';
       const excludedLabel = sec.excluded ? ` <span style="font-size:7px;font-weight:400;color:#999;font-style:italic;">${t.excludedLabel}</span>` : '';
       const priceDisplay = sec.excluded ? '' : (secTotal ? (sec.optional ? '[+' + fmt(secTotal) + ']' : fmt(secTotal)) : '');
-      tableHtml += `<tr class="row-section"><td class="col-desc">${esc(sec.title || sec.name || '')}${rangeLabel}${excludedLabel}</td><td class="col-price">${priceDisplay}</td></tr>`;
+      const catNameHtml = esc(sec.title || sec.name || '').replace(/(\[[\d\s,$–—-]+\$\s*[\s–—-]+\s*[\d\s,$]+\$\])/g, '<strong style="font-weight:700">$1</strong>');
+      tableHtml += `<tr class="row-section"><td class="col-desc">${catNameHtml}${rangeLabel}${excludedLabel}</td><td class="col-price">${priceDisplay}</td></tr>`;
       for (const item of (sec.items || [])) {
         const itemPrice = (sec.excluded || !item.price) ? '' : (sec.optional ? '[+' + fmt(item.price) + ']' : fmt(item.price));
         tableHtml += `<tr class="row-item"><td class="col-desc"><span class="arrow">➛</span>${esc(item.description || '')}</td><td class="col-price">${itemPrice}</td></tr>`;
@@ -1051,7 +1073,10 @@ body { background:#e8e8e8; font-family:'Montserrat',sans-serif; padding:40px 20p
 .terms-gap { height:8px; }
 .terms-subtitle { font-size:8px; font-weight:700; margin-bottom:4px; margin-top:2px; }
 .quote-table { width:100%; border-collapse:collapse; }
+.row-options-gap td { height:14px; border:none; background:#fff; }
+.row-options-header td { background:#f2f2f2; font-size:7.5px; font-weight:700; letter-spacing:1.2px; text-transform:uppercase; padding:6px 10px; border-top:2px solid #1a1a1a; border-bottom:2px solid #1a1a1a; color:#555; font-style:italic; }
 .row-floor td { background:#f2f2f2; font-size:7.8px; font-weight:700; letter-spacing:1px; text-transform:uppercase; padding:5px 10px; border-top:1.5px solid #1a1a1a; border-bottom:none; }
+.row-floor .col-price { text-align:right; white-space:nowrap; font-size:8.5px; }
 .row-section td { padding:5px 10px; font-size:8.2px; font-weight:700; border-top:1.5px solid #1a1a1a; border-bottom:1px solid #bbb; }
 .row-section .col-price { text-align:right; white-space:nowrap; }
 .row-item td { padding:3px 10px; font-size:7.8px; color:#222; border-bottom:0.5px solid #ebebeb; }
@@ -1134,9 +1159,9 @@ body { background:#e8e8e8; font-family:'Montserrat',sans-serif; padding:40px 20p
   <table class="quote-table">${tableHtml}</table>
   <div class="totals-block">
   <div class="row-total total-line"><div class="lbl">${t.total}</div><div class="prc">${fmt(subtotal)}</div></div>
-  ${branded ? `<div class="row-total tax"><div class="lbl">TPS #7784757551RT0001</div><div class="prc">${fmt(tps)}</div></div>
-  <div class="row-total tax"><div class="lbl">TVQ #1231045518</div><div class="prc">${fmt(tvq)}</div></div>
-  <div class="row-total grand"><div class="lbl">${t.grandTotal}</div><div class="prc">${fmt(grandTotal)}</div></div>` : `<div class="row-total grand"><div class="lbl">${t.grandTotal}</div><div class="prc">${fmt(subtotal)}</div></div>`}
+  ${branded ? `<div class="row-total tax"><div class="lbl">TPS #7784757551RT0001</div><div class="prc">${fmt(tps, { cents: true })}</div></div>
+  <div class="row-total tax"><div class="lbl">TVQ #1231045518</div><div class="prc">${fmt(tvq, { cents: true })}</div></div>
+  <div class="row-total grand"><div class="lbl">${t.grandTotal}</div><div class="prc">${fmt(grandTotal, { cents: true })}</div></div>` : `<div class="row-total grand"><div class="lbl">${t.grandTotal}</div><div class="prc">${fmt(subtotal)}</div></div>`}
   </div>
   <div class="paint-section">
   <div class="section-header">${t.paintProducts}</div>
@@ -1271,8 +1296,22 @@ function buildDynamicQuotingLogic(conversationText, userText, isExterior) {
   return assembled;
 }
 
-function buildSystemPrompt(isExterior = false, conversationText = '', userText = '') {
+function buildSystemPrompt(isExterior = false, conversationText = '', userText = '', currentQuoteJson = null) {
   const rules = buildDynamicQuotingLogic(conversationText, userText, isExterior);
+
+  // If the user has manually edited the quote via the Draft editor, inject the current state
+  let quoteStateBlock = '';
+  if (currentQuoteJson) {
+    quoteStateBlock = `
+
+## CURRENT QUOTE STATE (from Draft editor)
+The user may have manually edited the quote since your last generation. Here is the CURRENT quoteJson as stored — apply any requested changes to THIS version, not to an older version from conversation history. If the user asks you to adjust, modify, or regenerate the quote, start from this data:
+\`\`\`json
+${JSON.stringify(currentQuoteJson, null, 2)}
+\`\`\`
+`;
+  }
+
   return `You are the internal quote builder for Loric, Lubo, and Graeme at Ostéopeinture. This is an internal estimating tool, not client-facing by default.
 
 Be casual, direct, brief, and operational. Stay task-focused. No flattery, no extra commentary, no tone-policing. Do not encourage abusive or hateful language.
@@ -1304,7 +1343,7 @@ You run two estimating modes: a quick ballpark mode for fast room-average guidan
 
 **Phase 1 — Client and project overview:**
 Ask for the basics first, one or two questions at a time. Collect:
-- Client name and address
+- Client name, address, and email address
 - Project type: interior, exterior, or both
 - **Declared or cash?** — ask this early. If cash/undeclared, the company can't claim ITCs on materials, so ~15% in QC taxes becomes a real cost. Add at least 15% to material costs to cover unrecoverable taxes, plus the usual margin. Flag this clearly so the estimator doesn't forget. See §15A in the business rules.
 - A basic description of the scope
@@ -1469,6 +1508,7 @@ Output this exact structure (if user requested French quote, add "lang": "fr" an
 
 {
   "clientName": "Full Name",
+  "clientEmail": "client@email.com",
   "projectId": "LASTNAME_01",
   "address": "Street Address, Montréal",
   "date": "March 27, 2026",
@@ -1496,6 +1536,15 @@ Output this exact structure (if user requested French quote, add "lang": "fr" an
         { "description": "Baseboards and door frames — prime and 2 coats", "price": 600 }
       ],
       "exclusions": ["Excl. fireplace and mantle"]
+    },
+    {
+      "floor": "Ground Floor",
+      "name": "Kitchen",
+      "total": 1800,
+      "items": [
+        { "description": "Walls — 2 coats", "price": 1200 },
+        { "description": "Cabinets — sand, prime, 2 coats", "price": 600 }
+      ]
     },
     {
       "title": "Option A — Baseboards, 3 rooms",
@@ -1530,7 +1579,7 @@ A section can have H1 + H2 + H3 (floor header, then name, then items), or just H
 
 - projectId: always LASTNAME_01 (or _02 if second job for this client)
 - date: today's date formatted as "Month Day, Year"
-- sections: use floor grouping for room-by-room quotes; omit floor field if not applicable
+- sections: use floor grouping for room-by-room quotes; omit floor field if not applicable. CRITICAL: set the "floor" field on EVERY section in the group, not just the first one. The renderer groups sections by matching floor values — if only the first section has it, the others won't be included in the group total.
 - All prices are numbers (not strings), in CAD before tax
 - Terms adapt to the job (see examples above)
 - sections with renovation categories (Protection, Repairs, etc.) use "title" instead of "name", and optionally "range" (e.g., "$3,000–$5,000")
@@ -1540,6 +1589,7 @@ A section can have H1 + H2 + H3 (floor header, then name, then items), or just H
 - Item descriptions in sections must NEVER include paint product names or finishes — only describe the work
 - Item descriptions must NOT restate what is already in the boilerplate inclusions (conditions et inclusions). The inclusions already say "preparation complete", "2 coats on all designated surfaces", "daily protection and cleanup". So item lines should only describe what is UNIQUE to that zone — e.g. "9 groupes/unites (facades avant et arriere)" not "Preparation, appret et 2 couches de finition — 9 groupes/unites". The prep and coats are understood. Keep items short and zone-specific.
 - CRITICAL: Item descriptions are CLIENT-FACING. NEVER include internal pricing details: no hourly rates (65$/h, 75$/h), no hour counts (39h, 6h), no markup percentages (tampon 10%), no internal material cost breakdowns (planches ~100$-200$). These are estimating internals — the client sees the total price, not how you got there. Only describe the WORK being done, not the math behind it.
+- TOTALS SUM TREE: each section "total" MUST equal the sum of its items[].price values. The renderer computes H1 group totals and the grand total from these — if section totals don't match item sums, the numbers won't add up.
 - deposit: always 25% of subtotal, rounded UP to nearest 100
 - modalities.paymentMethod: "The remaining balance is to be paid by cheque or e-transfer, with weekly installments throughout the work." for jobs over 1 week; "The remaining balance is due at completion." for jobs of 1 week or less
 
@@ -1547,10 +1597,17 @@ A section can have H1 + H2 + H3 (floor header, then name, then items), or just H
 
 ## EXTERIOR QUOTE JSON FORMAT
 
-For exterior jobs, output this structure instead. Key differences: sections use "title" (not "name"/"floor"), repairs have "excluded": true, optional add-ons have "optional": true, and an estimateDisclaimer field is always present.
+For exterior jobs, output this structure instead. Key differences: sections use "floor" for H1 grouping and "name" for H2 section names (same as interior), repairs have "excluded": true, optional add-ons have "optional": true (these use "title" instead since they have no group), and an estimateDisclaimer field is always present.
+
+IMPORTANT — totals must form a sum tree:
+- Each section "total" MUST equal the sum of its items[].price values (H3 sums = H2 total)
+- The H1 group total (shown in the header) is the sum of all section totals under that floor (H2 sums = H1 total)
+- The TOTAL line is the sum of all H1 group totals (excluding optional/excluded sections)
+Set "floor" on EVERY section in the group, not just the first one.
 
 {
   "clientName": "Full Name",
+  "clientEmail": "client@email.com",
   "projectId": "LASTNAME_01",
   "address": "Street Address, Montréal",
   "date": "April 4, 2026",
@@ -1574,7 +1631,8 @@ For exterior jobs, output this structure instead. Key differences: sections use 
   },
   "sections": [
     {
-      "title": "Front Façade — Stucco",
+      "floor": "PREPARATION & PAINTING",
+      "name": "Front Façade — Stucco",
       "total": 2200,
       "items": [
         { "description": "Pressure wash, scrape, sand, prep", "price": 800 },
@@ -1582,7 +1640,17 @@ For exterior jobs, output this structure instead. Key differences: sections use 
       ]
     },
     {
-      "title": "Scaffolding",
+      "floor": "PREPARATION & PAINTING",
+      "name": "Side Façade — Wood siding",
+      "total": 1800,
+      "items": [
+        { "description": "Scrape, sand, caulk", "price": 600 },
+        { "description": "Prime and paint — 2 coats", "price": 1200 }
+      ]
+    },
+    {
+      "floor": "ACCESS",
+      "name": "Scaffolding",
       "total": 2500,
       "items": [
         { "description": "Scaffolding rental", "price": 1200 },
@@ -1590,7 +1658,8 @@ For exterior jobs, output this structure instead. Key differences: sections use 
       ]
     },
     {
-      "title": "Repairs",
+      "floor": "REPAIRS",
+      "name": "Repairs",
       "excluded": true,
       "range": "$500 – $800",
       "total": 0,
@@ -1656,7 +1725,7 @@ ${rules}
 - The user's message may end with toggle settings like [Language: French] [Scope: Interior] [Paint tier: High-end] [Paint prices in quote: hide]. ALWAYS respect these:
   - Language: write ALL text in the specified language (projectType, terms, descriptions, modalities)
   - Scope: use interior quoting rules (§1-22) or exterior quoting rules (§23-29) accordingly
-  - Pricing mode: "fixed" = each section has a single "total" number (default for interior). "ranges" = each section has a "range" field like "$1,000 - $1,200" AND a "total" with the recommended midpoint/estimate (default for exterior). Repairs always use ranges regardless of mode. When ranges mode: the section title in the rendered quote shows the range in brackets, e.g. "Corniche [2,500$ - 3,500$]" with the total on the right as the estimated price.
+  - Pricing mode: "fixed" = each section has a single "total" number (default for interior). "ranges" = each section has a "range" field like "$1,000 - $1,200" AND a "total" with the recommended midpoint/estimate (default for exterior). Repairs always use ranges regardless of mode. When ranges mode: the renderer shows the range in brackets on the H2 section name, e.g. "Corniche — façade avant [2,500$ – 3,500$]" with the total on the right as the estimated price. NEVER embed ranges in H1 floor names — the renderer computes and shows the H1 group total automatically.
   - Paint tier: use High-end products (Duration Home for walls) or Standard products (SuperPaint for walls) from §6
   - Paint prices: if "hide", set approxCost to 0 in the paints array (the renderer will omit the price column). If "show", include real approxCost values.
 - Do NOT ask the user about language, interior/exterior, or paint tier if the toggles already specify them. Just use the toggle values.
@@ -1665,7 +1734,8 @@ ${rules}
 - For EXTERIOR jobs: never calculate labour hours from benchmarks — the estimator provides hours manually. Only calculate product quantities for decks and large stucco where sqft was collected.
 - For EXTERIOR jobs: always include the estimateDisclaimer field. Always include a Repairs section with excluded: true. Always round section totals to nearest $50.
 - For EXTERIOR jobs: before generating, sanity-check zone totals against §27 benchmark ranges. Flag anything significantly off but never block — estimator has final say.
-- Today's date is ${new Date().toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' })}`;
+- Today's date is ${new Date().toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' })}
+${quoteStateBlock}`;
 }
 
 // ============================================================
@@ -1993,7 +2063,7 @@ async function handleSessionMessage(req, res) {
     const apiParams = {
       model: 'claude-sonnet-4-6',
       max_tokens: 4096,
-      system: buildSystemPrompt(isExteriorSession, conversationText, userText),
+      system: buildSystemPrompt(isExteriorSession, conversationText, userText, session.quoteJson),
       messages,
     };
     // Always provide past quotes search; scaffold only for exterior sessions
@@ -2095,6 +2165,7 @@ async function handleSessionMessage(req, res) {
         session.clientName = quoteJson.clientName || null;
         session.projectId = quoteJson.projectId || null;
         session.address = quoteJson.address || null;
+        if (quoteJson.clientEmail) session.emailRecipient = quoteJson.clientEmail;
         session.quoteJson = quoteJson;
       } catch (e) {}
     }
@@ -2115,6 +2186,12 @@ async function handleSessionMessage(req, res) {
           session.clientName = nameMatch[1].trim();
         }
       }
+    }
+
+    // Extract client email from user message if not already set
+    if (!session.emailRecipient) {
+      const emailMatch = userText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+      if (emailMatch) session.emailRecipient = emailMatch[0];
     }
 
     session.messages.push({ role: 'assistant', content: assistantText });
@@ -2284,8 +2361,10 @@ app.post('/api/sessions/:id/adjust-quote', async (req, res) => {
   session.quoteJson = quoteJson;
   session.status = 'quote_ready';
 
+  // Recompute total — skip excluded and optional sections (matches renderQuoteHTML logic)
   let total = 0;
   for (const sec of (quoteJson.sections || [])) {
+    if (sec.excluded || sec.optional) continue;
     if (sec.total) total += sec.total;
     else for (const item of (sec.items || [])) total += (item.price || 0);
   }
@@ -2293,9 +2372,10 @@ app.post('/api/sessions/:id/adjust-quote', async (req, res) => {
   session.clientName = quoteJson.clientName || session.clientName;
   session.projectId = quoteJson.projectId || session.projectId;
   session.address = quoteJson.address || session.address;
+  if (quoteJson.clientEmail) session.emailRecipient = quoteJson.clientEmail;
   await saveSession(session);
 
-  res.json({ ok: true });
+  res.json({ ok: true, totalAmount: total });
 });
 
 // ── ATTACHMENTS ─────────────────────────────────────────────
