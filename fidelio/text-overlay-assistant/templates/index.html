@@ -388,6 +388,22 @@
       font-size: 12px; color: var(--text-3);
       margin-top: 10px; line-height: 1.5;
     }
+    .density-legend {
+      display: grid; grid-template-columns: auto 1fr;
+      gap: 2px 10px; margin-top: 12px;
+      font-size: 11px; color: var(--text-3); line-height: 1.6;
+    }
+    .density-legend-level {
+      font-weight: 600; color: var(--text-2);
+      font-variant-numeric: tabular-nums;
+    }
+    .density-legend-row.active .density-legend-level,
+    .density-legend-row.active .density-legend-desc {
+      color: var(--accent);
+    }
+    .density-legend-row {
+      display: contents;
+    }
 
     /* Action row */
     .action-row {
@@ -830,8 +846,8 @@
             <label class="field-label" style="margin-bottom:0;">Highlight density</label>
             <span class="density-active-label" id="density-active-label">Balanced</span>
           </div>
-          <input type="range" class="density-slider" id="density-slider" min="0" max="3" step="1" value="1" />
-          <p class="density-desc" id="density-desc">Natural mix of chapters, lists, and keywords.</p>
+          <input type="range" class="density-slider" id="density-slider" min="0" max="3" step="1" value="2" />
+          <div class="density-legend" id="density-legend"></div>
         </div>
 
         <!-- Analyze -->
@@ -912,9 +928,9 @@
         <label class="field-label" style="margin-bottom:0;">Highlight density</label>
         <span class="density-active-label" id="review-density-active-label">Balanced</span>
       </div>
-      <input type="range" class="density-slider" id="review-density-slider" min="0" max="3" step="1" value="1" />
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;gap:12px;">
-        <p class="density-desc" id="review-density-desc" style="margin-top:0;flex:1;">Natural mix of chapters, lists, and keywords.</p>
+      <input type="range" class="density-slider" id="review-density-slider" min="0" max="3" step="1" value="2" />
+      <div class="density-legend" id="review-density-legend"></div>
+      <div style="display:flex;align-items:center;justify-content:flex-end;margin-top:10px;">
         <button class="btn btn-ghost" id="revise-btn" style="font-size:12px;padding:6px 14px;flex-shrink:0;">Revise</button>
       </div>
     </div>
@@ -976,28 +992,39 @@
     let youtubeAuthConnected = false;
 
     // ── Density config ──
-    const DENSITY_LABELS = ['Minimal', 'Balanced', 'Detailed', 'Maximum'];
-    const DENSITY_DESCS  = [
-      'Chapters only — clean structural markers, no keyword clutter.',
-      'Natural mix of chapters, lists, and keywords.',
-      'More coverage across all three types — richer annotation.',
-      'Maximum highlights — every notable moment captured.',
+    const DENSITY_LEVELS = [
+      { num: 1, name: 'Minimal',  desc: 'Chapters only' },
+      { num: 2, name: 'Basic',    desc: 'Chapters + Lists' },
+      { num: 3, name: 'Balanced', desc: 'Chapters + Lists + Keywords' },
+      { num: 4, name: 'Detailed', desc: 'All types, richer coverage' },
     ];
 
     const densitySlider       = document.getElementById('density-slider');
     const reviewDensitySlider = document.getElementById('review-density-slider');
 
+    function renderDensityLegend(containerId, activeIdx) {
+      const el = document.getElementById(containerId);
+      el.innerHTML = DENSITY_LEVELS.map((lv, i) =>
+        `<div class="density-legend-row${i === activeIdx ? ' active' : ''}">` +
+        `<span class="density-legend-level">${lv.num} ${lv.name}</span>` +
+        `<span class="density-legend-desc">${lv.desc}</span>` +
+        `</div>`
+      ).join('');
+    }
+
     function updateDensityUI(val) {
       densitySlider.value      = val;
       reviewDensitySlider.value = val;
-      document.getElementById('density-active-label').textContent        = DENSITY_LABELS[val];
-      document.getElementById('review-density-active-label').textContent = DENSITY_LABELS[val];
-      document.getElementById('density-desc').textContent                = DENSITY_DESCS[val];
-      document.getElementById('review-density-desc').textContent         = DENSITY_DESCS[val];
+      document.getElementById('density-active-label').textContent        = DENSITY_LEVELS[val].name;
+      document.getElementById('review-density-active-label').textContent = DENSITY_LEVELS[val].name;
+      renderDensityLegend('density-legend', val);
+      renderDensityLegend('review-density-legend', val);
     }
 
     densitySlider.addEventListener('input', () => updateDensityUI(parseInt(densitySlider.value)));
     reviewDensitySlider.addEventListener('input', () => updateDensityUI(parseInt(reviewDensitySlider.value)));
+    // Initialize legend on load
+    updateDensityUI(2);
 
     document.getElementById('revise-btn').addEventListener('click', () => {
       if (!currentData) return;

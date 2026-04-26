@@ -761,47 +761,46 @@ def analyze():
     duration_secs = ts_to_secs(entries[-1].get("time", "0:00"))
     duration_min  = duration_secs / 60
 
-    density = int(data.get("density", 1))
+    density = int(data.get("density", 2))
     lo, hi  = target_overlay_range(duration_secs)
 
-    density_scales = {0: 0.4, 1: 1.0, 2: 1.4, 3: 2.0}
-    scale = density_scales.get(density, 1.0)
+    density_scales = {0: 0.4, 1: 0.6, 2: 0.8, 3: 1.0}
+    scale = density_scales.get(density, 0.8)
     lo    = max(3,  math.floor(lo * scale))
     hi    = min(80, math.ceil(hi  * scale))
 
     density_instructions = {
         0: (
-            "DENSITY MODE: MINIMAL\n"
+            "DENSITY MODE: MINIMAL (Level 1)\n"
             "• Use CHAPTER overlays only (3–6 total) to mark major section transitions\n"
-            "• Add a LIST overlay ONLY when the speaker explicitly rattles off 3+ items (0–2 max)\n"
-            "• Do NOT use KEYWORD overlays at all\n"
+            "• Do NOT use LIST or KEYWORD overlays at all\n"
             "• Be highly selective — only the most essential structural markers"
         ),
         1: (
-            "DENSITY MODE: BALANCED\n"
-            "• Use all three types at natural density\n"
-            "• CHAPTER: 3–6 per video for major shifts\n"
-            "• LIST: only for clear rapid enumerations\n"
-            "• KEYWORD: tips, warnings, and the most memorable phrases only"
+            "DENSITY MODE: BASIC (Level 2)\n"
+            "• Use CHAPTER and LIST overlays only — no KEYWORD overlays\n"
+            "• CHAPTER: 3–6 per video for major section transitions\n"
+            "• LIST: only when the speaker explicitly rattles off 3+ items\n"
+            "• Keep it clean and structural — no keyword clutter"
         ),
         2: (
-            "DENSITY MODE: DETAILED\n"
-            "• Use all three types generously\n"
+            "DENSITY MODE: BALANCED (Level 3)\n"
+            "• Use all three types — chapters, lists, and keywords\n"
+            "• CHAPTER: 3–6 per video for major shifts\n"
+            "• LIST: only for clear rapid enumerations\n"
+            "• KEYWORD: tips, warnings, and the most memorable phrases only\n"
+            "• Natural density — not sparse, not heavy"
+        ),
+        3: (
+            "DENSITY MODE: DETAILED (Level 4)\n"
+            "• Use all three types at generous density\n"
             "• CHAPTER: mark every meaningful topic shift\n"
             "• LIST: any enumeration of 2+ items qualifies\n"
             "• KEYWORD: highlight key terms, statistics, actionable advice, and important facts\n"
             "• Err toward more coverage rather than less"
         ),
-        3: (
-            "DENSITY MODE: MAXIMUM\n"
-            "• Use all three types at maximum density\n"
-            "• CHAPTER: mark every topic shift, even minor ones\n"
-            "• LIST: any grouping of 2+ items\n"
-            "• KEYWORD: anything notable — terms, names, numbers, tips, warnings, conclusions\n"
-            "• Produce the richest, most fully annotated output possible"
-        ),
     }
-    density_note = density_instructions.get(density, density_instructions[1])
+    density_note = density_instructions.get(density, density_instructions[2])
 
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:

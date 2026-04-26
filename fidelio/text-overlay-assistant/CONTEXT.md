@@ -68,7 +68,7 @@ Status: ON HOLD. Do not work on YouTube ingestion until dedicated cross-build se
 - Full transcription pipeline for local video files (mp4, mov, mxf, avi) via ffmpeg + Whisper
 - Full transcription pipeline for YouTube URLs via yt-dlp + Whisper
 - YouTube OAuth flow: connect a Google account, fetch captions directly from YouTube Data API (faster, no Whisper cost), with fallback to Whisper if captions unavailable
-- Claude analysis with four density modes (Minimal / Balanced / Detailed / Maximum)
+- Claude analysis with four density modes (Minimal / Basic / Balanced / Detailed)
 - Three overlay types: CHAPTER (section titles), LIST (enumerated items), KEYWORD (italic emphasis)
 - Two deployment modes: local watch folder mode (WATCH_FOLDER_PATH set) and upload mode (Railway)
 - JSON download for use with DaVinci Resolve
@@ -105,6 +105,16 @@ Suggested priorities for next session:
 2. Fix the README template name discrepancy (`OA_` vs `TOA_`)
 3. Remove the dead `youtube_transcript_api` import path or add it to requirements.txt
 4. Delete old services from moksha-tools project via Railway dashboard (deployments already taken down)
+
+## Session Log — 2026-04-26
+
+- Rebuilt highlight density scale: old levels (Minimal/Balanced/Detailed/Maximum) replaced with new 4-tier scale (Minimal/Basic/Balanced/Detailed)
+- Old "Balanced" (1.0x) is now the highest level "Detailed"; two new mid-levels fill the gap between Minimal and the old Balanced
+- New scale multipliers: 0.4x / 0.6x / 0.8x / 1.0x (was 0.4x / 1.0x / 1.4x / 2.0x)
+- Default changed from old Balanced to new Balanced (0.8x — level 3 of 4)
+- Added persistent legend below slider showing all 4 levels and what overlay types each includes
+- UI displays levels 1–4 to user (internal 0–3)
+- NOT YET DEPLOYED — changes are local only, need `railway up`
 
 ## Session Log — 2026-04-18
 
