@@ -1,178 +1,129 @@
-# MOKSHA BUILDS — Claude Operating SOP
+# CLAUDE.md — MOKSHA Builds Repo
 
-You are building production tools for MOKSHA, a four-person collective
-operating five companies: MOKSHA AI Solutions, FIDELIO Productions, LXR,
-OstéoPeinture, and LIONHEART. Builder is Loric. Stack is Railway + GitHub.
-All builds are web apps or automation tools deployed live on Railway.
+This is the operational guide for Claude Code working in this repo.
 
----
+## Read this first
 
-## Session Start (every time, no exceptions)
+1. Read `/MOKSHA-CODING-SOP.md` for the universal standard.
+2. Read the relevant project's `CONTEXT.md` for project-specific state.
+3. Invoke the Superpowers skills at the gates defined in the SOP.
 
-Before touching any code:
+## Session start (mandatory)
 
-1. Read CLAUDE.md (this file)
-2. Read CONTEXT.md inside the active build folder
-3. State current build status in 2 sentences
-4. Confirm the live Railway URL for this build
-5. State what "working" means for today's task specifically
-6. List all unknowns — do not guess, do not invent
+1. Run `git status` and report what state the repo is in.
+2. If the user names a project, read that project's CONTEXT.md before doing anything else.
+3. State current build status in 2 sentences. Confirm the live Railway URL. List unknowns.
+4. If no spec exists for the requested work, invoke `brainstorming` and `writing-plans` before writing any code.
 
-Do not write a single line of code until all six are done.
+Do not write a single line of code until all of the above are done.
 
 ---
 
-## Definition of Done
+## Repo structure
 
-A task is NOT done when:
-- Code compiles
-- Tests pass
-- Railway says "deploy successful"
+```
+MOKSHA BUILDS/
+├── CLAUDE.md                  ← this file
+├── MOKSHA-CODING-SOP.md       ← universal coding standard
+├── AGENTS.md                  ← pointer for non-Claude agents
+├── osteopeinture/             ← OstéoPeinture builds
+│   ├── CONTEXT.md             ← umbrella (lists all OP builds)
+│   ├── ECOSYSTEM-OVERVIEW.md  ← cross-cutting architecture
+│   ├── quote-assistant/       ← OP Hub (most active)
+│   └── finance-system/        ← Sheets-based ledger
+├── fidelio/                   ← FIDELIO builds
+│   ├── CONTEXT.md             ← umbrella (lists all FDL builds)
+│   ├── fdl1-publishing-pipeline/
+│   ├── fdl2-archive-import/
+│   ├── text-overlay-assistant/
+│   ├── transcript-chat-assistant/
+│   ├── video-post-studio/
+│   ├── _rob-pipeline-clone/
+│   └── memory/
+└── moksha-internal/           ← cross-cutting tools and memory
+```
 
-A task IS done only when:
-- The live Railway URL has been tested
-- The exact user flow for this build works end to end
-- You have verified this yourself — never ask Loric to check
-
----
-
-## Mandatory Build Loop
-
-Every change follows this exact sequence:
-
-### Phase 1 — Plan
-- Read CONTEXT.md and the relevant spec in docs/
-- If no spec exists for this task, stop and tell Loric before building
-- State what you are going to build in plain language before touching code
-
-### Phase 2 — Build
-- Follow existing code patterns — never invent new architecture
-- Make small, targeted changes — never large rewrites
-- Never hardcode environment variables — list required ones explicitly
-
-### Phase 3 — Review (mandatory before every commit)
-- Invoke /requesting-code-review skill
-- Spawn code-quality-reviewer subagent using subagent-driven-development/code-quality-reviewer-prompt.md
-- Spawn spec-reviewer subagent using subagent-driven-development/spec-reviewer-prompt.md
-- Both reviewers must pass before proceeding
-- If either reviewer flags issues: fix them, then re-review
-- Do not skip this phase even for small changes
-
-### Phase 4 — Deploy
-- Deploy command: railway up
-- Wait for deploy confirmation before proceeding
-
-### Phase 5 — Verify (mandatory after every deploy)
-- Link to the correct Railway service: railway link, then railway service link
-- Check deploy status: railway deployment list — if FAILED, pull logs immediately
-- Pull logs yourself: railway logs — NEVER ask Loric for screenshots or logs
-- Hit the live Railway URL health endpoint to confirm it responds
-- Test the exact user flow that was changed — not just "is the server up"
-- If broken:
-  - Read logs first before touching code
-  - Check for missing environment variables
-  - Check network and API failures
-  - Fix → redeploy → retest → re-check logs yourself
-  - Repeat until working
-- Never ask Loric to manually test unless blocked after two failed attempts
-- When asking Loric for help, always include the Railway logs you already pulled
-
-### Phase 6 — Commit and close
-- Invoke /receiving-code-review if any review feedback was received
-- Commit with a clear message describing what changed and why
-- Update CONTEXT.md with:
-  - What was built or changed today
-  - Current status
-  - Live URL confirmed working (or current blocker if not)
-  - Exact next step for next session
-- Push to GitHub: git add . && git commit -m "message" && git push
+Each build folder contains its own `CONTEXT.md` (current state) and `JOURNAL.md` (session history). Specs live in each project's `docs/` subfolder.
 
 ---
 
-## Railway Rules
+## Railway deployment
 
-- Deploy command: railway up
-- Logs command: railway logs
-- Environment variables live in Railway dashboard — never hardcode them
-- If deploy fails: read logs before doing anything else
-- Railway is not connected to GitHub for auto-deploy — always deploy manually via railway up
+- This repo uses one Railway project per company: `osteoPeinture`, `fidelio`.
+- **The Railway CLI drifts between projects unexpectedly.** Before any `railway up`, verify the active project and service match the intended target. Use `railway status` to confirm.
+- Always re-link explicitly before deploying:
+  ```
+  railway link --project [project-id] --service [service-id] -e production
+  ```
+- For OP Hub specifically, use `npm run deploy` which wraps `railway up` with safety checks and aborts on project mismatch.
+- Never rely on GitHub auto-deploy. Always trigger deploys explicitly.
+- After deploying, check `railway deployment list` to confirm SUCCESS. Pull `railway logs` yourself — never ask Loric for logs or screenshots.
 
 ---
 
-## When to Escalate — and to Whom
+## Skill invocation (enforced)
 
-**Ask Loric** about business logic, preferences, priorities, and scope decisions.
+Per the SOP, invoke these skills at these gates. Failure to invoke = halt and ask Loric.
+
+| Gate | Skill to invoke |
+|------|-----------------|
+| Before starting any build | `brainstorming` then `writing-plans` |
+| When debugging | `systematic-debugging` |
+| Before any deploy | `requesting-code-review` |
+| Before claiming completion | `verification-before-completion` |
+| When work is done for the day | `end-session` |
+| When switching projects mid-session | `switch` |
+| When parallelizing independent problems | `dispatching-parallel-agents` |
+| When writing test code | `test-driven-development` |
+
+---
+
+## Escalation
+
+**Ask Loric** about business logic, preferences, priorities, scope decisions, security.
 **Ask Codex** (`/codex:rescue`) about code, debugging, and implementation strategy.
 
-### Automatic Codex triggers — do not skip these
+### Automatic Codex triggers
 
-- **2 failed fixes** on the same bug → stop and run `/codex:rescue` before attempt 3
-- **About to rewrite >50 lines** to fix something that should be small → get a second opinion first
-- **Choosing between 2+ approaches** and unsure which is right → ask Codex, not Loric
-- **Same error keeps coming back** after you thought it was fixed → root cause investigation via Codex
-- **Deploy fails twice** and logs aren't making it obvious → Codex before another blind attempt
+- 2 failed fixes on the same bug → `/codex:rescue` before attempt 3
+- About to rewrite >50 lines for what should be a small fix → second opinion first
+- Choosing between 2+ approaches → ask Codex, not Loric
+- Same error keeps recurring → root cause investigation via Codex
+- Deploy fails twice with unclear logs → Codex before another blind attempt
 
 ### Never do these instead of escalating
 
 - Loop on the same fix hoping it works this time
 - Rewrite large sections of code as a workaround
 - Ask Loric to debug something technical
-- Guess at architecture and hope for the best
+- Guess at architecture
 
 ---
 
-## Hard Rules
+## Memory paths
 
-- Never stop at deploy success
-- Never guess commands — check package.json or requirements.txt first
-- Never invent environment variable names
-- Never rewrite architecture when a small fix will do
-- Never ask Loric to manually test unless truly blocked
-- Never skip the review phase
-- Follow existing code patterns — do not invent new structure
-- Prefer small targeted changes over large rewrites
-- Explain structural changes in plain language before making them — Loric is not a developer
+- **OstéoPeinture** → `osteopeinture/memory/` (create when needed)
+- **FIDELIO** → `fidelio/memory/`
+- **Cross-cutting** → `moksha-internal/memory/`
+- **LXR** → `lxr/memory/` (create when needed)
+- **LIONHEART** → `lionheart/memory/` (create when needed)
+
+Each memory folder has a `MEMORY.md` index. The `/end-session` and `/switch` skills know these paths.
 
 ---
 
-## Folder Structure
+## Hard rules (repo-specific)
 
-MOKSHA BUILDS/
-├── CLAUDE.md              ← this file, read every session
-├── AGENTS.md
-├── docs/                  ← specs and plans live here
-├── osteopeinture/         ← OstéoPeinture builds
-├── fidelio/               ← FIDELIO builds
-└── moksha-internal/       ← MOKSHA internal tools
+- Plain language with Loric. Loric is not a developer.
+- Don't ask Loric to test. Verify yourself via the live URL.
+- No `git add .` — specific paths only.
+- Never hardcode environment variables — they live in Railway dashboard.
+- Never invent environment variable names — check CONTEXT.md or the project's existing config.
+- Follow existing code patterns — do not invent new structure.
+- Prefer small targeted changes over large rewrites.
+- When in doubt, do less and confirm with Loric.
+- Company prefixes: OP (OstéoPeinture), FDL (FIDELIO), MOK (MOKSHA)
 
-Each build folder contains its own CONTEXT.md — read it, maintain it, update it every session.
+## When something breaks
 
----
-
-## Shared Memory & Cross-Build Resources
-
-Project memory lives inside `MOKSHA BUILDS/` next to the build folders:
-
-- **OP / OstéoPeinture** → `MOKSHA BUILDS/osteopeinture/memory/`
-- **FDL / FIDELIO** → `MOKSHA BUILDS/fidelio/memory/`
-- **MOK / MOKSHA (cross-cutting)** → `MOKSHA BUILDS/moksha-internal/memory/`
-- **LXR** → `MOKSHA BUILDS/lxr/memory/` (create when needed)
-- **LIONHEART** → `MOKSHA BUILDS/lionheart/memory/` (create when needed)
-
-The **moksha-internal/memory/** folder holds cross-cutting memory used by ALL builds:
-- gws CLI setup and Sheets API access patterns
-- Railway deploy timing notes
-- General workflow preferences (output format, Codex review, voice setup)
-
-Each folder has a `MEMORY.md` index. Read it at session start when working on that company.
-
-The `/end-session` and `/switch` skills know the per-project paths and write memory to the correct folder automatically.
-
----
-
-## Build Conventions
-
-- Company prefixes: OP (OstéoPeinture), FDL (FIDELIO), MOK (MOKSHA), RSV, WED
-- Each build has a spec in docs/ before Claude Code touches it
-- Loric is not a developer — plain language always
-- When in doubt, do less and confirm with Loric
+Invoke `systematic-debugging`. Do not fix symptoms. Find root cause first.
