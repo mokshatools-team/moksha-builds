@@ -63,17 +63,19 @@ Every change follows this exact sequence:
 - Wait for deploy confirmation before proceeding
 
 ### Phase 5 — Verify (mandatory after every deploy)
-- Hit the live Railway URL
+- Link to the correct Railway service: railway link, then railway service link
+- Check deploy status: railway deployment list — if FAILED, pull logs immediately
+- Pull logs yourself: railway logs — NEVER ask Loric for screenshots or logs
+- Hit the live Railway URL health endpoint to confirm it responds
 - Test the exact user flow that was changed — not just "is the server up"
-- Check Railway logs: railway logs
 - If broken:
   - Read logs first before touching code
   - Check for missing environment variables
   - Check network and API failures
-  - Fix → redeploy → retest
+  - Fix → redeploy → retest → re-check logs yourself
   - Repeat until working
 - Never ask Loric to manually test unless blocked after two failed attempts
-- When asking Loric for help, always include the Railway logs
+- When asking Loric for help, always include the Railway logs you already pulled
 
 ### Phase 6 — Commit and close
 - Invoke /receiving-code-review if any review feedback was received
@@ -94,6 +96,28 @@ Every change follows this exact sequence:
 - Environment variables live in Railway dashboard — never hardcode them
 - If deploy fails: read logs before doing anything else
 - Railway is not connected to GitHub for auto-deploy — always deploy manually via railway up
+
+---
+
+## When to Escalate — and to Whom
+
+**Ask Loric** about business logic, preferences, priorities, and scope decisions.
+**Ask Codex** (`/codex:rescue`) about code, debugging, and implementation strategy.
+
+### Automatic Codex triggers — do not skip these
+
+- **2 failed fixes** on the same bug → stop and run `/codex:rescue` before attempt 3
+- **About to rewrite >50 lines** to fix something that should be small → get a second opinion first
+- **Choosing between 2+ approaches** and unsure which is right → ask Codex, not Loric
+- **Same error keeps coming back** after you thought it was fixed → root cause investigation via Codex
+- **Deploy fails twice** and logs aren't making it obvious → Codex before another blind attempt
+
+### Never do these instead of escalating
+
+- Loop on the same fix hoping it works this time
+- Rewrite large sections of code as a workaround
+- Ask Loric to debug something technical
+- Guess at architecture and hope for the best
 
 ---
 
@@ -122,6 +146,27 @@ MOKSHA BUILDS/
 └── moksha-internal/       ← MOKSHA internal tools
 
 Each build folder contains its own CONTEXT.md — read it, maintain it, update it every session.
+
+---
+
+## Shared Memory & Cross-Build Resources
+
+Project memory lives inside `MOKSHA BUILDS/` next to the build folders:
+
+- **OP / OstéoPeinture** → `MOKSHA BUILDS/osteopeinture/memory/`
+- **FDL / FIDELIO** → `MOKSHA BUILDS/fidelio/memory/`
+- **MOK / MOKSHA (cross-cutting)** → `MOKSHA BUILDS/moksha-internal/memory/`
+- **LXR** → `MOKSHA BUILDS/lxr/memory/` (create when needed)
+- **LIONHEART** → `MOKSHA BUILDS/lionheart/memory/` (create when needed)
+
+The **moksha-internal/memory/** folder holds cross-cutting memory used by ALL builds:
+- gws CLI setup and Sheets API access patterns
+- Railway deploy timing notes
+- General workflow preferences (output format, Codex review, voice setup)
+
+Each folder has a `MEMORY.md` index. Read it at session start when working on that company.
+
+The `/end-session` and `/switch` skills know the per-project paths and write memory to the correct folder automatically.
 
 ---
 
