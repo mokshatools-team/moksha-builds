@@ -58,6 +58,6 @@ Railway target:
 ANTHROPIC_API_KEY, OPENAI_API_KEY, RESEND_API_KEY, SUPABASE_URL, SUPABASE_ANON_KEY, DATABASE_URL (pooler URL), FLASK_SECRET_KEY
 
 ## Related docs
-- Ecosystem overview: `osteopeinture/docs/OSTEOP-BUILD-ECOSYSTEM-OVERVIEW.md`
-- Supabase migration spec: `osteopeinture/docs/SUPABASE-MIGRATION-SPEC.md`
+- Ecosystem overview: `osteopeinture/ECOSYSTEM-OVERVIEW.md`
+- Supabase migration spec: `osteopeinture/quote-assistant/docs/SUPABASE-MIGRATION-SPEC.md`
 - Session history: `osteopeinture/quote-assistant/JOURNAL.md`

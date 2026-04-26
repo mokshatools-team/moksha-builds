@@ -438,9 +438,9 @@ For detailed build status, session history, and priority queue, see `JOURNAL.md`
 
 | Spec | Location |
 |------|----------|
-| Master Build Plan (v3) | `docs/OP-FINANCE-MASTER-PLAN.md` |
-| Job Management (Jibble + Invoice) | `docs/OP-JOB-MANAGEMENT-SPEC.md` |
-| Finance Chat Interface | `docs/OP-FINANCE-CHAT-SPEC.md` |
+| Master Build Plan (v3) | `docs/OP-FINANCE-MASTER-PLAN.md` (in this folder) |
+| Job Management (Jibble + Invoice) | `docs/OP-JOB-MANAGEMENT-SPEC.md` (in this folder) |
+| Finance Chat Interface | `docs/OP-FINANCE-CHAT-SPEC.md` (in this folder) |
 
 ---
 

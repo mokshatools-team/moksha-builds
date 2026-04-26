@@ -1,7 +1,7 @@
 # OstéoPeinture — Full Build Ecosystem
 # Macro Overview & Module Map
 # Last updated: April 8, 2026
-# Canonical location: osteopeinture/docs/OSTEOP-BUILD-ECOSYSTEM-OVERVIEW.md
+# Canonical location: osteopeinture/ECOSYSTEM-OVERVIEW.md
 
 ---
 
@@ -152,7 +152,7 @@ Therefore:
 - Claude parses, shows preview for confirmation, then writes to sheet
 - Validation step before every write — non-negotiable
 - Mobile Safari compatible
-- Status: spec written (`osteopeinture/docs/OP-FINANCE-CHAT-SPEC.md`), not yet built. Prerequisite: bank CSVs imported and real data verified in sheet first.
+- Status: spec written (`osteopeinture/finance-system/docs/OP-FINANCE-CHAT-SPEC.md`), not yet built. Prerequisite: bank CSVs imported and real data verified in sheet first.
 
 **Finance sheet current state:**
 - Double-entry single-ledger architecture

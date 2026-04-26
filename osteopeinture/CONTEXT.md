@@ -11,14 +11,11 @@ OstéoPeinture is a Quebec residential/commercial painting company (société en
 
 ## Spec docs
 
-Design specs and build plans live in `osteopeinture/docs/`:
-- `OSTEOP-BUILD-ECOSYSTEM-OVERVIEW.md` — macro module map and sequencing
-- `SUPABASE-MIGRATION-SPEC.md` — Phase 0 migration (completed)
-- `OP-FINANCE-MASTER-PLAN.md` — finance system master plan
-- `OP-JOB-MANAGEMENT-SPEC.md` — Jibble + invoice spec
-- `OP-FINANCE-CHAT-SPEC.md` — conversational interface spec
-- `OP-HUB-DATA-REQUIREMENTS.md` — data layer requirements
-- `SESSION-PROMPT-DATA-LAYER.md` — session prompt data layer
+Specs live inside each project's `docs/` folder. Cross-cutting docs live at company level.
+
+- `osteopeinture/ECOSYSTEM-OVERVIEW.md` — macro module map and sequencing (cross-cutting)
+- `quote-assistant/docs/` — Supabase migration spec, data requirements, quoting logic design, server prompt design
+- `finance-system/docs/` — master plan, job management spec, finance chat spec
 
 ## Memory
 
