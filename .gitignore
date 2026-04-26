@@ -7,3 +7,9 @@ __pycache__/
 *.log
 venv/
 .venv/
+
+# Local-only and security-sensitive
+.agents/
+.claude/
+download.txt
+Signature Loric *.png
