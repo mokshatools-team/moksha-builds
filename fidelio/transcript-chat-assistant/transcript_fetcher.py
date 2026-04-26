@@ -310,6 +310,12 @@ def fetch_youtube_title(url: str) -> str:
 
 def fetch_transcript(source: str) -> str:
     if is_youtube_url(source):
+        # Fast path: try YouTube's captions directly. Works from residential
+        # IPs. Falls back to yt-dlp + Whisper if captions are unavailable.
+        caption_entries = fetch_transcript_via_captions_api(source)
+        if caption_entries:
+            return " ".join(entry["text"] for entry in caption_entries)
+
         media_path = download_youtube_audio(source)
         try:
             return transcribe_plain_text(media_path)
@@ -322,6 +328,12 @@ def fetch_transcript(source: str) -> str:
 
 def fetch_transcript_entries(source: str, offset_seconds: float = 0.0) -> List[dict]:
     if is_youtube_url(source):
+        # Fast path: try YouTube's captions directly. Works from residential
+        # IPs. Falls back to yt-dlp + Whisper if captions are unavailable.
+        caption_entries = fetch_transcript_via_captions_api(source, offset_seconds=offset_seconds)
+        if caption_entries:
+            return caption_entries
+
         media_path = download_youtube_audio(source)
         try:
             return transcribe_media_segments(media_path, offset_seconds=offset_seconds)

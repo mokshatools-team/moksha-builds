@@ -94,7 +94,7 @@ def _slugify_filename(title: str) -> str:
 
 
 def _build_transcript_text(entries):
-    return "\n\n".join((entry.get("text") or "").strip() for entry in entries if (entry.get("text") or "").strip())
+    return " ".join((entry.get("text") or "").strip() for entry in entries if (entry.get("text") or "").strip())
 
 
 def _set_active_state(title: str, source_label: str, entries):
@@ -257,11 +257,19 @@ def _chat_with_transcript(transcript_text: str, prior_messages, user_message: st
     prompt_messages.append({"role": "user", "content": user_message})
 
     response = client.messages.create(
-        model=os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-5"),
-        max_tokens=700,
+        model=os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-6"),
+        max_tokens=8000,
         system=(
-            "You are a transcript analysis assistant. Answer only from the provided transcript. "
-            "If the answer is not supported by the transcript, say so plainly.\n\n"
+            "You are a transcript research assistant helping a video editor study and "
+            "analyze video transcripts. Ground your answers in the provided transcript — "
+            "quote or paraphrase specific moments when relevant. You may reasonably "
+            "interpret and summarize; don't be robotic about word-matching.\n\n"
+            "Format every response in clean markdown. Use `##` and `###` headings for "
+            "structure, `-` bullet lists for enumerations, `**bold**` for key terms, "
+            "and blockquotes (`>`) for direct pulls from the transcript. Always finish "
+            "your thought completely — never stop mid-outline or mid-sentence.\n\n"
+            "If the transcript genuinely doesn't cover something the user asks about, "
+            "say so plainly and suggest what related content the transcript does have.\n\n"
             f"Transcript:\n{transcript_text}"
         ),
         messages=prompt_messages,
@@ -474,4 +482,4 @@ def download_transcript(file_format: str):
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5055)), debug=True)

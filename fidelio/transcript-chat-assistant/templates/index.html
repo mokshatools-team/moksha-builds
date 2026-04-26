@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant:ital,wght@0,400;0,500;0,600;1,400&family=Plus+Jakarta+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <style>
     :root {
       --bg:        #F7F5F2;
@@ -61,11 +62,14 @@
       margin-top: 3px;
     }
 
+    /* ── UTILITY ────────────────────────────────────────────── */
+    .hidden { display: none !important; }
+
     /* ── PAGE SHELL ─────────────────────────────────────────── */
     .page {
-      max-width: 760px;
+      max-width: 1240px;
       margin: 0 auto;
-      padding: 36px 24px 80px;
+      padding: 28px 28px 60px;
       display: flex;
       flex-direction: column;
       gap: 20px;
@@ -268,33 +272,150 @@
       margin: 0;
     }
 
+    /* Workspace layout — 2 column on desktop */
+    .workspace-body {
+      display: grid;
+      grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+      gap: 0;
+    }
+    .workspace-body.transcript-minimized {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .workspace-body.transcript-minimized .transcript-wrap {
+      display: none;
+    }
+    .workspace-body.transcript-minimized .chat-wrap {
+      border-left: none;
+    }
+    .workspace-body.transcript-expanded {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .workspace-body.transcript-expanded .chat-wrap {
+      display: none;
+    }
+    .workspace-body.transcript-expanded .transcript-wrap {
+      border-right: none;
+    }
+
     /* Transcript */
-    .transcript-wrap { padding: 20px 24px; border-bottom: 1px solid var(--border); }
-    .transcript-box {
-      font-family: var(--ff-mono);
+    .transcript-wrap {
+      padding: 20px 24px;
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    .transcript-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .transcript-toggle-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      border-radius: 6px;
+      padding: 4px 9px;
       font-size: 13px;
-      line-height: 1.85;
-      white-space: pre-wrap;
+      font-family: var(--ff-sans);
+      cursor: pointer;
+      line-height: 1;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .transcript-toggle-btn:hover {
+      background: var(--surface-2);
+      color: var(--text);
+      border-color: var(--border-2);
+    }
+    .transcript-box {
+      font-family: var(--ff-sans);
+      font-size: 14.5px;
+      line-height: 1.65;
+      white-space: normal;
       background: var(--surface-2);
       border: 1px solid var(--border);
       border-radius: 8px;
-      padding: 16px;
-      max-height: 380px;
+      padding: 18px 20px;
+      flex: 1;
+      min-height: 340px;
+      max-height: calc(100vh - 420px);
       overflow: auto;
       color: var(--text);
+      word-wrap: break-word;
     }
 
     /* Chat */
-    .chat-wrap { padding: 20px 24px; }
+    .chat-wrap {
+      padding: 20px 24px;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
     .chat-log {
-      min-height: 180px;
-      max-height: 400px;
+      flex: 1;
+      min-height: 340px;
+      max-height: calc(100vh - 500px);
       overflow: auto;
       margin-bottom: 14px;
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 12px;
     }
+
+    /* Markdown rendering inside assistant messages */
+    .message.assistant h1,
+    .message.assistant h2,
+    .message.assistant h3,
+    .message.assistant h4 {
+      font-family: var(--ff-serif);
+      line-height: 1.25;
+      margin: 16px 0 8px;
+      color: var(--text);
+    }
+    .message.assistant h1 { font-size: 24px; font-weight: 500; }
+    .message.assistant h2 { font-size: 20px; font-weight: 500; }
+    .message.assistant h3 { font-size: 16px; font-weight: 600; font-family: var(--ff-sans); letter-spacing: 0.01em; }
+    .message.assistant h4 { font-size: 14px; font-weight: 600; font-family: var(--ff-sans); text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+    .message.assistant p { margin: 8px 0; }
+    .message.assistant p:first-child { margin-top: 0; }
+    .message.assistant p:last-child { margin-bottom: 0; }
+    .message.assistant ul,
+    .message.assistant ol { margin: 8px 0; padding-left: 22px; }
+    .message.assistant li { margin: 4px 0; }
+    .message.assistant li > p { margin: 2px 0; }
+    .message.assistant strong { font-weight: 600; color: var(--text); }
+    .message.assistant em { font-style: italic; color: var(--muted); }
+    .message.assistant code {
+      font-family: var(--ff-mono);
+      font-size: 12.5px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 1px 6px;
+      border-radius: 4px;
+    }
+    .message.assistant pre {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 12px 14px;
+      border-radius: 6px;
+      overflow-x: auto;
+      margin: 10px 0;
+    }
+    .message.assistant pre code { background: none; border: none; padding: 0; }
+    .message.assistant blockquote {
+      border-left: 3px solid var(--accent);
+      margin: 10px 0;
+      padding: 4px 0 4px 14px;
+      color: var(--muted);
+      font-style: italic;
+    }
+    .message.assistant hr {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 16px 0;
+    }
+    .message.assistant a { color: var(--accent); text-decoration: underline; }
     .message {
       padding: 11px 14px;
       border-radius: 8px;
@@ -361,6 +482,23 @@
     /* Workspace hidden until transcript loaded */
     .workspace-section { transition: opacity 0.3s; }
 
+    /* Tablet / narrow desktop — stack workspace columns */
+    @media (max-width: 960px) {
+      .workspace-body {
+        grid-template-columns: 1fr;
+      }
+      .workspace-body.transcript-minimized,
+      .workspace-body.transcript-expanded {
+        grid-template-columns: 1fr;
+      }
+      .transcript-wrap {
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+      }
+      .transcript-box { max-height: 340px; min-height: 200px; }
+      .chat-log { max-height: 360px; min-height: 200px; }
+    }
+
     @media (max-width: 600px) {
       .topbar { padding: 12px 18px; }
       .submark { display: none; }
@@ -380,7 +518,7 @@
       .workspace-title { font-size: 20px; }
 
       /* transcript and chat: tighter max-heights for short screens */
-      .transcript-box { max-height: 260px; font-size: 12.5px; }
+      .transcript-box { max-height: 260px; font-size: 14px; }
       .chat-log { max-height: 280px; min-height: 120px; }
       .chat-form textarea { min-height: 70px; }
 
@@ -408,8 +546,7 @@
 
         <div class="seg-wrap" role="tablist">
           <button class="seg active" type="button" data-mode="file" role="tab">File Upload</button>
-          <!-- YouTube URL tab hidden on Railway — blocked by YouTube bot detection on data center IPs. -->
-          <button class="seg" type="button" data-mode="youtube-url" role="tab" style="display:none;">YouTube URL</button>
+          <button class="seg" type="button" data-mode="youtube-url" role="tab">YouTube URL</button>
           <button class="seg" type="button" data-mode="youtube-account" role="tab">YouTube Account</button>
         </div>
 
@@ -480,26 +617,31 @@
           <p class="workspace-source" id="workspace-source">{{ state.source_label or "Upload a file or paste a URL to create the active session." }}</p>
         </div>
         <div class="btn-row">
+          <button class="btn btn-ghost" type="button" id="transcript-toggle-btn" title="Minimize / expand transcript">Hide transcript</button>
           <button class="btn btn-ghost" type="button" id="copy-btn">Copy</button>
           <a class="btn btn-ghost" href="/download/transcript.txt">.txt</a>
           <a class="btn btn-ghost" href="/download/transcript.md">.md</a>
         </div>
       </div>
 
-      <div class="transcript-wrap">
-        <div class="section-label">Transcript</div>
-        <div class="transcript-box" id="transcript-box">{{ state.transcript_text or "No transcript loaded yet." }}</div>
-      </div>
+      <div class="workspace-body" id="workspace-body">
 
-      <div class="chat-wrap">
-        <div class="section-label">Chat with the transcript</div>
-        <div class="chat-log" id="chat-log"></div>
-        <form class="chat-form" id="chat-form">
-          <textarea id="chat-input" placeholder="Ask for a summary, hook breakdown, objections, claims, structure, or anything else grounded on the transcript."></textarea>
-          <div class="btn-row">
-            <button class="btn btn-primary" type="submit">Send</button>
-          </div>
-        </form>
+        <div class="transcript-wrap">
+          <div class="section-label">Transcript</div>
+          <div class="transcript-box" id="transcript-box">{{ state.transcript_text or "No transcript loaded yet." }}</div>
+        </div>
+
+        <div class="chat-wrap">
+          <div class="section-label">Chat with the transcript</div>
+          <div class="chat-log" id="chat-log"></div>
+          <form class="chat-form" id="chat-form">
+            <textarea id="chat-input" placeholder="Ask for a summary, hook breakdown, objections, claims, structure, or anything else grounded on the transcript."></textarea>
+            <div class="btn-row">
+              <button class="btn btn-primary" type="submit">Send</button>
+            </div>
+          </form>
+        </div>
+
       </div>
 
     </section>
@@ -569,6 +711,17 @@
       return d.innerHTML;
     }
 
+    function renderAssistantMarkdown(text) {
+      if (typeof marked === "undefined") {
+        return escapeHtml(text || "").replace(/\n/g, "<br>");
+      }
+      try {
+        return marked.parse(text || "", { breaks: true, gfm: true });
+      } catch (_) {
+        return escapeHtml(text || "").replace(/\n/g, "<br>");
+      }
+    }
+
     function renderMessages(messages) {
       chatLog.innerHTML = "";
       if (!messages || !messages.length) {
@@ -578,11 +731,35 @@
       messages.forEach(m => {
         const el = document.createElement("div");
         el.className = "message " + m.role;
-        el.innerHTML = `<span class="message-role">${m.role}</span>${escapeHtml(m.content).replace(/\n/g, "<br>")}`;
+        const body = m.role === "assistant"
+          ? renderAssistantMarkdown(m.content)
+          : escapeHtml(m.content).replace(/\n/g, "<br>");
+        el.innerHTML = `<span class="message-role">${m.role}</span>${body}`;
         chatLog.appendChild(el);
       });
       chatLog.scrollTop = chatLog.scrollHeight;
     }
+
+    /* ── transcript minimize / expand toggle ── */
+    const workspaceBody = document.getElementById("workspace-body");
+    const transcriptToggleBtn = document.getElementById("transcript-toggle-btn");
+    const transcriptStates = ["normal", "minimized", "expanded"];
+    const transcriptStateLabels = {
+      normal: "Hide transcript",
+      minimized: "Focus transcript",
+      expanded: "Show both",
+    };
+    let transcriptState = "normal";
+    function applyTranscriptState(next) {
+      transcriptState = next;
+      workspaceBody.classList.toggle("transcript-minimized", next === "minimized");
+      workspaceBody.classList.toggle("transcript-expanded",  next === "expanded");
+      transcriptToggleBtn.textContent = transcriptStateLabels[next];
+    }
+    transcriptToggleBtn.addEventListener("click", () => {
+      const idx = transcriptStates.indexOf(transcriptState);
+      applyTranscriptState(transcriptStates[(idx + 1) % transcriptStates.length]);
+    });
 
     function renderState(state) {
       activeState = state;
