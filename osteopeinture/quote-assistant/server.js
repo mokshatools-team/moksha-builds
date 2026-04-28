@@ -3617,9 +3617,12 @@ app.post('/api/jobs/:id/cost-update', express.json(), async (req, res) => {
 
     // Replace the title
     html = html.replace(
-      /<div class="project-type">[^<]*<\/div>/,
-      '<div class="project-type">' + docTitle + '</div>'
+      /<div class="project-title">[^<]*<\/div>/,
+      '<div class="project-title">' + docTitle + '</div>'
     );
+
+    // Remove empty scope/conditions section (terms are empty for cost updates)
+    html = html.replace(/<div class="section-header"[^>]*>[^<]*(?:Conditions et inclusions|Scope & General Conditions)[^<]*<\/div>\s*<div class="terms-block">\s*<\/div>/, '');
 
     // Remove modalities section (not needed for cost update or invoice)
     html = html.replace(/<div class="section-header">[^<]*(?:Détails et modalités|Details & Modalities)[^<]*<\/div>[\s\S]*?<\/div>\s*(?=<div class="(?:legal-block|sig-grid|footer|section-header)">)/, '');
@@ -3630,7 +3633,8 @@ app.post('/api/jobs/:id/cost-update', express.json(), async (req, res) => {
     // Cost update: remove signature + paint section
     if (!isInvoice) {
       html = html.replace(/<div class="sig-grid">[\s\S]*?<\/div>\s*<\/div>/, '');
-      html = html.replace(/<div class="paint-section">[\s\S]*?<\/div>/, '');
+      // Paint section contains nested divs + a table — match through </table> then closing </div>
+      html = html.replace(/<div class="paint-section">[\s\S]*?<\/table>\s*<\/div>/, '');
     }
 
     // Build payments section

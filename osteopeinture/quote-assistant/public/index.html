@@ -1964,6 +1964,11 @@
       display: none;
     }
 
+    /* On mobile, sidebar-collapsed should NOT hide sidebar contents —
+       the sidebar is an overlay that slides in via hamburger menu */
+    body.sidebar-collapsed #sidebar > * { display: revert; }
+    body.sidebar-collapsed #sidebar { width: 232px; min-width: 232px; border-right: 1px solid var(--border); }
+
     /* Adjust chat panel to leave room for bottom nav */
     #main {
       height: calc(100dvh - 48px);
