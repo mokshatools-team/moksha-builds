@@ -4537,7 +4537,7 @@ async function invoiceEditorReset() {
   delete jobSections.invoiceOverrides;
   invoiceEditorState.jobSectionsRaw = jobSections;
   await fetch('/api/jobs/' + jobId, {
-    method: 'PUT',
+    method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ jobSections: JSON.stringify(jobSections) }),
   });
@@ -4548,7 +4548,7 @@ async function saveInvoiceOverrides() {
   const { jobId, sections, paints, jobSectionsRaw } = invoiceEditorState;
   const updated = { ...jobSectionsRaw, invoiceOverrides: { sections, paints } };
   await fetch('/api/jobs/' + jobId, {
-    method: 'PUT',
+    method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ jobSections: JSON.stringify(updated) }),
   });
