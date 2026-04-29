@@ -3517,7 +3517,7 @@ app.post('/api/jobs/:id/cost-update', express.json(), async (req, res) => {
     const job = await getJob(req.params.id);
     if (!job) return res.status(404).json({ error: 'Job not found' });
 
-    const { docType, language, customSections } = req.body || {};
+    const { docType, language, customSections, customPaints } = req.body || {};
     const lang = language || job.language || 'french';
     const isFr = lang === 'french';
     const isInvoice = docType === 'invoice';
@@ -3617,8 +3617,8 @@ app.post('/api/jobs/:id/cost-update', express.json(), async (req, res) => {
       projectType: projectType,
       lang: isFr ? 'fr' : undefined,
       sections,
-      // Invoice gets paint section; cost update does not
-      paints: isInvoice ? ((quoteJson && quoteJson.paints) || []) : [],
+      // Invoice gets paint section; cost update does not. customPaints overrides if provided.
+      paints: isInvoice ? (customPaints || (quoteJson && quoteJson.paints) || []) : [],
       terms: { includes: [], conditions: [] },
       modalities: {},
     };
