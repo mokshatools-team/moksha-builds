@@ -3517,7 +3517,7 @@ app.post('/api/jobs/:id/cost-update', express.json(), async (req, res) => {
     const job = await getJob(req.params.id);
     if (!job) return res.status(404).json({ error: 'Job not found' });
 
-    const { docType, language } = req.body || {};
+    const { docType, language, customSections } = req.body || {};
     const lang = language || job.language || 'french';
     const isFr = lang === 'french';
     const isInvoice = docType === 'invoice';
@@ -3529,53 +3529,64 @@ app.post('/api/jobs/:id/cost-update', express.json(), async (req, res) => {
       : null;
     const originalSections = (quoteJson && quoteJson.sections) || [];
 
-    // 2. Approved change orders as extras
-    const changeOrders = await db.all(
-      "SELECT * FROM job_change_orders WHERE job_id = ? AND status = 'approved' ORDER BY created_at",
-      [job.id]
-    );
-
-    // 3. Extras from job_sections (free-text → convert to a section)
-    const jobSections = job.job_sections
-      ? (typeof job.job_sections === 'string' ? JSON.parse(job.job_sections) : job.job_sections)
-      : {};
-    const extrasText = (jobSections.extras || '').trim();
-
-    // Build sections for the document
+    // If customSections provided (from invoice editor), use those directly
     const sections = [];
-
-    // Original quote sections (non-optional, non-excluded)
     let originalSubtotal = 0;
-    for (const sec of originalSections) {
-      if (sec.excluded || sec.optional) continue;
-      const secTotal = sec.total || (sec.items || []).reduce((s, i) => s + (i.price || 0), 0);
-      originalSubtotal += secTotal;
-      sections.push({ ...sec });
-    }
-
-    // Add-ons from change orders
     let addonsSubtotal = 0;
-    if (changeOrders.length > 0 || extrasText) {
-      for (const co of changeOrders) {
-        const coTotal = co.amount_cents / 100;
-        addonsSubtotal += coTotal;
-        let items = [];
-        try { items = JSON.parse(co.description); } catch(e) {}
-        if (!Array.isArray(items)) items = [];
-        sections.push({
-          title: isFr ? (co.title_fr || co.title_en) : (co.title_en || co.title_fr),
-          total: coTotal,
-          items: items.map(i => ({ description: i.description || i.desc || '', price: (i.amountCents || 0) / 100 })),
-        });
+
+    if (customSections && Array.isArray(customSections)) {
+      // Editor-supplied sections — use as-is
+      for (const sec of customSections) {
+        const secTotal = sec.total || (sec.items || []).reduce((s, i) => s + (i.price || 0), 0);
+        originalSubtotal += secTotal;
+        sections.push({ ...sec });
       }
-      // Free-text extras as a section
-      if (extrasText) {
-        const extraLines = extrasText.split('\n').filter(l => l.trim());
-        sections.push({
-          title: isFr ? 'Extras' : 'Extras',
-          items: extraLines.map(l => ({ description: l.trim(), price: 0 })),
-          total: 0,
-        });
+    } else {
+      // Default: build from accepted quote + change orders + extras
+
+      // 2. Approved change orders as extras
+      const changeOrders = await db.all(
+        "SELECT * FROM job_change_orders WHERE job_id = ? AND status = 'approved' ORDER BY created_at",
+        [job.id]
+      );
+
+      // 3. Extras from job_sections (free-text → convert to a section)
+      const jobSections = job.job_sections
+        ? (typeof job.job_sections === 'string' ? JSON.parse(job.job_sections) : job.job_sections)
+        : {};
+      const extrasText = (jobSections.extras || '').trim();
+
+      // Original quote sections (non-optional, non-excluded)
+      for (const sec of originalSections) {
+        if (sec.excluded || sec.optional) continue;
+        const secTotal = sec.total || (sec.items || []).reduce((s, i) => s + (i.price || 0), 0);
+        originalSubtotal += secTotal;
+        sections.push({ ...sec });
+      }
+
+      // Add-ons from change orders
+      if (changeOrders.length > 0 || extrasText) {
+        for (const co of changeOrders) {
+          const coTotal = co.amount_cents / 100;
+          addonsSubtotal += coTotal;
+          let items = [];
+          try { items = JSON.parse(co.description); } catch(e) {}
+          if (!Array.isArray(items)) items = [];
+          sections.push({
+            title: isFr ? (co.title_fr || co.title_en) : (co.title_en || co.title_fr),
+            total: coTotal,
+            items: items.map(i => ({ description: i.description || i.desc || '', price: (i.amountCents || 0) / 100 })),
+          });
+        }
+        // Free-text extras as a section
+        if (extrasText) {
+          const extraLines = extrasText.split('\n').filter(l => l.trim());
+          sections.push({
+            title: isFr ? 'Extras' : 'Extras',
+            items: extraLines.map(l => ({ description: l.trim(), price: 0 })),
+            total: 0,
+          });
+        }
       }
     }
 
