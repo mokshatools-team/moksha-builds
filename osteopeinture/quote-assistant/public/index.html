@@ -4547,11 +4547,20 @@ async function invoiceEditorReset() {
 async function saveInvoiceOverrides() {
   const { jobId, sections, paints, jobSectionsRaw } = invoiceEditorState;
   const updated = { ...jobSectionsRaw, invoiceOverrides: { sections, paints } };
-  await fetch('/api/jobs/' + jobId, {
+  const payload = { jobSections: JSON.stringify(updated) };
+  console.log('[invoice-editor] saving overrides for job', jobId, 'keys:', Object.keys(updated));
+  const resp = await fetch('/api/jobs/' + jobId, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ jobSections: JSON.stringify(updated) }),
+    body: JSON.stringify(payload),
   });
+  if (!resp.ok) {
+    const errText = await resp.text();
+    console.error('[invoice-editor] save failed:', resp.status, errText);
+    alert('Save failed: ' + resp.status);
+  } else {
+    console.log('[invoice-editor] save OK');
+  }
 }
 
 async function generateFromEditor() {
