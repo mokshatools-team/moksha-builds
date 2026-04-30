@@ -2405,6 +2405,46 @@ app.get('/api/jobs/:id/attachments', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// Upload attachments directly to a job (no chat session needed)
+app.post('/api/jobs/:id/attachments', async (req, res) => {
+  upload.array('images', MAX_IMAGE_COUNT)(req, res, async (err) => {
+    if (err) {
+      const handled = sendUploadError(res, err);
+      if (handled) return;
+      return res.status(500).json({ error: 'Upload failed' });
+    }
+    try {
+      const job = await getJob(req.params.id);
+      if (!job) return res.status(404).json({ error: 'Job not found' });
+      const normalizedImages = await normalizeImages(req.files || []);
+      if (!normalizedImages.length) return res.status(400).json({ error: 'No images' });
+      const results = [];
+      for (const img of normalizedImages) {
+        const fileId = uuidv4();
+        const ext = img.mediaType === 'image/png' ? 'png' : 'jpeg';
+        const storagePath = `jobs/${req.params.id}/${fileId}.${ext}`;
+        const imgBuffer = img.buffer || img.data;
+        if (!imgBuffer) continue;
+        if (!supabase) { console.warn('[storage] no supabase'); continue; }
+        const { error: uploadErr } = await supabase.storage
+          .from(STORAGE_BUCKET)
+          .upload(storagePath, imgBuffer, { contentType: img.mediaType, upsert: false });
+        if (uploadErr) { console.warn('[storage] upload failed:', uploadErr.message); continue; }
+        const { data: urlData } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(storagePath);
+        await db.run(
+          'INSERT INTO attachments (id, session_id, job_id, filename, original_name, content_type, size_bytes, storage_path, public_url, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          [fileId, job.quote_session_id || '', req.params.id, `${fileId}.${ext}`, img.originalName || `${fileId}.${ext}`, img.mediaType, imgBuffer.length, storagePath, urlData.publicUrl, new Date().toISOString()]
+        );
+        results.push({ id: fileId, public_url: urlData.publicUrl, original_name: img.originalName });
+      }
+      res.json({ ok: true, uploaded: results });
+    } catch (e) {
+      console.error('Job attachment error:', e);
+      res.status(500).json({ error: e.message });
+    }
+  });
+});
+
 // Delete an attachment
 app.delete('/api/attachments/:id', async (req, res) => {
   try {

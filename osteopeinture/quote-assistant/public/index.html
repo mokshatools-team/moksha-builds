@@ -4351,6 +4351,23 @@ async function deleteAttachment(attachmentId) {
   } catch (e) { alert('Error: ' + e.message); }
 }
 
+// ── JOB PHOTO UPLOAD ─────────────────────────────────────────
+async function uploadJobPhotos(jobId, fileList) {
+  if (!fileList || !fileList.length) return;
+  const formData = new FormData();
+  for (const f of fileList) formData.append('images', f);
+  try {
+    const res = await fetch('/api/jobs/' + jobId + '/attachments', { method: 'POST', body: formData });
+    const data = await res.json();
+    if (!res.ok) { alert(data.error || 'Upload failed'); return; }
+    // Refresh attachments in the job detail
+    const attRes = await fetch('/api/jobs/' + jobId + '/attachments');
+    const files = await attRes.json();
+    const el = document.getElementById('job-attachments-container');
+    if (el) el.innerHTML = renderJobAttachments(files);
+  } catch (e) { alert('Error: ' + e.message); }
+}
+
 // ── COST UPDATE / INVOICE EDITOR ─────────────────────────────
 let invoiceEditorState = { jobId: null, docType: null, sections: [], paints: [], jobSectionsRaw: {} };
 
@@ -4785,7 +4802,16 @@ async function openJobDetail(jobId, source) {
       ${sectionTextarea('extras', 'Extras', 'Additional work, change orders, notes...')}
 
       <!-- ATTACHMENTS (loaded async after render) -->
-      <div id="job-attachments-container"></div>
+      <div style="margin-bottom:20px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <h3 style="font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-2);margin:0;font-family:var(--font-sans)">Photos</h3>
+          <label style="background:var(--surface-2);border:1px solid var(--border);border-radius:4px;padding:4px 10px;font-size:11px;cursor:pointer;color:var(--text-2);font-family:var(--font-sans);">
+            + Add Photos
+            <input type="file" accept="image/*" multiple onchange="uploadJobPhotos('${job.id}', this.files)" style="display:none" />
+          </label>
+        </div>
+        <div id="job-attachments-container"></div>
+      </div>
 
       <!-- FINANCES -->
       <div style="margin-bottom:20px;">
