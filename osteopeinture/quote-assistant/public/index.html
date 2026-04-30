@@ -2475,7 +2475,7 @@
         <button onclick="closeInvoiceEditor()" style="background:var(--surface-2);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:var(--radius-sm);font-size:11px;cursor:pointer;">Cancel</button>
         <button onclick="saveInvoiceOverrides().then(()=>{const b=event.target;b.textContent='Saved!';setTimeout(()=>b.textContent='Save',1500)})" style="background:var(--surface-2);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:var(--radius-sm);font-size:11px;cursor:pointer;">Save</button>
         <button onclick="generateFromEditor()" style="background:var(--surface-2);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:var(--radius-sm);font-size:11px;cursor:pointer;">Preview</button>
-        <button onclick="downloadInvoicePDF()" style="background:var(--accent);border:none;color:#fff;padding:8px 14px;border-radius:var(--radius-sm);font-size:11px;font-weight:600;cursor:pointer;">Download PDF</button>
+        <button onclick="downloadInvoicePDF(this)" style="background:var(--accent);border:none;color:#fff;padding:8px 14px;border-radius:var(--radius-sm);font-size:11px;font-weight:600;cursor:pointer;">Download PDF</button>
         <button onclick="emailInvoice()" style="background:var(--sage-dim);border:none;color:var(--sage);padding:8px 14px;border-radius:var(--radius-sm);font-size:11px;font-weight:600;cursor:pointer;">Email</button>
       </div>
     </div>
@@ -4661,13 +4661,11 @@ async function saveInvoiceOverrides() {
   }
 }
 
-async function downloadInvoicePDF() {
+async function downloadInvoicePDF(btn) {
   try {
     const { jobId, docType, sections, paints } = invoiceEditorState;
     await saveInvoiceOverrides();
-    const btn = event.target;
-    btn.textContent = 'Generating...';
-    btn.disabled = true;
+    if (btn) { btn.textContent = 'Generating...'; btn.disabled = true; }
     const res = await fetch('/api/jobs/' + jobId + '/cost-update', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -4676,7 +4674,7 @@ async function downloadInvoicePDF() {
     if (!res.ok) {
       const errText = await res.text().catch(() => 'Unknown error');
       alert('PDF generation failed: ' + errText);
-      btn.textContent = 'Download PDF'; btn.disabled = false;
+      if (btn) { btn.textContent = 'Download PDF'; btn.disabled = false; }
       return;
     }
     const blob = await res.blob();
@@ -4695,10 +4693,10 @@ async function downloadInvoicePDF() {
     }
     // Don't revoke immediately on iOS — the new tab needs time to load
     setTimeout(() => URL.revokeObjectURL(url), 10000);
-    btn.textContent = 'Download PDF';
-    btn.disabled = false;
+    if (btn) { btn.textContent = 'Download PDF'; btn.disabled = false; }
   } catch (err) {
-    alert('Error: ' + err.message);
+    alert('PDF error: ' + err.message);
+    if (btn) { btn.textContent = 'Download PDF'; btn.disabled = false; }
   }
 }
 
