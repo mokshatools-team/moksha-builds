@@ -1304,8 +1304,10 @@ function buildSystemPrompt(isExterior = false, conversationText = '', userText =
   if (currentQuoteJson) {
     quoteStateBlock = `
 
-## CURRENT QUOTE STATE (from Draft editor)
-The user may have manually edited the quote since your last generation. Here is the CURRENT quoteJson as stored — apply any requested changes to THIS version, not to an older version from conversation history. If the user asks you to adjust, modify, or regenerate the quote, start from this data:
+## CURRENT QUOTE STATE (from Draft editor) — CRITICAL
+The user has manually edited this quote in the draft editor. Their edits are the source of truth.
+
+**MANDATORY:** When outputting updated JSON, you MUST start from the JSON below and apply ONLY the specific change requested. Do NOT regenerate the quote from scratch. Do NOT use an older version from conversation history. Copy this JSON, make the targeted edit, and output the result. Every field, section, item, price, and description that the user did not ask you to change MUST remain exactly as-is.
 \`\`\`json
 ${JSON.stringify(currentQuoteJson, null, 2)}
 \`\`\`
