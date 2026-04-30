@@ -4481,7 +4481,7 @@ async function openCostUpdate(jobId, docType) {
       paints = quoteJson && quoteJson.paints ? JSON.parse(JSON.stringify(quoteJson.paints)) : [];
     }
 
-    invoiceEditorState = { jobId, docType: docType || 'cost-update', sections, paints, jobSectionsRaw: jobSections };
+    invoiceEditorState = { jobId, jobNumber: job.job_number || jobId.slice(0,8), docType: docType || 'cost-update', sections, paints, jobSectionsRaw: jobSections };
     const dt = docType || 'cost-update';
     document.getElementById('invoice-editor-title').textContent =
       dt === 'invoice' ? 'Invoice Editor' : 'Cost Update Editor';
@@ -4686,7 +4686,8 @@ async function downloadInvoicePDF(btn) {
     } else {
       const a = document.createElement('a');
       a.href = url;
-      a.download = (docType === 'invoice' ? 'Facture' : 'CostUpdate') + '_' + jobId.slice(0, 8) + '.pdf';
+      const jn = invoiceEditorState.jobNumber;
+      a.download = jn + ' - ' + (docType === 'invoice' ? 'Invoice' : 'Cost Update') + '.pdf';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);

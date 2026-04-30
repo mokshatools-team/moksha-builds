@@ -2344,7 +2344,7 @@ app.post('/api/sessions/:id/pdf', async (req, res) => {
     const html = renderQuoteHTML(session.quoteJson);
     const pdfBuffer = await generateQuotePDF(html);
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="quote-${session.projectId || session.id.slice(0,8)}.pdf"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${session.projectId || 'Quote'} - Painting Quote.pdf"`);
     res.send(pdfBuffer);
   } catch (err) {
     console.error('PDF generation error:', err);
@@ -3810,7 +3810,8 @@ app.post('/api/jobs/:id/cost-update', express.json(), async (req, res) => {
     // If PDF requested, generate and return binary
     if (req.body.format === 'pdf') {
       const pdfBuffer = await generateQuotePDF(html);
-      const filename = (isInvoice ? 'Facture' : 'CostUpdate') + '_' + (job.job_number || 'job') + '.pdf';
+      const docLabel = isInvoice ? 'Invoice' : 'Cost Update';
+      const filename = (job.job_number || 'job') + ' - ' + docLabel + '.pdf';
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', 'attachment; filename="' + filename + '"');
       return res.send(pdfBuffer);
