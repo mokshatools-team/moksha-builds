@@ -2172,6 +2172,57 @@ async function handleSessionMessage(req, res) {
       try {
         quoteJson = JSON.parse(jsonString);
         status = 'quote_ready';
+
+        // MERGE: if a draft already exists, merge Claude's output with it
+        // instead of replacing wholesale. This preserves manual edits to
+        // sections that Claude didn't intentionally change.
+        const existingQuote = session.quoteJson;
+        if (existingQuote && existingQuote.sections && quoteJson.sections) {
+          const mergedSections = [];
+          for (const newSec of quoteJson.sections) {
+            const newKey = newSec.name || newSec.title || newSec.floor || '';
+            // Find matching section in existing draft
+            const oldSec = existingQuote.sections.find(s =>
+              (s.name || s.title || s.floor || '') === newKey
+            );
+            if (oldSec) {
+              // Section exists in both — check if Claude actually changed it
+              const totalChanged = newSec.total !== oldSec.total;
+              const rangeChanged = (newSec.range || '') !== (oldSec.range || '');
+              const itemsChanged = JSON.stringify(newSec.items) !== JSON.stringify(oldSec.items);
+              if (totalChanged || rangeChanged || itemsChanged) {
+                // Claude intentionally modified this section — use Claude's version
+                mergedSections.push(newSec);
+              } else {
+                // No meaningful change — keep draft version (preserves user edits)
+                mergedSections.push(oldSec);
+              }
+            } else {
+              // New section from Claude — add it
+              mergedSections.push(newSec);
+            }
+          }
+          // Keep any draft sections that Claude omitted entirely
+          for (const oldSec of existingQuote.sections) {
+            const oldKey = oldSec.name || oldSec.title || oldSec.floor || '';
+            const inNew = quoteJson.sections.some(s =>
+              (s.name || s.title || s.floor || '') === oldKey
+            );
+            if (!inNew) mergedSections.push(oldSec);
+          }
+          quoteJson.sections = mergedSections;
+          // Preserve draft paints/modalities/terms if Claude didn't change them
+          if (JSON.stringify(quoteJson.paints) === JSON.stringify(existingQuote.paints)) {
+            quoteJson.paints = existingQuote.paints;
+          }
+          if (JSON.stringify(quoteJson.modalities) === JSON.stringify(existingQuote.modalities)) {
+            quoteJson.modalities = existingQuote.modalities;
+          }
+          if (JSON.stringify(quoteJson.terms) === JSON.stringify(existingQuote.terms)) {
+            quoteJson.terms = existingQuote.terms;
+          }
+        }
+
         let total = 0;
         for (const sec of (quoteJson.sections || [])) {
           if (sec.excluded || sec.optional) continue;
