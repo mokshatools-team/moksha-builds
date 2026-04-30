@@ -569,13 +569,14 @@ Same as interior (Section 2). Tasks are different but rates are identical:
 All prices are quoted reference prices before QC taxes and already include the approved 15% material margin. Do not re-apply that margin to these listed values.
 
 ### Primary Finish Coats — Painted Surfaces
-| Situation | Product | Finish | Quoted Price (before QC taxes) |
-|---|---|---|---|
-| Budget / standard repaint | SW A100 Ext | Satin | $63.25/gal |
-| Mid-range | SW SuperPaint Ext | Satin | $74.75/gal |
-| **Default** | **SW Duration Ext** | **Satin** | **$83.95/gal** |
-| Premium | SW Emerald Ext | Satin | $112.70/gal |
-| Exterior trim / doors / windows | SW B54 | Semi-Gloss | $113.85/gal |
+| Situation | Product | Finish | Store Price | Quoted Price (incl. 15% margin, before QC taxes) |
+|---|---|---|---|---|
+| Budget / economy | SW A100 Ext | Flat, Satin | $45/gal | $51.75/gal |
+| Mid-range / value | SW Latitude Ext | Flat, Satin | $66/gal | $75.90/gal |
+| **Default** | **SW Duration Ext** | **Flat, Satin** | **$67/gal** | **$77.05/gal** |
+| Premium | SW Emerald Ext | Flat, Satin | $83/gal | $95.45/gal |
+| Premium (BM) | BM Aura Ext | Flat, Low Lustre, Pearl, Low Gloss | $105.99/gal | $121.89/gal |
+| Exterior trim / doors / windows | SW B54 | Semi-Gloss | — | $113.85/gal |
 
 ### Wood Stains
 | Product | Use | Quoted Price (before QC taxes) |
