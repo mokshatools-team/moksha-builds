@@ -2173,54 +2173,50 @@ async function handleSessionMessage(req, res) {
         quoteJson = JSON.parse(jsonString);
         status = 'quote_ready';
 
-        // MERGE: if a draft already exists, merge Claude's output with it
-        // instead of replacing wholesale. This preserves manual edits to
-        // sections that Claude didn't intentionally change.
+        // MERGE: field-level merge of Claude's output with the current draft.
+        // For each matching section, only apply fields Claude actually changed.
+        // This preserves manual edits to descriptions, items, etc.
         const existingQuote = session.quoteJson;
         if (existingQuote && existingQuote.sections && quoteJson.sections) {
+          // Save snapshot for undo
+          session._previousQuoteJson = JSON.parse(JSON.stringify(existingQuote));
+
           const mergedSections = [];
           for (const newSec of quoteJson.sections) {
             const newKey = newSec.name || newSec.title || newSec.floor || '';
-            // Find matching section in existing draft
             const oldSec = existingQuote.sections.find(s =>
               (s.name || s.title || s.floor || '') === newKey
             );
             if (oldSec) {
-              // Section exists in both — check if Claude actually changed it
-              const totalChanged = newSec.total !== oldSec.total;
-              const rangeChanged = (newSec.range || '') !== (oldSec.range || '');
-              const itemsChanged = JSON.stringify(newSec.items) !== JSON.stringify(oldSec.items);
-              if (totalChanged || rangeChanged || itemsChanged) {
-                // Claude intentionally modified this section — use Claude's version
-                mergedSections.push(newSec);
-              } else {
-                // No meaningful change — keep draft version (preserves user edits)
-                mergedSections.push(oldSec);
+              // Field-level merge: start from draft, apply only changed fields
+              const merged = JSON.parse(JSON.stringify(oldSec));
+              if (newSec.total !== oldSec.total) merged.total = newSec.total;
+              if ((newSec.range || '') !== (oldSec.range || '')) merged.range = newSec.range;
+              if (newSec.excluded !== oldSec.excluded) merged.excluded = newSec.excluded;
+              if (newSec.optional !== oldSec.optional) merged.optional = newSec.optional;
+              // Only replace items if Claude actually changed them
+              if (JSON.stringify(newSec.items) !== JSON.stringify(oldSec.items)) {
+                merged.items = newSec.items;
               }
+              mergedSections.push(merged);
             } else {
-              // New section from Claude — add it
               mergedSections.push(newSec);
             }
           }
-          // Keep any draft sections that Claude omitted entirely
+          // Keep draft sections Claude omitted
           for (const oldSec of existingQuote.sections) {
             const oldKey = oldSec.name || oldSec.title || oldSec.floor || '';
-            const inNew = quoteJson.sections.some(s =>
-              (s.name || s.title || s.floor || '') === oldKey
-            );
-            if (!inNew) mergedSections.push(oldSec);
+            if (!quoteJson.sections.some(s => (s.name || s.title || s.floor || '') === oldKey)) {
+              mergedSections.push(oldSec);
+            }
           }
           quoteJson.sections = mergedSections;
-          // Preserve draft paints/modalities/terms if Claude didn't change them
-          if (JSON.stringify(quoteJson.paints) === JSON.stringify(existingQuote.paints)) {
-            quoteJson.paints = existingQuote.paints;
-          }
-          if (JSON.stringify(quoteJson.modalities) === JSON.stringify(existingQuote.modalities)) {
-            quoteJson.modalities = existingQuote.modalities;
-          }
-          if (JSON.stringify(quoteJson.terms) === JSON.stringify(existingQuote.terms)) {
-            quoteJson.terms = existingQuote.terms;
-          }
+          // Preserve draft paints/modalities/terms unless Claude changed them
+          if (existingQuote.paints) quoteJson.paints = existingQuote.paints;
+          if (existingQuote.modalities) quoteJson.modalities = existingQuote.modalities;
+          if (existingQuote.terms) quoteJson.terms = existingQuote.terms;
+          // Always preserve these from draft if they exist
+          if (existingQuote.estimateDisclaimer) quoteJson.estimateDisclaimer = existingQuote.estimateDisclaimer;
         }
 
         let total = 0;
@@ -2419,6 +2415,24 @@ app.post('/api/sessions/:id/send-email', async (req, res) => {
 });
 
 // Adjust quote JSON
+// Undo last Claude quote change — restores the snapshot saved before merge
+app.post('/api/sessions/:id/undo-quote', async (req, res) => {
+  const session = await getSession(req.params.id);
+  if (!session) return res.status(404).json({ error: 'Session not found' });
+  if (!session._previousQuoteJson) return res.status(400).json({ error: 'Nothing to undo' });
+  session.quoteJson = session._previousQuoteJson;
+  delete session._previousQuoteJson;
+  let total = 0;
+  for (const sec of (session.quoteJson.sections || [])) {
+    if (sec.excluded || sec.optional) continue;
+    if (sec.total) total += sec.total;
+    else for (const item of (sec.items || [])) total += (item.price || 0);
+  }
+  session.totalAmount = total;
+  await saveSession(session);
+  res.json({ ok: true, quoteJson: session.quoteJson, totalAmount: total });
+});
+
 app.post('/api/sessions/:id/adjust-quote', async (req, res) => {
   const session = await getSession(req.params.id);
   if (!session) return res.status(404).json({ error: 'Session not found' });

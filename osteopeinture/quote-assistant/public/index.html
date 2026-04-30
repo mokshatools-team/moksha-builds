@@ -2583,7 +2583,7 @@ async function loadSidebar() {
     const statusClass = effectiveStatus;
     return `<div class="sidebar-item ${active}" onclick="handleSidebarClick('${s.id}')">
       <button class="sidebar-item-rename" onclick="event.stopPropagation();startRenameSession('${s.id}',this.parentElement.querySelector('.sidebar-item-client'))" title="Rename">✎</button>
-      <button class="sidebar-item-delete" onclick="event.stopPropagation();deleteSession('${s.id}')" title="Delete">×</button>
+      <button class="sidebar-item-delete" onclick="event.stopPropagation();deleteSession('${s.id}',this)" title="Delete">×</button>
       <div class="sidebar-item-client" onclick="event.stopPropagation()" ondblclick="startRenameSession('${s.id}',this)">${esc(client)}</div>
       <div class="sidebar-item-meta">
         <span class="sidebar-item-id">${esc(subLabel)}</span>
@@ -2648,10 +2648,24 @@ function startRenameSession(id, el) {
   });
 }
 
-async function deleteSession(id) {
-  if (!confirm('Delete this quote?')) return;
+let _deleteConfirmId = null;
+let _deleteConfirmTimer = null;
+async function deleteSession(id, btn) {
+  // Two-tap confirm: first tap turns red + "Delete?", second tap deletes
+  if (_deleteConfirmId !== id) {
+    _deleteConfirmId = id;
+    if (btn) { btn.textContent = '?'; btn.style.color = '#fff'; btn.style.background = '#c94a4a'; }
+    clearTimeout(_deleteConfirmTimer);
+    _deleteConfirmTimer = setTimeout(() => {
+      _deleteConfirmId = null;
+      if (btn) { btn.textContent = '\u00d7'; btn.style.color = ''; btn.style.background = ''; }
+    }, 3000);
+    return;
+  }
+  _deleteConfirmId = null;
+  clearTimeout(_deleteConfirmTimer);
   try {
-    await fetch(`/api/sessions/${id}`, { method: 'DELETE' });
+    await fetch('/api/sessions/' + id, { method: 'DELETE' });
     if (currentSessionId === id) {
       currentSessionId = null;
       document.getElementById('messages').innerHTML = '<div class="msg system">Select a past quote or start a new one.</div>';
@@ -2831,10 +2845,11 @@ async function sendMessage() {
             if (payload.hasQuote) {
               typingEl.remove();
               appendMessage('assistant', 'Quote ready — see the panel on the right.');
-              // Reload fresh quoteJson for the draft editor
+              // Reload fresh quoteJson for the draft editor + show undo option
               fetch('/api/sessions/' + currentSessionId).then(r => r.json()).then(s => {
                 if (s.quoteJson) draftQuoteJson = JSON.parse(JSON.stringify(s.quoteJson));
                 showQuote(currentSessionId, payload.status);
+                showQuoteUndoToast();
               }).catch(() => showQuote(currentSessionId, payload.status));
               loadSessionMeta();
             } else {
@@ -3305,6 +3320,34 @@ function refreshDraftTotals() {
 }
 
 // ── DRAFT ADD / DELETE / UNDO ────────────────────────
+
+// ── QUOTE-LEVEL UNDO (reverts Claude's last change) ──────────
+function showQuoteUndoToast() {
+  let toast = document.getElementById('quote-undo-toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'quote-undo-toast';
+    toast.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#c94a4a;color:#fff;padding:10px 18px;border-radius:6px;font-size:13px;z-index:999;display:flex;gap:14px;align-items:center;box-shadow:0 2px 12px rgba(0,0,0,0.4)';
+    document.body.appendChild(toast);
+  }
+  toast.innerHTML = 'Quote changed by AI <button onclick="undoQuoteChange()" style="background:#fff;color:#c94a4a;border:none;padding:5px 14px;border-radius:4px;cursor:pointer;font-size:12px;font-weight:700">UNDO</button>';
+  toast.style.display = 'flex';
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => { toast.style.display = 'none'; }, 15000);
+}
+
+async function undoQuoteChange() {
+  if (!currentSessionId) return;
+  try {
+    const res = await fetch('/api/sessions/' + currentSessionId + '/undo-quote', { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok) { alert(data.error || 'Undo failed'); return; }
+    draftQuoteJson = JSON.parse(JSON.stringify(data.quoteJson));
+    showQuote(currentSessionId, 'quote_ready');
+    const toast = document.getElementById('quote-undo-toast');
+    if (toast) toast.style.display = 'none';
+  } catch (e) { alert('Undo failed: ' + e.message); }
+}
 
 let draftUndoStack = []; // { type, data, si, ii }
 
