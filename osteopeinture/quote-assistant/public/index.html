@@ -922,7 +922,7 @@
 
   #quote-frame-container {
     flex: 1;
-    overflow: hidden;
+    overflow: auto;
     position: relative;
   }
 
@@ -1743,7 +1743,8 @@
     #quote-draft .draft-header-grid { grid-template-columns: 60px 1fr; }
     #quote-draft .draft-item { padding-left: 8px; }
     #quote-draft .draft-add-btn { padding: 6px 12px; font-size: 12px; }
-    #quote-draft .sec-menu { opacity: 1; } /* always show on mobile — no hover */
+    #quote-draft .sec-menu { display: none; } /* hide lock/star/checkbox/delete on mobile */
+    #quote-draft .sec-lock { display: none; } /* hide lock toggle on mobile */
     #quote-draft .drag-handle { opacity: 0.4; } /* always show on mobile */
     #quote-draft .draft-section-hdr { flex-wrap: wrap; gap: 4px; }
     #quote-draft .draft-section-hdr .sec-name { min-width: 60%; }
@@ -3849,6 +3850,12 @@ function clearDropState() {
     document.body.classList.remove('panel-resizing');
     document.removeEventListener('mousemove', onMouseMove);
     document.removeEventListener('mouseup', onMouseUp);
+    // Force iframe to re-render at new container size
+    const frame = document.getElementById('quote-frame');
+    if (frame && frame.style.display !== 'none') {
+      frame.style.width = '100%';
+      frame.style.height = '100%';
+    }
   }
 })();
 
