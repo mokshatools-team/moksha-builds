@@ -4320,9 +4320,10 @@ let convertingSessionId = null;
 // UPCOMING = start_date set AND in the future.
 // ACTIVE = everything else (started, no end yet — the default working set).
 function classifyJob(j) {
-  const today = new Date().toISOString().slice(0, 10);
   if (j.completion_date) return 'past';
   if (j.status && /^(archived|completed|cancelled|closed|declined)$/i.test(j.status)) return 'past';
+  if (j.status === 'upcoming') return 'upcoming';
+  const today = new Date().toISOString().slice(0, 10);
   if (j.start_date && j.start_date > today) return 'upcoming';
   return 'active';
 }
@@ -4919,6 +4920,17 @@ async function openJobDetail(jobId, source) {
         <div style="display:flex;gap:8px;align-items:center">
           <input type="email" value="${esc(job.client_email || '')}" placeholder="Email" data-field="client_email" data-job-id="${job.id}" onblur="saveJobField(this)" style="flex:1;padding:3px 8px;background:transparent;border:1px solid transparent;border-radius:4px;color:var(--text-3);font-size:12px;font-family:var(--font-sans)">
         </div>
+      </div>
+
+      <!-- STATUS -->
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px;">
+        <span style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3);font-family:var(--font-sans)">Status</span>
+        <select data-field="status" data-job-id="${job.id}" onchange="saveJobField(this);loadJobs();loadJobsSidebar()" style="flex:1;max-width:200px;padding:6px 10px;background:var(--surface-1);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:13px;font-family:var(--font-sans)">
+          <option value="active" ${job.status==='active'?'selected':''}>Active</option>
+          <option value="upcoming" ${job.status==='upcoming'?'selected':''}>Upcoming</option>
+          <option value="completed" ${job.status==='completed'?'selected':''}>Completed</option>
+          <option value="archived" ${job.status==='archived'?'selected':''}>Archived</option>
+        </select>
       </div>
 
       <!-- SECTIONS: simple textareas, Apple Notes style — instant, no round-trips -->
