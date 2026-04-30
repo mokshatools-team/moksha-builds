@@ -4673,16 +4673,28 @@ async function downloadInvoicePDF() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ docType, customSections: sections, customPaints: paints, format: 'pdf' }),
     });
-    if (!res.ok) { alert('PDF generation failed'); btn.textContent = 'Download PDF'; btn.disabled = false; return; }
+    if (!res.ok) {
+      const errText = await res.text().catch(() => 'Unknown error');
+      alert('PDF generation failed: ' + errText);
+      btn.textContent = 'Download PDF'; btn.disabled = false;
+      return;
+    }
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = (docType === 'invoice' ? 'Facture' : 'CostUpdate') + '_' + jobId.slice(0, 8) + '.pdf';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    // iOS Safari doesn't support <a download> — open in new tab instead
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    if (isIOS) {
+      window.open(url, '_blank');
+    } else {
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = (docType === 'invoice' ? 'Facture' : 'CostUpdate') + '_' + jobId.slice(0, 8) + '.pdf';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+    // Don't revoke immediately on iOS — the new tab needs time to load
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
     btn.textContent = 'Download PDF';
     btn.disabled = false;
   } catch (err) {
