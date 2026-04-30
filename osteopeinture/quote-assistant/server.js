@@ -1990,6 +1990,11 @@ const SCAFFOLD_TOOL = {
             adjacent_to: { type: ['string', 'null'], default: null },
             duration_days: { type: ['integer', 'null'], default: null },
             notes: { type: 'string', default: '' },
+            component_overrides: {
+              type: 'object',
+              description: 'Optional: override formula-calculated quantities for specific components. Keys are component names (e.g. "Platform 7ft", "Plank 8ft"), values are integer quantities. Use when the user provides explicit quantities that differ from standard formulas.',
+              default: null,
+            },
           },
         },
       },

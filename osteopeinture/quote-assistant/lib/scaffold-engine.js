@@ -115,7 +115,10 @@ function calculateTower(tower, period) {
     overhang_levels,
     triangle_size,
     sidewalk_frames,
+    component_overrides,
   } = tower;
+  // component_overrides: optional object { "Platform 7ft": 4, "Plank 8ft": 2, ... }
+  // When provided, the override quantity replaces the formula-calculated quantity.
 
   const B = bays.length;
   const L = levels;
@@ -213,6 +216,37 @@ function calculateTower(tower, period) {
   const bananaQty = 2 * (B + 1) * bananaLevels;
   const bananaRate = getRate('banana', period) ?? 0;
   _addComponent(map, 'Banana', bananaQty, bananaRate, period);
+
+  // ── Apply user overrides ─────────────────────────────────────────────────
+  // If the user provided explicit quantities, override the formula-calculated ones
+  if (component_overrides && typeof component_overrides === 'object') {
+    for (const [itemName, overrideQty] of Object.entries(component_overrides)) {
+      if (map[itemName]) {
+        // Recalculate cost with overridden quantity
+        map[itemName].qty = overrideQty;
+        map[itemName].cost = overrideQty * map[itemName].rate;
+      }
+      // If the component doesn't exist yet (e.g. user adds platforms to a no-overhang tower),
+      // try to find a matching catalog entry and add it
+      else {
+        const lowerItem = itemName.toLowerCase();
+        let catalogKey = null;
+        if (lowerItem.includes('platform')) catalogKey = 'platform';
+        else if (lowerItem.includes('plank')) catalogKey = 'plank';
+        else if (lowerItem.includes('frame') && lowerItem.includes('half')) catalogKey = 'half_height_frame';
+        else if (lowerItem.includes('frame')) catalogKey = 'frame';
+        else if (lowerItem.includes('brace')) catalogKey = 'cross_brace';
+        else if (lowerItem.includes('triangle')) catalogKey = 'triangle';
+        else if (lowerItem.includes('banana')) catalogKey = 'banana';
+        else if (lowerItem.includes('tie')) catalogKey = 'tie_in';
+        else if (lowerItem.includes('foot')) catalogKey = 'adjustable_foot';
+        if (catalogKey) {
+          const rate = getRate(catalogKey, period) ?? 0;
+          _addComponent(map, itemName, overrideQty, rate, period);
+        }
+      }
+    }
+  }
 
   // ── Assemble result ─────────────────────────────────────────────────────
   const components = Object.values(map);
