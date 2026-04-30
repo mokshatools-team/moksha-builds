@@ -3860,13 +3860,31 @@ function clearDropState() {
     document.body.classList.remove('panel-resizing');
     document.removeEventListener('mousemove', onMouseMove);
     document.removeEventListener('mouseup', onMouseUp);
-    // Force iframe to re-render at new container size
+    // Reload the iframe so it renders at the new container width
     const frame = document.getElementById('quote-frame');
-    if (frame && frame.style.display !== 'none') {
-      frame.style.width = '100%';
-      frame.style.height = '100%';
+    if (frame && frame.style.display !== 'none' && frame.src) {
+      const src = frame.src;
+      frame.src = '';
+      setTimeout(() => { frame.src = src; }, 50);
     }
   }
+
+  // Safety: if mouseup fires outside the window or is missed, clean up
+  window.addEventListener('mouseup', () => {
+    if (document.body.classList.contains('panel-resizing')) {
+      divider.classList.remove('dragging');
+      document.body.classList.remove('panel-resizing');
+      document.removeEventListener('mousemove', onMouseMove);
+    }
+  });
+  // Also clean up on blur (user switches tab/window mid-drag)
+  window.addEventListener('blur', () => {
+    if (document.body.classList.contains('panel-resizing')) {
+      divider.classList.remove('dragging');
+      document.body.classList.remove('panel-resizing');
+      document.removeEventListener('mousemove', onMouseMove);
+    }
+  });
 })();
 
 // ── EMAIL DIVIDER RESIZE ────────────────────────────
