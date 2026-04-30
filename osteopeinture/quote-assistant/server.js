@@ -1983,7 +1983,7 @@ const SCAFFOLD_TOOL = {
             facade: { type: 'string' },
             frame_width: { type: 'string', enum: ['4ft', '5ft', '30in'], default: '4ft' },
             bays: { type: 'array', items: { type: 'integer', enum: [7, 10] } },
-            levels: { type: 'integer' },
+            levels: { type: 'number', description: 'Number of levels. Use 0.5 increments for half-height top level (e.g. 3.5 = 3 full levels + 1 half-height frame level with 6ft braces).' },
             overhang_levels: { type: 'integer' },
             triangle_size: { type: 'string', enum: ['small', 'medium', 'large'] },
             sidewalk_frames: { type: 'boolean', default: false },

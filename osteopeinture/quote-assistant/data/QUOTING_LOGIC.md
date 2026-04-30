@@ -778,14 +778,22 @@ You have a `calculate_scaffold` tool. Call it once all inputs are confirmed. The
 
 **User quantity overrides:** When the user provides explicit component quantities (e.g. "4 platforms", "2 boards"), pass them via the `component_overrides` field on the tower. Keys must match the component names exactly (e.g. `"Platform 7ft": 4`, `"Plank 8ft": 2`). The engine will use the user's quantities instead of the formula-calculated ones. Always prefer the user's explicit quantities over formulas — they know their job site.
 
-Given: B = num_bays, L = levels, OVH = overhang_levels, F = frames_per_level = B + 1
+Given: B = num_bays, L = levels (supports 0.5 increments), OVH = overhang_levels, F = frames_per_level = B + 1
+
+**Half-levels:** When levels is fractional (e.g. 3.5, 5.5), the 0.5 means one half-height frame level (~3ft high) on top of the full levels. The engine automatically adds:
+- Half-height frames (e.g. "Half-height frame 5ft×3ft") × F
+- Cross Brace 6ft × B (dedicated 6ft braces for the half-height level — NOT the same as standard 7ft/10ft braces)
+
+When the user says "3.5 levels" or "3 + 1/2 height frame", pass `levels: 3.5` to the tool. Do NOT round to 4.
 
 | Component | Formula | Notes |
 |---|---|---|
-| Frames | F × L | frame_width × 5ft |
+| Frames | F × floor(L) | frame_width × 5ft (full levels only) |
+| Half-height frames | F (if L is fractional) | frame_width × 3ft, top level only |
 | Sidewalk frames | F (ground level only) | If flagged — forces 5ft wide, replaces ground-level frames |
 | Adjustable feet | 2 × F | Ground level only, 2 per frame |
-| Cross braces | (2 × B − 1) × L | Sized per bay width (7ft or 10ft) |
+| Cross braces | (2 × B − 1) × floor(L) | Sized per bay width (7ft or 10ft), full levels only |
+| Cross braces 6ft | (2 × B − 1) if L is fractional | Dedicated 6ft braces for the half-height level |
 | Platforms | OVH × B × 2 | Per bay width (7ft or 10ft), overhang levels only |
 | Planks | B × L | 8ft for 7ft bays, 12ft for 10ft bays |
 | Triangles | OVH × F | 1 per frame per overhang level |

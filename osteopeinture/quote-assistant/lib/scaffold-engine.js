@@ -5,6 +5,7 @@ const EMCO_CATALOG = {
   frame:            { daily: null, weekly: 4,    monthly: 8    },
   half_height_frame:{ daily: null, weekly: 4,    monthly: 8    },
   cross_brace:      { daily: null, weekly: 3,    monthly: 6    },
+  cross_brace_6ft:  { daily: null, weekly: 3,    monthly: 6    },
   sidewalk_frame:   { daily: null, weekly: 5,    monthly: 10   },
   plank:            { daily: 4,    weekly: 6,    monthly: 12   },
   platform:         { daily: 6,    weekly: 12,   monthly: 24   },
@@ -121,9 +122,13 @@ function calculateTower(tower, period) {
   // When provided, the override quantity replaces the formula-calculated quantity.
 
   const B = bays.length;
-  const L = levels;
   const OVH = overhang_levels;
-  const heightFt = L * 5;
+
+  // ── Handle fractional levels (e.g. 3.5 = 3 full + 1 half-height) ──────
+  const fullLevels = Math.floor(levels);
+  const hasHalfLevel = (levels % 1) >= 0.4; // 0.5 → true
+  const L = fullLevels; // full 5ft levels
+  const heightFt = fullLevels * 5 + (hasHalfLevel ? 3 : 0); // half-height ≈ 3ft
 
   // Effective frame width: sidewalk_frames forces 5ft
   const effectiveWidth = sidewalk_frames ? '5ft' : frame_width;
@@ -133,16 +138,13 @@ function calculateTower(tower, period) {
   const map = {};
 
   // ── Frames ──────────────────────────────────────────────────────────────
-  // Total frames: (B+1) × L
+  // Full-height frames: (B+1) × fullLevels
   const totalFrames = (B + 1) * L;
 
   if (sidewalk_frames) {
-    // Ground level (level 0): (B+1) sidewalk frames
     const groundFrameCount = B + 1;
     const sidewalkRate = getRate('sidewalk_frame', period) ?? 0;
     _addComponent(map, 'Sidewalk Frame 5ft', groundFrameCount, sidewalkRate, period);
-
-    // Upper levels: (B+1) × (L-1) standard 5ft frames
     const upperFrameCount = (B + 1) * (L - 1);
     const frameRate = getRate('frame', period) ?? 0;
     _addComponent(map, 'Frame 5ft×5ft', upperFrameCount, frameRate, period);
@@ -151,16 +153,20 @@ function calculateTower(tower, period) {
     _addComponent(map, _frameLabel(numericWidth), totalFrames, frameRate, period);
   }
 
+  // Half-height frames: (B+1) for the top half-level
+  if (hasHalfLevel) {
+    const halfFrameRate = getRate('half_height_frame', period) ?? 0;
+    const halfFrameLabel = `Half-height frame ${numericWidth}ft×3ft`;
+    _addComponent(map, halfFrameLabel, B + 1, halfFrameRate, period);
+  }
+
   // ── Adjustable Feet ─────────────────────────────────────────────────────
-  // Ground level frames only: 2 per frame column = 2 × (B+1)
   const feetCount = 2 * (B + 1);
   const feetRate = getRate('adjustable_foot', period) ?? 0;
   _addComponent(map, 'Adjustable Foot', feetCount, feetRate, period);
 
   // ── Cross Braces ────────────────────────────────────────────────────────
-  // Total: (2B-1) × L
-  // Distribution: bay[0] gets 1 brace per level, all other bays get 2 per level
-  // This naturally sums to (1 + 2×(B-1)) × L = (2B-1) × L
+  // Full levels: sized per bay width (7ft or 10ft braces)
   const braceRate = getRate(BRACE_CATALOG_KEY, period) ?? 0;
   bays.forEach((bayW, idx) => {
     const braceMultiplier = idx === 0 ? 1 : 2;
@@ -168,6 +174,15 @@ function calculateTower(tower, period) {
     const item = `Cross Brace ${bayW}ft`;
     _addComponent(map, item, qty, braceRate, period);
   });
+
+  // Half-level braces: 6ft braces (one per bay for the half-height level)
+  if (hasHalfLevel) {
+    const brace6ftRate = getRate('cross_brace_6ft', period) ?? braceRate;
+    bays.forEach((bayW, idx) => {
+      const braceMultiplier = idx === 0 ? 1 : 2;
+      _addComponent(map, 'Cross Brace 6ft', braceMultiplier, brace6ftRate, period);
+    });
+  }
 
   // ── Platforms ───────────────────────────────────────────────────────────
   // Only on overhang levels: OVH × B × 2, sized per bay
