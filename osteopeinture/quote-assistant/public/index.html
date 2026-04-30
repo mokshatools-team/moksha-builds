@@ -1023,7 +1023,7 @@
   #quote-draft .sec-optional { border-left: 2px solid #a89a20; padding-left: 8px; }
   /* Drag handles */
   #quote-draft .drag-handle {
-    cursor: grab; color: var(--text-4); font-size: 12px; padding: 0 4px 0 0;
+    cursor: grab; color: var(--text-4); font-size: 12px; padding: 4px 6px 4px 2px;
     user-select: none; opacity: 0; transition: opacity 0.15s; flex-shrink: 0;
   }
   #quote-draft .draft-section-hdr:hover .drag-handle,
@@ -3078,8 +3078,8 @@ function renderDraftEditor(q) {
 
     const secClass = 'draft-section' + (sec.excluded ? ' sec-excluded' : '') + (sec.optional ? ' sec-optional' : '');
     html += '<div class="' + secClass + '" data-si="' + si + '">';
-    html += '<div class="draft-section-hdr" draggable="true" ondragstart="draftDragStart(event,\'section\',' + si + ')" ondragover="draftDragOver(event)" ondrop="draftDrop(event,\'section\',' + si + ')" ondragend="draftDragEnd(event)" ondragleave="draftDragLeave(event)">';
-    html += '<span class="drag-handle">&#x2630;</span>';
+    html += '<div class="draft-section-hdr" ondragover="draftDragOver(event)" ondrop="draftDrop(event,\'section\',' + si + ')" ondragleave="draftDragLeave(event)">';
+    html += '<span class="drag-handle" draggable="true" ondragstart="draftDragStart(event,\'section\',' + si + ')" ondragend="draftDragEnd(event)">&#x2630;</span>';
     // Status tag
     if (sec.optional) html += '<span class="sec-tag tag-opt" title="Optional — not in total">OPT</span>';
     if (sec.excluded) html += '<span class="sec-tag tag-excl" title="Excluded — not in total">EXCL</span>';
@@ -3098,8 +3098,8 @@ function renderDraftEditor(q) {
     // Items (H3)
     for (let ii = 0; ii < (sec.items || []).length; ii++) {
       const item = sec.items[ii];
-      html += '<div class="draft-item" data-si="' + si + '" data-ii="' + ii + '" draggable="true" ondragstart="draftDragStart(event,\'item\',' + si + ',' + ii + ')" ondragover="draftDragOver(event)" ondrop="draftDrop(event,\'item\',' + si + ',' + ii + ')" ondragend="draftDragEnd(event)" ondragleave="draftDragLeave(event)">';
-      html += '<span class="drag-handle">&#x2630;</span>';
+      html += '<div class="draft-item" data-si="' + si + '" data-ii="' + ii + '" ondragover="draftDragOver(event)" ondrop="draftDrop(event,\'item\',' + si + ',' + ii + ')" ondragleave="draftDragLeave(event)">';
+      html += '<span class="drag-handle" draggable="true" ondragstart="draftDragStart(event,\'item\',' + si + ',' + ii + ')" ondragend="draftDragEnd(event)">&#x2630;</span>';
       html += '<input class="item-desc" type="text" value="' + esc(item.description || '') + '" data-si="' + si + '" data-ii="' + ii + '" data-field="description" oninput="draftUpdateItem(this)">';
       html += '<input class="item-price" type="number" value="' + (item.price || 0) + '" data-si="' + si + '" data-ii="' + ii + '" data-field="price" oninput="draftUpdateItem(this)" onblur="draftSaveNow()"' + (isOverride ? ' style="color:var(--text-4)"' : '') + '>';
       html += '<button class="item-del" onclick="draftDeleteItem(' + si + ',' + ii + ')" title="Remove">&times;</button>';
