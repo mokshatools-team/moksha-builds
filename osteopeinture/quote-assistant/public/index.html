@@ -2686,8 +2686,18 @@ async function loadSession(id) {
       : msg.content;
     if (!text) continue;
     const trimmed = text.trim();
-    if (msg.role === 'assistant' && trimmed.startsWith('{') && trimmed.endsWith('}')) {
-      appendMessage('assistant', 'Quote ready — see the panel on the right.');
+    if (msg.role === 'assistant') {
+      // Strip JSON blocks from assistant messages (quote data belongs in the panel, not chat)
+      let cleaned = trimmed;
+      // Remove fenced JSON blocks: ```json ... ```
+      cleaned = cleaned.replace(/```json\s*\n?\{[\s\S]*?\}\s*\n?```/g, '').trim();
+      // If entire message is a JSON object, replace with short note
+      if (cleaned.startsWith('{') && cleaned.endsWith('}')) {
+        try { JSON.parse(cleaned); cleaned = ''; } catch(e) {}
+      }
+      // Remove inline JSON objects that look like quote data
+      cleaned = cleaned.replace(/\{[\s\S]{200,}\}/g, '').trim();
+      appendMessage('assistant', cleaned || 'Quote updated — see the panel.');
     } else {
       appendMessage(msg.role, text);
     }
