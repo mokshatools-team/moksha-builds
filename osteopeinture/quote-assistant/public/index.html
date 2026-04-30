@@ -2469,10 +2469,12 @@
         <button onclick="invoiceEditorAddSection()" style="background:transparent;border:1px solid var(--border);color:var(--text-2);padding:6px 12px;border-radius:var(--radius-sm);font-size:11px;cursor:pointer;">+ Section</button>
         <button onclick="invoiceEditorReset()" style="background:transparent;border:1px solid var(--border);color:var(--text-3);padding:6px 12px;border-radius:var(--radius-sm);font-size:11px;cursor:pointer;">Reset to original</button>
       </div>
-      <div style="display:flex;gap:8px;">
-        <button onclick="closeInvoiceEditor()" style="background:var(--surface-2);border:1px solid var(--border);color:var(--text);padding:8px 14px;border-radius:var(--radius-sm);font-size:12px;cursor:pointer;">Cancel</button>
-        <button onclick="saveInvoiceOverrides().then(()=>{const b=event.target;b.textContent='Saved!';setTimeout(()=>b.textContent='Save',1500)})" style="background:var(--surface-2);border:1px solid var(--border);color:var(--text);padding:8px 14px;border-radius:var(--radius-sm);font-size:12px;cursor:pointer;">Save</button>
-        <button onclick="generateFromEditor()" style="background:var(--accent);border:none;color:#fff;padding:8px 16px;border-radius:var(--radius-sm);font-size:12px;font-weight:600;cursor:pointer;">Generate</button>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
+        <button onclick="closeInvoiceEditor()" style="background:var(--surface-2);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:var(--radius-sm);font-size:11px;cursor:pointer;">Cancel</button>
+        <button onclick="saveInvoiceOverrides().then(()=>{const b=event.target;b.textContent='Saved!';setTimeout(()=>b.textContent='Save',1500)})" style="background:var(--surface-2);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:var(--radius-sm);font-size:11px;cursor:pointer;">Save</button>
+        <button onclick="generateFromEditor()" style="background:var(--surface-2);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:var(--radius-sm);font-size:11px;cursor:pointer;">Preview</button>
+        <button onclick="downloadInvoicePDF()" style="background:var(--accent);border:none;color:#fff;padding:8px 14px;border-radius:var(--radius-sm);font-size:11px;font-weight:600;cursor:pointer;">Download PDF</button>
+        <button onclick="emailInvoice()" style="background:var(--sage-dim);border:none;color:var(--sage);padding:8px 14px;border-radius:var(--radius-sm);font-size:11px;font-weight:600;cursor:pointer;">Email</button>
       </div>
     </div>
   </div>
@@ -4578,6 +4580,41 @@ async function saveInvoiceOverrides() {
   } else {
     console.log('[invoice-editor] save OK');
   }
+}
+
+async function downloadInvoicePDF() {
+  try {
+    const { jobId, docType, sections, paints } = invoiceEditorState;
+    await saveInvoiceOverrides();
+    const btn = event.target;
+    btn.textContent = 'Generating...';
+    btn.disabled = true;
+    const res = await fetch('/api/jobs/' + jobId + '/cost-update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ docType, customSections: sections, customPaints: paints, format: 'pdf' }),
+    });
+    if (!res.ok) { alert('PDF generation failed'); btn.textContent = 'Download PDF'; btn.disabled = false; return; }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = (docType === 'invoice' ? 'Facture' : 'CostUpdate') + '_' + jobId.slice(0, 8) + '.pdf';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    btn.textContent = 'Download PDF';
+    btn.disabled = false;
+  } catch (err) {
+    alert('Error: ' + err.message);
+  }
+}
+
+async function emailInvoice() {
+  const { jobId } = invoiceEditorState;
+  closeInvoiceEditor();
+  openStandaloneEmail(jobId);
 }
 
 async function generateFromEditor() {

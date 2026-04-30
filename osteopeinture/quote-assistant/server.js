@@ -3735,6 +3735,15 @@ app.post('/api/jobs/:id/cost-update', express.json(), async (req, res) => {
       html = html.replace(insertPoint, paymentsHtml + closingHtml + insertPoint);
     }
 
+    // If PDF requested, generate and return binary
+    if (req.body.format === 'pdf') {
+      const pdfBuffer = await generateQuotePDF(html);
+      const filename = (isInvoice ? 'Facture' : 'CostUpdate') + '_' + (job.job_number || 'job') + '.pdf';
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', 'attachment; filename="' + filename + '"');
+      return res.send(pdfBuffer);
+    }
+
     res.json({ html, docType: isInvoice ? 'invoice' : 'cost-update' });
   } catch (err) {
     console.error('Cost update error:', err);
