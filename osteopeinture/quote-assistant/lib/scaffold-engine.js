@@ -352,13 +352,18 @@ function calculateScaffold(spec) {
   // Ladders — only rental ones
   for (const ladder of (extras.ladders ?? [])) {
     if (ladder.rental) {
+      // Look up rate from catalog (e.g. ladder_32ft, step_ladder_10ft)
+      const sizeKey = ladder.size.toLowerCase().replace(/\s+/g, '_').replace('ft', 'ft');
+      const catalogKey = sizeKey.includes('step') ? `step_${sizeKey}` : `ladder_${sizeKey}`;
+      const ladderRate = getRate(catalogKey, period);
+      const qty = ladder.quantity || 1;
       rental_order.push({
-        item: `Ladder ${ladder.size}`,
-        qty: ladder.quantity,
-        rate: null,
+        item: `${ladder.size} Ladder`,
+        qty,
+        rate: ladderRate ?? null,
         period,
-        cost: 0,
-        note: 'Confirm rental rate with EMCO',
+        cost: ladderRate ? qty * ladderRate : 0,
+        ...(ladderRate ? {} : { note: 'Confirm rental rate with EMCO' }),
       });
     }
   }
