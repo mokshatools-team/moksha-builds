@@ -2542,51 +2542,10 @@
 
 <script src="js/state.js"></script>
 <script src="js/api.js"></script>
+<script src="js/shared.js"></script>
+<script src="js/panel.js"></script>
 <script>
 
-// ── MOBILE NAV ───────────────────────────────────────
-function toggleSidebar() {
-  document.getElementById('sidebar').classList.toggle('open');
-  document.getElementById('sidebar-overlay').classList.toggle('visible');
-}
-function closeSidebar() {
-  document.getElementById('sidebar').classList.remove('open');
-  document.getElementById('sidebar-overlay').classList.remove('visible');
-}
-function toggleSidebarCollapsed() {
-  const collapsed = document.body.classList.toggle('sidebar-collapsed');
-  try { localStorage.setItem('sidebarCollapsed', collapsed ? '1' : '0'); } catch (e) {}
-  updateSidebarToggleIcon();
-}
-function updateSidebarToggleIcon() {
-  const btn = document.getElementById('sidebar-toggle');
-  if (!btn) return;
-  btn.textContent = document.body.classList.contains('sidebar-collapsed') ? '›' : '‹';
-}
-(function restoreSidebarCollapsed() {
-  try {
-    if (localStorage.getItem('sidebarCollapsed') === '1') {
-      document.body.classList.add('sidebar-collapsed');
-    }
-  } catch (e) {}
-  if (document.readyState !== 'loading') updateSidebarToggleIcon();
-  else document.addEventListener('DOMContentLoaded', updateSidebarToggleIcon);
-})();
-function openQuotePanel() {
-  document.getElementById('quote-panel').classList.add('mobile-open');
-  const btn = document.getElementById('mobile-quote-btn');
-  if (btn) btn.classList.add('active');
-}
-function closeQuotePanel() {
-  document.getElementById('quote-panel').classList.remove('mobile-open');
-  const btn = document.getElementById('mobile-quote-btn');
-  if (btn) btn.classList.remove('active');
-}
-function toggleQuotePanel() {
-  const panel = document.getElementById('quote-panel');
-  if (panel.classList.contains('mobile-open')) closeQuotePanel();
-  else openQuotePanel();
-}
 // ── SIDEBAR ──────────────────────────────────────────
 
 async function loadSidebar() {
@@ -2996,20 +2955,7 @@ function renderAssistantText(el, text) {
   }
 }
 
-function scrollToBottom() {
-  const m = document.getElementById('messages');
-  m.scrollTop = m.scrollHeight;
-}
-
 // ── QUOTE PANEL ─────────────────────────────────────
-
-function updateQuoteScale() {
-  if (window.innerWidth > 768) return;
-  const container = document.getElementById('quote-frame-container');
-  if (!container) return;
-  const scale = container.clientWidth / 920;
-  container.style.setProperty('--quote-scale', Math.min(scale, 1).toFixed(3));
-}
 
 function showQuote(sessionId, status) {
   const frame = document.getElementById('quote-frame');
@@ -3043,48 +2989,7 @@ function refreshPreview() {
   frame.src = `/preview/${currentSessionId}?t=${Date.now()}`;
 }
 
-// ── PANEL MODE ──────────────────────────────────────
-// Single source of truth for which view is shown in the right panel.
-function setPanelMode(mode) {
-  currentPanelMode = mode;
-  const placeholder = document.getElementById('quote-placeholder');
-  const frame = document.getElementById('quote-frame');
-  const gallery = document.getElementById('quote-gallery');
-  const draft = document.getElementById('quote-draft');
-
-  placeholder.style.display = mode === 'placeholder' ? 'flex' : 'none';
-  frame.style.display = mode === 'pdf' ? 'block' : 'none';
-  gallery.style.display = mode === 'gallery' ? 'flex' : 'none';
-  draft.style.display = mode === 'draft' ? 'block' : 'none';
-
-  galleryState.visible = mode === 'gallery';
-  updatePanelButtons();
-  if (mode === 'pdf') updateQuoteScale();
-  if (mode === 'draft' && currentSessionId) loadDraftEditor(currentSessionId);
-}
-
-function updatePanelButtons() {
-  const hasImages = galleryState.images.length > 0;
-  const frame = document.getElementById('quote-frame');
-  const hasQuote = frame && (frame.src || frame.srcdoc);
-  const hasDraft = !!draftQuoteJson;
-  const mode = currentPanelMode;
-
-  const btnDraft = document.getElementById('btn-show-draft');
-  const btnQuote = document.getElementById('btn-show-quote');
-  const btnGallery = document.getElementById('btn-show-gallery');
-
-  // Show buttons when relevant content exists
-  btnDraft.style.display = hasDraft ? '' : 'none';
-  btnQuote.style.display = hasQuote ? '' : 'none';
-  btnGallery.style.display = hasImages ? '' : 'none';
-
-  // Highlight active button
-  for (const [btn, m] of [[btnDraft,'draft'],[btnQuote,'pdf'],[btnGallery,'gallery']]) {
-    btn.style.background = mode === m ? 'var(--accent)' : 'transparent';
-    btn.style.color = mode === m ? '#fff' : 'var(--text-2)';
-  }
-}
+// (setPanelMode, updatePanelButtons → panel.js)
 
 // ── DRAFT EDITOR ────────────────────────────────────
 function loadDraftEditor(sessionId) {
@@ -3379,33 +3284,7 @@ function refreshDraftTotals() {
 
 // ── DRAFT ADD / DELETE / UNDO ────────────────────────
 
-// ── QUOTE-LEVEL UNDO (reverts Claude's last change) ──────────
-function showQuoteUndoToast() {
-  let toast = document.getElementById('quote-undo-toast');
-  if (!toast) {
-    toast = document.createElement('div');
-    toast.id = 'quote-undo-toast';
-    toast.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#c94a4a;color:#fff;padding:10px 18px;border-radius:6px;font-size:13px;z-index:999;display:flex;gap:14px;align-items:center;box-shadow:0 2px 12px rgba(0,0,0,0.4)';
-    document.body.appendChild(toast);
-  }
-  toast.innerHTML = 'Quote changed by AI <button onclick="undoQuoteChange()" style="background:#fff;color:#c94a4a;border:none;padding:5px 14px;border-radius:4px;cursor:pointer;font-size:12px;font-weight:700">UNDO</button>';
-  toast.style.display = 'flex';
-  clearTimeout(toast._timer);
-  toast._timer = setTimeout(() => { toast.style.display = 'none'; }, 15000);
-}
-
-async function undoQuoteChange() {
-  if (!currentSessionId) return;
-  try {
-    const res = await fetch('/api/sessions/' + currentSessionId + '/undo-quote', { method: 'POST' });
-    const data = await res.json();
-    if (!res.ok) { alert(data.error || 'Undo failed'); return; }
-    draftQuoteJson = JSON.parse(JSON.stringify(data.quoteJson));
-    showQuote(currentSessionId, 'quote_ready');
-    const toast = document.getElementById('quote-undo-toast');
-    if (toast) toast.style.display = 'none';
-  } catch (e) { alert('Undo failed: ' + e.message); }
-}
+// (showQuoteUndoToast, undoQuoteChange → shared.js)
 
 function draftShowUndo(label) {
   let toast = document.getElementById('draft-undo-toast');
@@ -3920,69 +3799,7 @@ function clearDropState() {
   setDropActive(false);
 }
 
-// ── PANEL DIVIDER RESIZE ────────────────────────────
-(function initPanelDivider() {
-  const divider = document.getElementById('panel-divider');
-  const chatPanel = document.getElementById('chat-panel');
-  const quotePanel = document.getElementById('quote-panel');
-  const main = document.getElementById('main');
-  if (!divider) return;
-
-  let startX = 0;
-  let startChatW = 0;
-
-  divider.addEventListener('mousedown', (e) => {
-    e.preventDefault();
-    startX = e.clientX;
-    startChatW = chatPanel.getBoundingClientRect().width;
-    divider.classList.add('dragging');
-    document.body.classList.add('panel-resizing');
-    document.addEventListener('mousemove', onMouseMove);
-    document.addEventListener('mouseup', onMouseUp);
-  });
-
-  function onMouseMove(e) {
-    const mainW = main.getBoundingClientRect().width;
-    const dividerW = divider.getBoundingClientRect().width;
-    const available = mainW - dividerW;
-    let newChatW = startChatW + (e.clientX - startX);
-    newChatW = Math.max(280, Math.min(newChatW, available - 300));
-    chatPanel.style.width = newChatW + 'px';
-    chatPanel.style.flex = 'none';
-    quotePanel.style.flex = '1';
-  }
-
-  function onMouseUp() {
-    divider.classList.remove('dragging');
-    document.body.classList.remove('panel-resizing');
-    document.removeEventListener('mousemove', onMouseMove);
-    document.removeEventListener('mouseup', onMouseUp);
-    // Reload the iframe so it renders at the new container width
-    const frame = document.getElementById('quote-frame');
-    if (frame && frame.style.display !== 'none' && frame.src) {
-      const src = frame.src;
-      frame.src = '';
-      setTimeout(() => { frame.src = src; }, 50);
-    }
-  }
-
-  // Safety: if mouseup fires outside the window or is missed, clean up
-  window.addEventListener('mouseup', () => {
-    if (document.body.classList.contains('panel-resizing')) {
-      divider.classList.remove('dragging');
-      document.body.classList.remove('panel-resizing');
-      document.removeEventListener('mousemove', onMouseMove);
-    }
-  });
-  // Also clean up on blur (user switches tab/window mid-drag)
-  window.addEventListener('blur', () => {
-    if (document.body.classList.contains('panel-resizing')) {
-      divider.classList.remove('dragging');
-      document.body.classList.remove('panel-resizing');
-      document.removeEventListener('mousemove', onMouseMove);
-    }
-  });
-})();
+// (initPanelDivider → panel.js)
 
 // ── EMAIL DIVIDER RESIZE ────────────────────────────
 (function initEmailDivider() {
@@ -4182,20 +3999,7 @@ function handleKey(e) {
   }
 }
 
-function autoResize(el) {
-  el.style.height = 'auto';
-  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
-}
-
-function formatMoney(n) {
-  return Math.round(n).toLocaleString('fr-CA');
-}
-
-function esc(str) {
-  const div = document.createElement('div');
-  div.textContent = str || '';
-  return div.innerHTML;
-}
+// (autoResize, formatMoney, esc → shared.js)
 
 // ── QUOTING RULES MODAL ──────────────────────────────
 
@@ -4312,74 +4116,7 @@ function toggleJobsView() {
   }
 }
 
-function mobileNavTo(view) {
-  const isMobile = window.innerWidth <= 768;
-  if (!isMobile && view === 'jobs') { toggleJobsView(); return; }
-  if (!isMobile) return;
-
-  mobileCurrentView = view;
-  const quotePanel = document.getElementById('quote-panel');
-  const emailForm = document.getElementById('email-form');
-
-  // Update tab highlights
-  document.querySelectorAll('.mobile-nav-tab').forEach((t) => t.classList.remove('active'));
-  const tab = document.getElementById('nav-' + view);
-  if (tab) tab.classList.add('active');
-
-  const jobsPanel = document.getElementById('jobs-panel');
-  const jobDetail = document.getElementById('job-detail');
-
-  if (view === 'chat') {
-    quotePanel.classList.remove('mobile-open');
-    quotePanel.classList.remove('email-only');
-    emailForm.classList.remove('open');
-    emailForm.classList.remove('minimized');
-    jobsPanel.classList.remove('visible');
-    jobDetail.classList.remove('visible');
-  } else if (view === 'pics') {
-    // Open quote panel in gallery mode
-    quotePanel.classList.add('mobile-open');
-    quotePanel.classList.remove('email-only');
-    emailForm.classList.remove('open');
-    emailForm.classList.remove('minimized');
-    jobsPanel.classList.remove('visible');
-    jobDetail.classList.remove('visible');
-    showGallery();
-  } else if (view === 'quote') {
-    quotePanel.classList.add('mobile-open');
-    quotePanel.classList.remove('email-only');
-    emailForm.classList.remove('open');
-    emailForm.classList.remove('minimized');
-    jobsPanel.classList.remove('visible');
-    jobDetail.classList.remove('visible');
-    // Show draft if available, otherwise PDF
-    if (draftQuoteJson) setPanelMode('draft');
-    else { setPanelMode('pdf'); setTimeout(updateQuoteScale, 50); }
-  } else if (view === 'jobs') {
-    quotePanel.classList.remove('mobile-open');
-    quotePanel.classList.remove('email-only');
-    emailForm.classList.remove('open');
-    emailForm.classList.remove('minimized');
-    jobsPanel.classList.add('visible');
-    jobDetail.classList.remove('visible');
-    loadJobs();
-  } else if (view === 'email') {
-    // Email form lives inside quote-panel in the DOM. On mobile, the
-    // quote panel uses transform which breaks position:fixed on children.
-    // So we must bring the quote panel on-screen, but hide its quote
-    // content (header, frame) so only the email form fills the screen.
-    quotePanel.classList.add('mobile-open');
-    quotePanel.classList.add('email-only');
-    emailForm.classList.add('open');
-    emailForm.classList.remove('minimized');
-    jobsPanel.classList.remove('visible');
-    jobDetail.classList.remove('visible');
-  }
-}
-
-// ── SWIPE GESTURES — swipe through all 4 tabs continuously ──────────
-// Tab swipe gestures removed — conflicts with gallery carousel swiping.
-// Users tap the nav tabs directly.
+// (mobileNavTo → panel.js)
 
 // ── JOB MANAGEMENT ──────────────────────────────────
 
@@ -5474,14 +5211,7 @@ async function loadJobsSidebar() {
   }
 }
 
-function toggleSidebarArchive() {
-  const list = document.getElementById('sidebar-archive-list');
-  const arrow = document.getElementById('sidebar-archive-arrow');
-  if (!list) return;
-  const show = list.style.display === 'none';
-  list.style.display = show ? 'block' : 'none';
-  if (arrow) arrow.style.transform = show ? 'rotate(90deg)' : 'rotate(0deg)';
-}
+// (toggleSidebarArchive → shared.js)
 
 async function setSessionStatus(sessionId, newStatus, selectEl) {
   // "Accepted" triggers the convert-to-job flow
@@ -5577,37 +5307,7 @@ async function convertViaStatusBadge(sessionId) {
   }
 }
 
-// ── JOB SECTION SAVE (simple text per section — no round-trips, no reload) ──
-// Auto-expand a textarea to fit its content (no scrollbar, no extra space).
-// Called on input and on page load for each section textarea.
-function autoExpandSection(el) {
-  el.style.height = 'auto';
-  el.style.height = Math.max(40, el.scrollHeight) + 'px';
-}
-
-// Collapse / expand a job section. The toggle button shows − (expanded)
-// or + (collapsed). The textarea is hidden when collapsed.
-function toggleJobSection(key) {
-  const wrapper = document.querySelector('[data-section-wrapper="' + key + '"]');
-  if (!wrapper) return;
-  const ta = wrapper.querySelector('textarea');
-  const btn = wrapper.querySelector('[data-section-toggle]');
-  if (!ta) return;
-  const isCollapsed = ta.style.display === 'none';
-  if (isCollapsed) {
-    ta.style.display = '';
-    if (btn) btn.textContent = '−';
-    autoExpandSection(ta);
-  } else {
-    ta.style.display = 'none';
-    if (btn) btn.textContent = '+';
-  }
-}
-
-// After job detail renders, auto-expand all section textareas to fit content
-function autoExpandAllSections() {
-  document.querySelectorAll('[data-section-key]').forEach(autoExpandSection);
-}
+// (autoExpandSection, toggleJobSection, autoExpandAllSections → shared.js)
 
 async function saveJobSection(el) {
   const jobId = el.getAttribute('data-job-id');
