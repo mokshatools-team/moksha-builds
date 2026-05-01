@@ -405,6 +405,26 @@
     background: var(--accent);
   }
 
+  .sidebar-item.loading {
+    opacity: 0.6;
+    pointer-events: none;
+  }
+  .sidebar-item.loading::after {
+    content: '';
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border: 2px solid var(--text-4);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+  @keyframes spin { to { transform: translateY(-50%) rotate(360deg); } }
+
   .sidebar-item-client {
     font-size: 12.5px;
     font-weight: 500;
@@ -2652,9 +2672,20 @@ let isRenaming = false;
 
 function handleSidebarClick(id) {
   if (isRenaming) return;
-  document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
-  if (event && event.currentTarget) event.currentTarget.classList.add('active');
-  loadSession(id);
+  document.querySelectorAll('.sidebar-item').forEach(function(el) {
+    el.classList.remove('active');
+    el.classList.remove('loading');
+  });
+  var clicked = event && event.currentTarget;
+  if (clicked) {
+    clicked.classList.add('active');
+    clicked.classList.add('loading');
+  }
+  loadSession(id).then(function() {
+    if (clicked) clicked.classList.remove('loading');
+  }).catch(function() {
+    if (clicked) clicked.classList.remove('loading');
+  });
 }
 
 function startRenameSession(id, el) {
@@ -6324,18 +6355,13 @@ function recordPayment(jobId, jobNumber) {
 }
 
 // ── INIT ─────────────────────────────────────────────
-loadSidebar();
-// Check URL for a session param — enables multi-tab (each tab opens its own session)
-(function checkUrlSession() {
-  const params = new URLSearchParams(window.location.search);
-  const sessionId = params.get('session');
+(async function init() {
+  await loadSidebar();
+  var params = new URLSearchParams(window.location.search);
+  var sessionId = params.get('session');
   if (sessionId) {
     loadSession(sessionId);
-    return; // skip sidebar-open on mobile since we're loading a specific session
-  }
-  // On mobile, open the sidebar by default so the user lands on the
-  // Quotes/Jobs list instead of an empty chat screen.
-  if (window.innerWidth <= 768) {
+  } else if (window.innerWidth <= 768) {
     document.getElementById('sidebar').classList.add('open');
     document.getElementById('sidebar-overlay').classList.add('visible');
   }
