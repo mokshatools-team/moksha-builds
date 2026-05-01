@@ -702,9 +702,20 @@ async function handleSessionMessage(req, res) {
       || userText.toLowerCase().includes('exterior')
       || userText.toLowerCase().includes('scaffold');
 
+    // Use Haiku by default (cheap, fast). Upgrade to Sonnet only when generating full quote JSON.
+    // Signals that a full quote generation is likely:
+    const lowerText = userText.toLowerCase();
+    const needsSonnet = lowerText.includes('generate') || lowerText.includes('go ahead')
+      || lowerText.includes('create the quote') || lowerText.includes('make the quote')
+      || lowerText.includes('output the quote') || lowerText.includes('produce the quote')
+      || lowerText.includes('yes do it') || lowerText.includes('confirmed')
+      || lowerText.includes('looks good') || lowerText.includes('approve')
+      || (messages.length <= 2); // First message often triggers full quote
+    const chatModel = needsSonnet ? 'claude-sonnet-4-6' : 'claude-haiku-4-5-20251001';
+
     const anthropic = getAnthropicClient();
     const apiParams = {
-      model: 'claude-sonnet-4-6',
+      model: chatModel,
       max_tokens: 4096,
       system: buildSystemPrompt(isExteriorSession, conversationText, userText, session.quoteJson),
       messages,

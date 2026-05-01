@@ -85,7 +85,7 @@ router.post('/api/sessions/:id/email/refine', express.json(), async (req, res) =
 
   try {
     const response = await getAnthropicClient().messages.create({
-      model: 'claude-sonnet-4-6',
+      model: 'claude-haiku-4-5-20251001',
       max_tokens: 2048,
       system: `You are an email editor for OstéoPeinture, a painting company in Montréal. You receive a draft email and a refinement instruction. Apply the instruction and return ONLY the updated email body — no explanation, no preamble, no quotes around it. Preserve the existing sign-off and structure unless the instruction says otherwise. Keep the tone warm, professional, and concise.`,
       messages: [
@@ -374,7 +374,7 @@ router.post('/api/email/standalone-draft', express.json(), async (req, res) => {
     ].filter(Boolean).join('\n');
 
     const response = await getAnthropicClient().messages.create({
-      model: 'claude-sonnet-4-6',
+      model: 'claude-haiku-4-5-20251001',
       max_tokens: 1024,
       system: getEmailLogic(),
       messages: [{ role: 'user', content: userPrompt }],
@@ -419,7 +419,7 @@ router.post('/api/email/standalone-refine', express.json(), async (req, res) => 
       return res.status(400).json({ error: 'currentDraft and instruction are required' });
     }
     const response = await getAnthropicClient().messages.create({
-      model: 'claude-sonnet-4-6',
+      model: 'claude-haiku-4-5-20251001',
       max_tokens: 2048,
       system: `You are an email editor for OstéoPeinture, a painting company in Montréal. You receive a draft email and a refinement instruction. Apply the instruction and return ONLY the updated email body — no explanation, no preamble, no quotes around it. Preserve the existing sign-off and structure unless the instruction says otherwise. Keep the tone warm, professional, and concise.`,
       messages: [

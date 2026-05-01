@@ -1,7 +1,7 @@
 # OSTÉOPEINTURE — QUOTING LOGIC
 # Main estimating brain for interior and exterior quotes.
 # Last updated: April 8, 2026
-# Version: v4 — added EMCO ladder prices, GAMMA lift catalog §34, operational notes, renumbered to §35 labor
+# Version: v10 — STEINA Enduradeck updated: $96.95/gal, coverage/cost-per-sqft details, 2 coats, no primer
 
 ---
 ---
@@ -37,13 +37,15 @@
 - When exact area-based surface benchmarks are missing, other measured paintable surfaces may temporarily use the wall benchmark as a provisional sqft assumption; doors and windows are excluded from this provisional area-based rule.
 - Room-average estimating is fallback only when measured surfaces are not available.
 
-## 3A. BASEBOARD BENCHMARKS — per linear foot (one painter, sequential: tape then paint)
+## 3A. BASEBOARD BENCHMARKS — per linear foot, TOTAL (taping once + 2 coats painting included)
 
-| Type | Taping | Painting | Combined |
+| Type | Taping | Painting (2 coats) | Combined (total) |
 |---|---|---|---|
 | High-end Victorian 10in curved | 1.84 min/lft | 1.84 min/lft | 3.68 min/lft |
 | Standard Victorian 5in curved | 1.60 min/lft | 1.60 min/lft | 3.20 min/lft |
 | Modern rectangular 4in | 1.60 min/lft | 1.36 min/lft | 2.96 min/lft |
+
+These times are the **complete total** — taping (done once) + painting (2 coats) already factored in. Do NOT multiply by coats again.
 
 Baseboard linear footage: measure full room perimeter, deduct 2.5 ft per door opening.
 
@@ -68,27 +70,29 @@ Primer coat time = same benchmark as finish coat. Extra cost = materials + consu
 
 ## 4. SURFACE / UNIT ASSUMPTIONS
 
-### Doors — per face, frame inclusive every time
+### Doors — per face, per coat, frame inclusive every time
 
-| Type | Time per face |
+| Type | Time per face PER COAT |
 |---|---|
 | Standard door + frame | 30 min |
 | Panelled door / window door + frame | 45 min |
 | French door 15 panels + frame | 1h taping + 1h per face |
 
 Notes:
-- All door benchmarks are per face; frame time is included every time.
+- All door benchmarks are **per face, per coat**; frame time is included every time.
 - Two-face door = double the time (each face timed independently).
+- **2 coats is standard** — multiply the per-coat time × 2 for total time. Example: standard door, 2 faces, 2 coats = 30 min × 2 faces × 2 coats = 2h.
 
-### Windows — per unit, frame inclusive
+### Windows — per unit, per coat, frame inclusive
 
-| Type | Time |
+| Type | Time PER COAT |
 |---|---|
 | Modern flat rectangular | 15 min |
 | Standard Victorian | 30 min |
 | Extra-detail Victorian (leaded glass / multi-pane) | 1h taping + 1h per unit |
 
-If window type is unclear, state the assumption and ask the user to confirm it.
+- **2 coats is standard** — multiply the per-coat time × 2 for total time. Example: standard Victorian window, 2 coats = 30 min × 2 = 1h.
+- If window type is unclear, state the assumption and ask the user to confirm it.
 
 ### Fireplace Mantle
 
@@ -108,6 +112,19 @@ If window type is unclear, state the assumption and ask the user to confirm it.
 - Ceiling paint: 350 sqft/gal — 2 coats
 - Wall paint: 350 sqft/gal — 2 coats
 - Trim paint: 350 sqft/gal — 2 coats
+
+**Gallon quantity rules:**
+- Calculate: sqft × coats ÷ coverage rate = exact gallons
+- Show the calculated value with 1 decimal AND the suggested whole number: e.g., "2.8 gal → 3 gal"
+- **Rounding rule:** always round UP to the next whole gallon, EXCEPT when the decimal is .1 or .2 — then round DOWN. Examples:
+  - 2.1 gal → 2 gal (round down — close enough)
+  - 2.2 gal → 2 gal (round down — close enough)
+  - 2.3 gal → 3 gal (round up)
+  - 3.1 gal → 3 gal (round down)
+  - 3.7 gal → 4 gal (round up)
+  - 0.8 gal → 1 gal (round up)
+- In the paints JSON `approxQty` field, use the rounded whole number: "3 gal"
+- In the room-by-room breakdown, show both: "2.8 gal → 3 gal [product]"
 
 ## 6. PAINT PRODUCT SELECTION
 
@@ -426,6 +443,11 @@ Exterior quotes follow a different structure than interior:
 - **Optional add-ons** are clearly flagged at the bottom, excluded from the subtotal
 - Later quotes (2025) use `[approx. $X – $Y]` inline notes and include disclaimers that the quote is an estimate, not a fixed price
 
+### Terminology — Corniche vs Chaperon métallique
+
+- **Corniche (cornice)** — decorative horizontal trim below the roofline, usually wood, painted. Often has denticules on older Montreal houses.
+- **Chaperon métallique (metal roof coping)** — flat metal cap on top of the parapet wall, above the cornice. Painted only when existing finish is failing.
+
 ---
 
 ## 23A. EXTERIOR ASSISTANT GUIDANCE
@@ -455,6 +477,32 @@ reminds when something is missing.
 7. Optional add-ons — flag anything the client mentioned but didn't commit to
 8. Confirm hours per task (estimator inputs manually)
 9. Present pre-generation review → confirm → generate
+
+---
+
+### Item Description Rules (MANDATORY)
+
+Item descriptions in the quote JSON are **client-facing**. They are NOT internal work breakdowns. Follow these rules:
+
+1. **Never list prep steps.** "Scrape, grind, clean, prime and paint" is internal knowledge. The client sees: "Full metal treatment — 2 finish coats" or just "Iron railings — paint".
+2. **Never repeat what the boilerplate already says.** The Scope & General Conditions section already states "2 coats of paint on all agreed upon surfaces", "proper preparation including primer", and "protection of property". Do NOT restate these in item descriptions.
+3. **Never say "2 coats" or "2 finish coats" unless it's a stain product** where the number of coats is unusual or varies. For paint, 2 coats is the default stated in boilerplate.
+4. **Never mention taping, covering, setup, or teardown** as line items. These are included in the price — the client doesn't need to see them.
+5. **Keep items short.** One line per zone or surface element. If a zone has sub-sections (e.g., facade A, B, C), those can be items. But "pressure wash" + "sand" + "clean" + "paint" should NOT be 4 separate items — they're one job.
+6. **Describe WHAT gets done to WHAT**, not HOW: "Front railing — paint, same black as rooftop" not "Sand, scrape, spot prime with oil-primer, paint front railing".
+7. **Material/product details go in the Paint & Products section**, not in item descriptions. Don't name products in items unless it's relevant to scope (e.g., "Enduradeck stain" for a deck is fine because it's a specific product choice).
+
+**Good examples:**
+- "Front facade section A — 30 lin. ft" (zone + measurement)
+- "Deck & front fascia — stain" (what + what)
+- "Iron railings — full perimeter including stair railings" (what + scope)
+- "Wood repair — scope TBD on site, billed at $75/h + materials" (scope note)
+
+**Bad examples (never do these):**
+- "Setup, cover and tape — full door frame perimeter" ← internal prep step
+- "Pressure wash, sand, clean — ~125 sqft" ← prep breakdown
+- "Scrape, grind, clean, industrial metal primer (Kem Bond HS), 2 finish coats" ← too detailed + repeats boilerplate
+- "STEINA Enduradeck — 2 coats, opaque finish" ← product details belong in Paint section
 
 ---
 
@@ -569,21 +617,28 @@ Same as interior (Section 2). Tasks are different but rates are identical:
 All prices are quoted reference prices before QC taxes and already include the approved 15% material margin. Do not re-apply that margin to these listed values.
 
 ### Primary Finish Coats — Painted Surfaces
-| Situation | Product | Finish | Store Price | Quoted Price (incl. 15% margin, before QC taxes) |
-|---|---|---|---|---|
-| Budget / economy | SW A100 Ext | Flat, Satin | $45/gal | $51.75/gal |
-| Mid-range / value | SW Latitude Ext | Flat, Satin | $66/gal | $75.90/gal |
-| **Default** | **SW Duration Ext** | **Flat, Satin** | **$67/gal** | **$77.05/gal** |
-| Premium | SW Emerald Ext | Flat, Satin | $83/gal | $95.45/gal |
-| Premium (BM) | BM Aura Ext | Flat, Low Lustre, Pearl, Low Gloss | $105.99/gal | $121.89/gal |
-| Exterior trim / doors / windows | SW B54 | Semi-Gloss | — | $113.85/gal |
+| Situation | Product | Finish | Quoted Price (before QC taxes) |
+|---|---|---|---|
+| Budget / standard repaint | SW A100 Ext | Satin | $63.25/gal |
+| Mid-range | SW SuperPaint Ext | Satin | $74.75/gal |
+| **Default** | **SW Duration Ext** | **Satin** | **$83.95/gal** |
+| Premium | SW Emerald Ext | Satin | $112.70/gal |
+| Exterior trim / doors / windows | SW B54 | Semi-Gloss | $113.85/gal |
 
 ### Wood Stains
 | Product | Use | Quoted Price (before QC taxes) |
 |---|---|---|
 | Sico ProLuxe / Sikkens Solid Stain | Solid stain — beams, siding, balcony elements, high-end doors | $103.50/gal |
 | Sansin Semi-transparent | Natural wood stain — fascias, soffits, handrails | $149.50/gal |
-| STEINA Enduradeck (Colobar) | Balcony floor / steps (opaque deck stain) | $110.40/gal |
+| STEINA Enduradeck (Colobar) | Balcony floor / steps (opaque deck stain) | $96.95/gal |
+
+**STEINA Enduradeck details** (replaces Storm Stain Enduradeck):
+- 2 coats required. 1st coat on bare wood: thin with ½L water per gallon.
+- Coverage: 300–350 sqft/gal smooth, 200–250 porous, ~100 sqft/gal 2-coat finished on very weathered wood.
+- Material cost per sqft (2 coats): ~$0.60 smooth → ~$0.86 porous → ~$0.97 weathered. Add 10–15% waste.
+- Self-sealing (Penebond technology) — no primer needed.
+- Dry time: 1h touch, 4h recoat.
+- Durability: 5 yr horizontal surfaces, 10–15 yr vertical.
 
 ### Primers (Exterior)
 | Surface | Product | Quoted Price (before QC taxes) |
@@ -776,24 +831,14 @@ Tower B  →  | 10 | 10 |       2 bays, 4 levels (20ft), 1 overhang level
 
 You have a `calculate_scaffold` tool. Call it once all inputs are confirmed. The formulas below are for your understanding — use them to explain results and sanity-check, but always defer to the tool for actual numbers.
 
-**User quantity overrides:** When the user provides explicit component quantities (e.g. "4 platforms", "2 boards"), pass them via the `component_overrides` field on the tower. Keys must match the component names exactly (e.g. `"Platform 7ft": 4`, `"Plank 8ft": 2`). The engine will use the user's quantities instead of the formula-calculated ones. Always prefer the user's explicit quantities over formulas — they know their job site.
-
-Given: B = num_bays, L = levels (supports 0.5 increments), OVH = overhang_levels, F = frames_per_level = B + 1
-
-**Half-levels:** When levels is fractional (e.g. 3.5, 5.5), the 0.5 means one half-height frame level (~3ft high) on top of the full levels. The engine automatically adds:
-- Half-height frames (e.g. "Half-height frame 5ft×3ft") × F
-- Cross Brace 6ft × B (dedicated 6ft braces for the half-height level — NOT the same as standard 7ft/10ft braces)
-
-When the user says "3.5 levels" or "3 + 1/2 height frame", pass `levels: 3.5` to the tool. Do NOT round to 4.
+Given: B = num_bays, L = levels, OVH = overhang_levels, F = frames_per_level = B + 1
 
 | Component | Formula | Notes |
 |---|---|---|
-| Frames | F × floor(L) | frame_width × 5ft (full levels only) |
-| Half-height frames | F (if L is fractional) | frame_width × 3ft, top level only |
+| Frames | F × L | frame_width × 5ft |
 | Sidewalk frames | F (ground level only) | If flagged — forces 5ft wide, replaces ground-level frames |
 | Adjustable feet | 2 × F | Ground level only, 2 per frame |
-| Cross braces | (2 × B − 1) × floor(L) | Sized per bay width (7ft or 10ft), full levels only |
-| Cross braces 6ft | (2 × B − 1) if L is fractional | Dedicated 6ft braces for the half-height level |
+| Cross braces | (2 × B − 1) × L | Sized per bay width (7ft or 10ft) |
 | Platforms | OVH × B × 2 | Per bay width (7ft or 10ft), overhang levels only |
 | Planks | B × L | 8ft for 7ft bays, 12ft for 10ft bays |
 | Triangles | OVH × F | 1 per frame per overhang level |
