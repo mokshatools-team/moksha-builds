@@ -511,16 +511,18 @@
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    padding: 2px 4px;
+    padding: 3px 6px;
     border-radius: 4px;
-    border: 1px solid var(--border);
-    background: var(--surface-1);
-    color: var(--text-2);
+    border: none;
     cursor: pointer;
     font-family: var(--font-sans);
-    -webkit-appearance: none;
-    appearance: none;
   }
+  .sidebar-status-select.gathering { background: var(--sage-dim); color: var(--sage); }
+  .sidebar-status-select.quote_ready { background: var(--blue-dim); color: var(--blue); }
+  .sidebar-status-select.sent { background: var(--surface-3); color: var(--text-3); }
+  .sidebar-status-select.converted { background: rgba(76,175,80,0.12); color: #4CAF50; }
+  .sidebar-status-select.declined { background: rgba(200,80,80,0.1); color: #c94a4a; }
+  .sidebar-status-select.archived { background: var(--surface-2); color: var(--text-4); }
   .sidebar-status.declined, .sidebar-status.archived {
     background: var(--surface-2);
     color: var(--text-4);
@@ -2604,10 +2606,11 @@ async function loadSidebar() {
         <span class="sidebar-item-id">${esc(subLabel)}</span>
         <span class="sidebar-item-total">${total}</span>
       </div>
-      <select class="sidebar-status-select" onclick="event.stopPropagation()" onchange="setSessionStatus('${s.id}',this.value)">
+      <select class="sidebar-status-select ${statusClass}" onclick="event.stopPropagation()" onchange="setSessionStatus('${s.id}',this.value,this)">
         <option value="gathering" ${effectiveStatus==='gathering'?'selected':''}>In Progress</option>
         <option value="quote_ready" ${effectiveStatus==='quote_ready'?'selected':''}>Ready</option>
         <option value="sent" ${effectiveStatus==='sent'?'selected':''}>Sent</option>
+        <option value="converted" ${effectiveStatus==='converted'?'selected':''}>Accepted</option>
         <option value="declined" ${effectiveStatus==='declined'?'selected':''}>Declined</option>
         <option value="archived" ${effectiveStatus==='archived'?'selected':''}>Archived</option>
       </select>
@@ -2616,8 +2619,11 @@ async function loadSidebar() {
 
   let html = activeSessions.map(s => renderSessionItem(s, false)).join('');
   if (archivedSessions.length) {
-    html += '<div style="padding:14px 16px 6px;font-size:9px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--text-4);font-family:var(--font-sans);">Archived</div>';
+    const isOpen = document.getElementById('sidebar-archive-list')?.style.display !== 'none';
+    html += '<div onclick="toggleSidebarArchive()" style="padding:14px 16px 6px;font-size:9px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--text-4);font-family:var(--font-sans);cursor:pointer;display:flex;align-items:center;gap:6px;user-select:none"><span id="sidebar-archive-arrow" style="font-size:11px;transition:transform .15s;transform:rotate(' + (isOpen ? '90' : '0') + 'deg)">&#x25B6;</span>Archived (' + archivedSessions.length + ')</div>';
+    html += '<div id="sidebar-archive-list" style="display:' + (isOpen ? 'block' : 'none') + '">';
     html += archivedSessions.map(s => renderSessionItem(s, true)).join('');
+    html += '</div>';
   }
   list.innerHTML = html;
 }
@@ -5447,13 +5453,31 @@ async function loadJobsSidebar() {
   }
 }
 
-async function setSessionStatus(sessionId, newStatus) {
+function toggleSidebarArchive() {
+  const list = document.getElementById('sidebar-archive-list');
+  const arrow = document.getElementById('sidebar-archive-arrow');
+  if (!list) return;
+  const show = list.style.display === 'none';
+  list.style.display = show ? 'block' : 'none';
+  if (arrow) arrow.style.transform = show ? 'rotate(90deg)' : 'rotate(0deg)';
+}
+
+async function setSessionStatus(sessionId, newStatus, selectEl) {
+  // "Accepted" triggers the convert-to-job flow
+  if (newStatus === 'converted') {
+    await convertViaStatusBadge(sessionId);
+    return;
+  }
   try {
     await fetch('/api/sessions/' + sessionId + '/status', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: newStatus }),
     });
+    // Update select color immediately
+    if (selectEl) {
+      selectEl.className = 'sidebar-status-select ' + newStatus;
+    }
     loadSidebar();
   } catch (err) {
     alert('Error: ' + err.message);
