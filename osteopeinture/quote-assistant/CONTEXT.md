@@ -5,119 +5,137 @@ Chat-based quoting tool for OstéoPeinture. Generates interior and exterior pain
 ## Status
 
 **Live URL:** https://op-quote-assistant.up.railway.app
-**Last deploy:** 2026-04-30 (Session K)
-**Database:** Supabase Postgres (free tier — no automatic backups)
+**Last deploy:** 2026-05-01 (Session L)
+**Database:** Supabase Postgres (free tier — no automatic backups, custom JSON backup implemented)
 
 ### What works
 - Interior + exterior quote generation via Claude chat
-- Draft editor (editable quote fields, drag-to-reorder, live totals)
+- Draft editor (editable quote fields, drag-to-reorder sections AND groups, live totals)
 - PDF rendering (Letter/Legal auto-switch, branded with signature)
-- Scaffold access quoting (EMCO 2025 catalog, deterministic engine, half-levels, user quantity overrides)
+- Scaffold access quoting (EMCO 2025 catalog, half-levels, user quantity overrides)
 - Image gallery (upload, Supabase storage, per-session + per-job)
 - Job management (convert quote → job, payments, scratchpad, smart paste, status dropdown, photo upload)
 - Invoice/cost update editor (editable sections, paints, save/undo, download PDF, email)
 - Email drafting (8 scenarios, past-email tone matching via Supabase, Resend HTTP API)
 - Streaming Claude responses (SSE)
 - Dynamic system prompt (loads only relevant QUOTING_LOGIC sections)
-- Quote merge: Claude tweaks apply field-level changes only, preserving manual draft edits
+- Quote merge: field-level merge preserving all manual edits (only total + range from Claude)
 - Undo: red toast after Claude changes quote, one-tap revert (persisted to DB)
 - Auto-cleanup: empty NEW_ sessions deleted on sidebar load
-- Sidebar: status dropdown (color-coded), collapsible archive section, per-session toggle state
-- Mobile: Jobs toggle, scrollable sidebar, hidden draft controls, bigger delete/rename buttons
-- Cache-busting headers on HTML
+- Sidebar: status dropdown (color-coded), collapsible archive, per-session toggle persistence
+- Soft delete: sessions and jobs use deleted_at instead of hard delete
+- XSS sanitization: DOMPurify on all markdown output
+- Transactional quote-to-job conversion (BEGIN/COMMIT/ROLLBACK)
+- Postgres JSON backup on startup + admin endpoint
+- Performance: cached session/job lists, no click delay, loading spinners, no redundant fetches
+- Auth: login page + signed cookie ready (not yet activated)
+- Haiku by default, Sonnet only for full quote JSON generation (~80% cost reduction)
 - 26/28 tests passing (2 pre-existing failures in server-messages.test.js)
 
 ### Active blockers
-- db-backup failure: Service Account storage quota — needs backup strategy (Supabase free tier)
-- Silent PDF failure: Playwright/Chromium occasionally fails with no frontend error
-- Job detail is single overlay panel — needs dual-panel redesign (spec started, paused)
+- Auth not activated (APP_PASSWORD not set in Railway)
+- API credits depleted — needs top-up at console.anthropic.com
 
 ### Next steps
-- Design + implement backup strategy (Supabase free tier — no built-in backups)
-- Resume job detail dual-panel redesign (brainstorming started, context explored)
-- Fix quote sidebar status toggles not staying per-quote (partial fix deployed — needs testing)
+- Activate auth: set APP_PASSWORD + APP_SECRET in Railway dashboard
+- Top up Anthropic API credits
+- Test full app after modularization (mobile + desktop)
+- Design + build Jobs dual-panel with chat (separate spec)
 
 ## Architecture
 
-| Component | Location |
-|-----------|----------|
-| Server | `server.js` (~2000 lines) — Express, Claude API, quote rendering, email, invoice editor |
-| Frontend | `public/index.html` (~90 KB) — single-page app |
-| Quote template | `public/quote_template.html` (374 KB) |
-| Quoting logic | `data/QUOTING_LOGIC.md` (~28 KB, force-reseeded on deploy) |
-| Email logic | `data/EMAIL_LOGIC.md` (9.6 KB) |
-| Scaffold engine | `lib/scaffold-engine.js` |
-| DB wrapper | `db.js` (Supabase Postgres via pooler) |
-| Deploy script | `scripts/deploy.sh` (run via `npm run deploy`) |
+**Modular structure (Session L rewrite):**
+
+```
+server.js                    (~585 lines — bootstrap, middleware, mount routers)
+routes/
+  quotes.js                  — session CRUD, messages, Claude chat SSE, quote merge
+  jobs.js                    — job CRUD, payments, time entries, change orders
+  invoices.js                — cost update, invoice editor, PDF generation
+  email.js                   — email drafting, sending (standalone + session)
+  attachments.js             — upload, list, delete (sessions + jobs)
+  scaffold.js                — calculate_scaffold tool handler
+  admin.js                   — backup, restore, quoting rules
+services/
+  session-service.js         — getSession, saveSession, listSessions
+  job-service.js             — getJob, createJob, convertSessionToJob (transactional)
+  pdf-service.js             — generateQuotePDF (Playwright)
+  attachment-service.js      — upload/list/delete via Supabase storage
+lib/
+  quote-renderer.js          — renderQuoteHTML (pure function)
+  quote-merge.js             — field-level merge + fuzzy section matching
+  auth.js                    — shared password middleware + cookie
+  pg-backup.js               — Postgres JSON export with rotation
+  scaffold-engine.js         — deterministic scaffold calculations
+  shared.js                  — extractJsonString, buildCompactStoredUserContent
+  db.js                      — Supabase Postgres wrapper with transaction()
+public/
+  index.html                 (~2,557 lines — HTML + CSS only, zero inline JS)
+  login.html                 — auth login page
+  js/
+    state.js                 — all global state
+    api.js                   — fetch wrappers with caching
+    shared.js                — esc(), formatMoney(), DOM utilities
+    panel.js                 — panel mode switching, divider, mobile nav
+    app.js                   — init, event listeners
+    quotes/sidebar.js        — quote list, status, archive
+    quotes/chat.js           — chat messages, SSE, send, convert-to-job
+    quotes/draft-editor.js   — draft editing, drag-to-reorder, undo
+    quotes/gallery.js        — image gallery
+    jobs/sidebar.js          — job list, color ribbons
+    jobs/detail.js           — job detail panel
+    jobs/invoice-editor.js   — invoice/cost update editor
+    email.js                 — email form, smart paste, payment modal
+```
 
 ## Critical conventions
 
 ### Deploy protocol (mandatory)
-**Always use `npm run deploy`**, never bare `railway up`. The deploy script hard-codes project + service IDs and aborts on mismatch.
-
-If you must deploy manually:
-```
-railway link -p 2049a8ed-33ea-47bf-aee6-08056b3a16ab -s 81f7e3b4-00b5-4b49-8f74-955313738a11 -e production && railway up --detach
-```
-
-Railway target:
-- Project: `osteoPeinture` (id `2049a8ed-33ea-47bf-aee6-08056b3a16ab`)
-- Service: `quote-assistant` (id `81f7e3b4-00b5-4b49-8f74-955313738a11`)
+**Always use `npm run deploy`**, never bare `railway up`.
 
 ### Environment variables (Railway dashboard)
-ANTHROPIC_API_KEY, OPENAI_API_KEY, RESEND_API_KEY, SUPABASE_URL, SUPABASE_ANON_KEY, DATABASE_URL (pooler URL), FLASK_SECRET_KEY
+ANTHROPIC_API_KEY, OPENAI_API_KEY, RESEND_API_KEY, SUPABASE_URL, SUPABASE_ANON_KEY, DATABASE_URL, FLASK_SECRET_KEY, APP_PASSWORD (not yet set), APP_SECRET (not yet set)
 
-## Session K (2026-04-28 to 2026-04-30)
+## Session L (2026-05-01)
 
-Major session — many fixes and features across the board.
+**Full codebase modularization + safety + performance overhaul.**
 
-**Invoice/Cost Update system:**
-- Built invoice editor (edit sections, items, prices, paints before generating)
-- Save/undo, download PDF, email buttons
-- Fixed: title replacement, empty CONDITIONS section, paint-section overflow, payments outside sheet
-- Fixed: save using PATCH not PUT, PDF download on iOS (new tab) and desktop (event.target crash)
-- PDF filenames now use project ID (e.g. SANFORD_01 - Invoice.pdf)
+**Phase 0 — Performance:**
+- Removed 250ms sidebar click delay
+- Cached session + job lists (invalidate on mutation, refetch on foreground)
+- Loading spinner on sidebar items
+- Fixed startup double-fetch
+- De-duplicated job fetches (dashboard + sidebar share one cache)
 
-**Quote draft protection:**
-- Server-side merge: Claude's JSON output merged field-by-field with draft (fuzzy section matching)
-- Only total + range fields from Claude applied; items/descriptions never replaced
-- Undo button with 15s red toast, persisted to DB
-- Stronger system prompt: "MANDATORY — copy current JSON, change ONLY what was asked"
-- JSON stripped from chat messages (was showing raw in conversation)
-- Drag-to-reorder now only from ☰ handle, not entire row
+**Phase 1 — Safety:**
+- XSS: DOMPurify on all marked.parse() output
+- Transactional quote-to-job conversion (Postgres BEGIN/COMMIT/ROLLBACK)
+- Soft delete for sessions and jobs (deleted_at column)
+- Postgres JSON backup (startup + admin endpoint, 7-day rotation)
 
-**Scaffold engine:**
-- Half-level support (3.5 = 3 full + 1 half-height with 6ft braces)
-- User quantity overrides via component_overrides field
-- Ladder rates from EMCO catalog (was hardcoded "confirm with EMCO")
-- Updated exterior paint prices from Graeme (A100, Latitude, Duration, Emerald, BM Aura)
+**Phase 2 — Server modularization:**
+- server.js: 4,459 → 585 lines
+- 7 route files, 4 service files, 3 lib modules extracted
+- Each module owns its domain — changes can't cascade
 
-**Mobile fixes:**
-- Jobs toggle restored (sidebar-collapsed was hiding it)
-- Sidebar scrollable (sidebar-quotes-mode flex fix)
-- Draft editor: lock/star/checkbox/delete hidden on mobile
-- Delete/rename buttons bigger (28px touch target)
-- Delete uses two-tap confirm (prompt() broken in iOS PWA)
+**Phase 3 — Frontend modularization:**
+- index.html: 6,287 → 2,557 lines (HTML + CSS only)
+- 13 JS files organized by feature
+- Global state centralized in state.js
 
-**Jobs system:**
-- Photo upload directly to jobs (POST /api/jobs/:id/attachments)
-- Status dropdown (Active/Upcoming/Completed/Archived)
-- Inline job rename (contentEditable, not prompt())
-- Sidebar: color-coded ribbons, serif font, grouped by status
-- Auto-cleanup: empty NEW_ sessions deleted on sidebar load (Postgres syntax)
+**Phase 4 — Auth:**
+- Login page, signed httpOnly cookie, 30-day expiry
+- Auth middleware on all /api/ routes
+- Dev mode bypass when APP_PASSWORD not set
 
-**Sidebar (quotes):**
-- Status dropdown (color-coded: green/blue/yellow/red/dim)
-- Collapsible archive section with toggle arrow
-- "Accepted" status triggers convert-to-job flow
-- Per-session toggle state saved to server
-
-**Data incident:** Accidentally deleted HIRSCHL_02 session during bulk cleanup. Restored from PDF in Downloads. Time entry data lost. Led to strict "only delete empty sessions" rule + auto-cleanup.
-
-**Crash incident:** Used SQLite datetime() syntax on Postgres, crashed the app. Fixed with try/catch wrapper.
+**Other fixes:**
+- Haiku by default, Sonnet only for full quote generation (~80% cost savings)
+- Item description rules: no prep steps, no boilerplate repeats, client-facing language
+- Group headers (H1) draggable in draft editor
+- Codex full code review documented
 
 ## Related docs
-- Ecosystem overview: `osteopeinture/ECOSYSTEM-OVERVIEW.md`
-- Supabase migration spec: `osteopeinture/quote-assistant/docs/SUPABASE-MIGRATION-SPEC.md`
-- Session history: `osteopeinture/quote-assistant/JOURNAL.md`
-- Scaffold module spec: `osteopeinture/quote-assistant/docs/superpowers/specs/2026-04-10-scaffold-module-design.md`
+- Modularization spec: `docs/superpowers/specs/2026-05-01-modularization-design.md`
+- Implementation plan: `docs/superpowers/plans/2026-05-01-modularization-and-performance.md`
+- Codex code review: captured in session history
+- Scaffold module spec: `docs/superpowers/specs/2026-04-10-scaffold-module-design.md`
