@@ -5,6 +5,7 @@ const Anthropic = require('@anthropic-ai/sdk');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const { authMiddleware, createToken, COOKIE_NAME, COOKIE_MAX_AGE } = require('./lib/auth');
 const {
   MAX_IMAGE_COUNT,
   UploadError,
@@ -440,6 +441,7 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public'), {
   etag: false,
   maxAge: 0,
+  index: false, // Don't auto-serve index.html — auth handles /
   setHeaders: (res, filePath) => {
     if (filePath.endsWith('.html')) {
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
@@ -466,6 +468,37 @@ function sendUploadError(res, error) {
   }
   return null;
 }
+
+// ============================================================
+// AUTH: login routes (no auth required)
+// ============================================================
+
+app.get('/login', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'login.html'));
+});
+
+app.post('/api/auth/login', express.json(), (req, res) => {
+  var password = process.env.APP_PASSWORD;
+  if (!password) return res.json({ ok: true }); // No password = dev mode
+  if (req.body.password !== password) {
+    return res.status(401).json({ error: 'Wrong password' });
+  }
+  var secret = process.env.APP_SECRET || password;
+  var token = createToken(secret);
+  res.cookie(COOKIE_NAME, token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'Lax',
+    maxAge: COOKIE_MAX_AGE,
+  });
+  res.json({ ok: true });
+});
+
+// Auth middleware — protects API routes and main page
+app.use('/api', authMiddleware);
+app.get('/', authMiddleware, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
 // ============================================================
 // ROUTE MODULES

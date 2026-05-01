@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OP Hub — Login</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #1a1a1a;
+    color: #e0ddd5;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100dvh;
+  }
+  .login-box {
+    background: #242420;
+    border: 1px solid #3a3a35;
+    border-radius: 12px;
+    padding: 40px 36px;
+    width: 100%;
+    max-width: 360px;
+    text-align: center;
+  }
+  .brand {
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    font-size: 22px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .sub {
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: #888;
+    margin-bottom: 28px;
+  }
+  input {
+    width: 100%;
+    padding: 12px 14px;
+    background: #1a1a1a;
+    border: 1px solid #3a3a35;
+    border-radius: 6px;
+    color: #e0ddd5;
+    font-size: 15px;
+    margin-bottom: 16px;
+    outline: none;
+  }
+  input:focus { border-color: #c49a5c; }
+  button {
+    width: 100%;
+    padding: 12px;
+    background: #c49a5c;
+    color: #1a1a1a;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  button:active { opacity: 0.8; }
+  .error {
+    color: #c94a4a;
+    font-size: 13px;
+    margin-top: 12px;
+    display: none;
+  }
+</style>
+</head>
+<body>
+<div class="login-box">
+  <div class="brand">Osteopeinture</div>
+  <div class="sub">OP Hub</div>
+  <form onsubmit="login(event)">
+    <input type="password" id="pw" placeholder="Password" autofocus autocomplete="current-password">
+    <button type="submit">Enter</button>
+  </form>
+  <div class="error" id="err">Wrong password</div>
+</div>
+<script>
+async function login(e) {
+  e.preventDefault();
+  var pw = document.getElementById('pw').value;
+  var res = await fetch('/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password: pw }),
+  });
+  if (res.ok) {
+    window.location.href = '/';
+  } else {
+    document.getElementById('err').style.display = 'block';
+    document.getElementById('pw').value = '';
+    document.getElementById('pw').focus();
+  }
+}
+</script>
+</body>
+</html>
