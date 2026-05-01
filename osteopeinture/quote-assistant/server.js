@@ -23,6 +23,7 @@ const { extractJsonString, buildCompactStoredUserContent } = require('./lib/shar
 const sessionService = require('./services/session-service');
 const jobService = require('./services/job-service');
 const { generateQuotePDF } = require('./services/pdf-service');
+const attachmentService = require('./services/attachment-service');
 
 // ============================================================
 // SUPABASE STORAGE (file attachments)
@@ -51,6 +52,7 @@ const db = require('./db');
 const DB_PATH = path.join(DATA_DIR, 'sessions.db'); // kept for backup endpoint compatibility — file may not exist on Supabase builds
 sessionService.init(db, DB_PATH);
 jobService.init(db, DB_PATH, sessionService);
+attachmentService.init(db, supabase);
 
 // Seed QUOTING_LOGIC.md to DATA_DIR on first run so it persists on the volume.
 // Force-reseed on version bump: compare the `# Version:` header line in the
@@ -1412,23 +1414,12 @@ async function handleSessionMessage(req, res) {
     const normalizedImages = await normalizeImages(req.files || []);
 
     // Upload normalized images to Supabase Storage (persist for later access)
-    if (supabase && normalizedImages.length > 0) {
+    if (normalizedImages.length > 0) {
       for (const img of normalizedImages) {
         try {
-          const fileId = uuidv4();
-          const ext = img.mediaType === 'image/png' ? 'png' : 'jpeg';
-          const storagePath = `sessions/${req.params.id}/${fileId}.${ext}`;
-          const imgBuffer = img.buffer || img.data;
-          if (!imgBuffer) { console.warn('[storage] no buffer for image', img.originalName); continue; }
-          const { error: uploadErr } = await supabase.storage
-            .from(STORAGE_BUCKET)
-            .upload(storagePath, imgBuffer, { contentType: img.mediaType, upsert: false });
-          if (uploadErr) { console.warn('[storage] upload failed:', uploadErr.message); continue; }
-          const { data: urlData } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(storagePath);
-          await db.run(
-            'INSERT INTO attachments (id, session_id, filename, original_name, content_type, size_bytes, storage_path, public_url, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            [fileId, req.params.id, `${fileId}.${ext}`, img.originalName || `${fileId}.${ext}`, img.mediaType, imgBuffer.length, storagePath, urlData.publicUrl, new Date().toISOString()]
-          );
+          await attachmentService.uploadAttachment({
+            file: img, sessionId: req.params.id, pathPrefix: `sessions/${req.params.id}`,
+          });
         } catch (e) { console.warn('[storage] attach error:', e.message); }
       }
     }
@@ -1789,16 +1780,14 @@ app.post('/api/sessions/:id/adjust-quote', async (req, res) => {
 // List attachments for a session
 app.get('/api/sessions/:id/attachments', async (req, res) => {
   try {
-    const rows = await db.all('SELECT * FROM attachments WHERE session_id = ? ORDER BY created_at', [req.params.id]);
-    res.json(rows);
+    res.json(await attachmentService.listAttachments({ sessionId: req.params.id }));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // List attachments for a job
 app.get('/api/jobs/:id/attachments', async (req, res) => {
   try {
-    const rows = await db.all('SELECT * FROM attachments WHERE job_id = ? ORDER BY created_at', [req.params.id]);
-    res.json(rows);
+    res.json(await attachmentService.listAttachments({ jobId: req.params.id }));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -1817,22 +1806,11 @@ app.post('/api/jobs/:id/attachments', async (req, res) => {
       if (!normalizedImages.length) return res.status(400).json({ error: 'No images' });
       const results = [];
       for (const img of normalizedImages) {
-        const fileId = uuidv4();
-        const ext = img.mediaType === 'image/png' ? 'png' : 'jpeg';
-        const storagePath = `jobs/${req.params.id}/${fileId}.${ext}`;
-        const imgBuffer = img.buffer || img.data;
-        if (!imgBuffer) continue;
-        if (!supabase) { console.warn('[storage] no supabase'); continue; }
-        const { error: uploadErr } = await supabase.storage
-          .from(STORAGE_BUCKET)
-          .upload(storagePath, imgBuffer, { contentType: img.mediaType, upsert: false });
-        if (uploadErr) { console.warn('[storage] upload failed:', uploadErr.message); continue; }
-        const { data: urlData } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(storagePath);
-        await db.run(
-          'INSERT INTO attachments (id, session_id, job_id, filename, original_name, content_type, size_bytes, storage_path, public_url, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-          [fileId, job.quote_session_id || '', req.params.id, `${fileId}.${ext}`, img.originalName || `${fileId}.${ext}`, img.mediaType, imgBuffer.length, storagePath, urlData.publicUrl, new Date().toISOString()]
-        );
-        results.push({ id: fileId, public_url: urlData.publicUrl, original_name: img.originalName });
+        const result = await attachmentService.uploadAttachment({
+          file: img, sessionId: job.quote_session_id || '', jobId: req.params.id,
+          pathPrefix: `jobs/${req.params.id}`,
+        });
+        if (result) results.push(result);
       }
       res.json({ ok: true, uploaded: results });
     } catch (e) {
@@ -1845,12 +1823,8 @@ app.post('/api/jobs/:id/attachments', async (req, res) => {
 // Delete an attachment
 app.delete('/api/attachments/:id', async (req, res) => {
   try {
-    const att = await db.get('SELECT * FROM attachments WHERE id = ?', [req.params.id]);
+    const att = await attachmentService.deleteAttachment(req.params.id);
     if (!att) return res.status(404).json({ error: 'Not found' });
-    if (supabase) {
-      await supabase.storage.from(STORAGE_BUCKET).remove([att.storage_path]);
-    }
-    await db.run('DELETE FROM attachments WHERE id = ?', [req.params.id]);
     res.json({ ok: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
