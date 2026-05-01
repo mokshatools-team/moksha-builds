@@ -519,7 +519,7 @@
   }
   .sidebar-status-select.gathering { background: var(--sage-dim); color: var(--sage); }
   .sidebar-status-select.quote_ready { background: var(--blue-dim); color: var(--blue); }
-  .sidebar-status-select.sent { background: var(--surface-3); color: var(--text-3); }
+  .sidebar-status-select.sent { background: rgba(200,170,60,0.15); color: #c8aa3c; }
   .sidebar-status-select.converted { background: rgba(76,175,80,0.12); color: #4CAF50; }
   .sidebar-status-select.declined { background: rgba(200,80,80,0.1); color: #c94a4a; }
   .sidebar-status-select.archived { background: var(--surface-2); color: var(--text-4); }
@@ -4107,12 +4107,34 @@ function cycleToggle(key, options) {
 
 function saveTogglesForSession(sessionId) {
   if (sessionId) toggleStateBySession.set(sessionId, { ...quoteToggles });
+  // Persist to server so toggles survive page refresh
+  if (sessionId) {
+    fetch('/api/sessions/' + sessionId + '/status', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ toggles: { ...quoteToggles } }),
+    }).catch(() => {});
+  }
 }
 
 function restoreTogglesForSession(sessionId) {
   const saved = sessionId ? toggleStateBySession.get(sessionId) : null;
   if (saved) {
     Object.assign(quoteToggles, saved);
+  }
+  // Also try to load from server (async — in-memory cache takes priority for speed)
+  if (sessionId && !saved) {
+    fetch('/api/sessions/' + sessionId).then(r => r.json()).then(s => {
+      const serverToggles = s.emailMeta && s.emailMeta._toggles;
+      if (serverToggles) {
+        toggleStateBySession.set(sessionId, serverToggles);
+        Object.assign(quoteToggles, serverToggles);
+        for (const [key, val] of Object.entries(quoteToggles)) {
+          const btn = document.getElementById('toggle-' + key);
+          if (btn) btn.textContent = val;
+        }
+      }
+    }).catch(() => {});
   }
   // Update the buttons to match
   for (const [key, val] of Object.entries(quoteToggles)) {

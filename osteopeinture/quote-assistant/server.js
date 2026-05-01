@@ -1849,11 +1849,18 @@ app.patch('/api/sessions/:id/status', express.json(), async (req, res) => {
   const session = await getSession(req.params.id);
   if (!session) return res.status(404).json({ error: 'Session not found' });
   const allowed = ['gathering', 'quote_ready', 'sent', 'declined', 'archived'];
-  const { status } = req.body;
-  if (!status || !allowed.includes(status)) return res.status(400).json({ error: 'Invalid status' });
-  session.status = status;
+  const { status, toggles } = req.body;
+  if (status) {
+    if (!allowed.includes(status)) return res.status(400).json({ error: 'Invalid status' });
+    session.status = status;
+  }
+  if (toggles) {
+    if (!session.emailMeta) session.emailMeta = {};
+    session.emailMeta._toggles = toggles;
+  }
+  if (!status && !toggles) return res.status(400).json({ error: 'Nothing to update' });
   await saveSession(session);
-  res.json({ ok: true, status });
+  res.json({ ok: true, status: session.status });
 });
 
 // Get quoting logic file
