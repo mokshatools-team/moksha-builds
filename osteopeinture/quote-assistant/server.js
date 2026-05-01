@@ -194,13 +194,15 @@ async function saveSession(session) {
 
 async function listSessions() {
   // Auto-cleanup: delete empty NEW_ sessions older than 5 minutes (abandoned starts)
-  await db.run(`
-    DELETE FROM sessions
-    WHERE project_id LIKE 'NEW_%'
-      AND quote_json IS NULL
-      AND messages = '[]'
-      AND updated_at < datetime('now', '-5 minutes')
-  `);
+  try {
+    await db.run(`
+      DELETE FROM sessions
+      WHERE project_id LIKE 'NEW_%'
+        AND quote_json IS NULL
+        AND messages = '[]'
+        AND updated_at < (NOW() - INTERVAL '5 minutes')
+    `);
+  } catch (e) { /* ignore cleanup errors */ }
   return await db.all(`
     SELECT id, created_at, updated_at, client_name, project_id, address, total_amount, status, email_recipient, converted_job_id
     FROM sessions ORDER BY updated_at DESC LIMIT 50
