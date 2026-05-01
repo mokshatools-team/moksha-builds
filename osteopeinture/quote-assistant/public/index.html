@@ -2540,12 +2540,9 @@
   </button>
 </div>
 
+<script src="js/state.js"></script>
+<script src="js/api.js"></script>
 <script>
-let currentSessionId = null;
-let pendingFiles = [];
-let pendingPreviewUrls = [];
-let dragDepth = 0;
-let isSending = false;
 
 // ── MOBILE NAV ───────────────────────────────────────
 function toggleSidebar() {
@@ -2590,31 +2587,7 @@ function toggleQuotePanel() {
   if (panel.classList.contains('mobile-open')) closeQuotePanel();
   else openQuotePanel();
 }
-const emailDraftStateBySession = new Map();
-const MAX_CLIENT_IMAGE_COUNT = 15;
-
 // ── SIDEBAR ──────────────────────────────────────────
-
-let _sessionListCache = null;
-let _sessionFetchInFlight = null;
-
-async function fetchSessions(force) {
-  if (!force && _sessionListCache) return _sessionListCache;
-  if (_sessionFetchInFlight) return _sessionFetchInFlight;
-  _sessionFetchInFlight = fetch('/api/sessions').then(function(r) { return r.json(); }).then(function(data) {
-    _sessionListCache = data;
-    _sessionFetchInFlight = null;
-    return data;
-  }).catch(function(err) {
-    _sessionFetchInFlight = null;
-    throw err;
-  });
-  return _sessionFetchInFlight;
-}
-
-function invalidateSessionCache() {
-  _sessionListCache = null;
-}
 
 async function loadSidebar() {
   const allSessions = await fetchSessions();
@@ -2668,8 +2641,6 @@ async function loadSidebar() {
   }
   list.innerHTML = html;
 }
-
-let isRenaming = false;
 
 function handleSidebarClick(id) {
   if (isRenaming) return;
@@ -2734,8 +2705,6 @@ function startRenameSession(id, el) {
   });
 }
 
-let _deleteConfirmId = null;
-let _deleteConfirmTimer = null;
 async function deleteSession(id, btn) {
   // Two-tap confirm: first tap turns red + "Delete?", second tap deletes
   if (_deleteConfirmId !== id) {
@@ -3076,8 +3045,6 @@ function refreshPreview() {
 
 // ── PANEL MODE ──────────────────────────────────────
 // Single source of truth for which view is shown in the right panel.
-let currentPanelMode = 'placeholder'; // placeholder | draft | pdf | gallery
-
 function setPanelMode(mode) {
   currentPanelMode = mode;
   const placeholder = document.getElementById('quote-placeholder');
@@ -3120,12 +3087,6 @@ function updatePanelButtons() {
 }
 
 // ── DRAFT EDITOR ────────────────────────────────────
-let draftQuoteJson = null;
-let draftSaveTimer = null;
-let draftSaving = false;
-let draftDirty = false;
-let draftSaveVersion = 0;
-
 function loadDraftEditor(sessionId) {
   const draft = document.getElementById('quote-draft');
   if (!draftQuoteJson) {
@@ -3446,8 +3407,6 @@ async function undoQuoteChange() {
   } catch (e) { alert('Undo failed: ' + e.message); }
 }
 
-let draftUndoStack = []; // { type, data, si, ii }
-
 function draftShowUndo(label) {
   let toast = document.getElementById('draft-undo-toast');
   if (!toast) {
@@ -3590,8 +3549,6 @@ function draftToggleExcluded(si) {
 }
 
 // ── DRAFT DRAG-AND-DROP ─────────────────────────────
-
-let draftDragData = null; // { type: 'section'|'item', si, ii }
 
 function draftDragStart(e, type, si, ii) {
   draftDragData = { type, si, ii };
@@ -4153,9 +4110,6 @@ function setStatus(status) {
 // ── HELPERS ──────────────────────────────────────────
 
 // ── QUOTE TOGGLES ────────────────────────────────────────────────────────
-const quoteToggles = { lang: 'FR', scope: 'Interior', tier: 'High-end', prices: 'Paint prices', pricing: 'Fixed price' };
-const toggleStateBySession = new Map();
-
 function cycleToggle(key, options) {
   const current = quoteToggles[key];
   const idx = options.indexOf(current);
@@ -4346,8 +4300,6 @@ document.getElementById('email-signer').addEventListener('change', () => refresh
 // email-detail-level removed (replaced by payment-type toggle for templates)
 
 // ── MOBILE BOTTOM NAV ───────────────────────────────
-let mobileCurrentView = 'chat';
-
 function toggleJobsView() {
   const jobsPanel = document.getElementById('jobs-panel');
   const isVisible = jobsPanel.classList.contains('visible');
@@ -4431,9 +4383,6 @@ function mobileNavTo(view) {
 
 // ── JOB MANAGEMENT ──────────────────────────────────
 
-let currentJobId = null;
-let convertingSessionId = null;
-
 // Classify a job as ACTIVE / UPCOMING / PAST based on dates + status.
 // PAST = completion_date set, OR status archived/completed/cancelled.
 // UPCOMING = start_date set AND in the future.
@@ -4470,27 +4419,6 @@ function renderJobCard(j) {
 
 function jobsSectionHeader(label, count) {
   return `<div style="padding:14px 4px 6px;font-size:10px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--text-4);font-family:var(--font-sans)">${label} <span style="color:var(--text-3);font-weight:500">(${count})</span></div>`;
-}
-
-let _jobsCache = null;
-let _jobsFetchInFlight = null;
-
-async function fetchJobs(force) {
-  if (!force && _jobsCache) return _jobsCache;
-  if (_jobsFetchInFlight) return _jobsFetchInFlight;
-  _jobsFetchInFlight = fetch('/api/jobs').then(function(r) { return r.json(); }).then(function(data) {
-    _jobsCache = data;
-    _jobsFetchInFlight = null;
-    return data;
-  }).catch(function(err) {
-    _jobsFetchInFlight = null;
-    throw err;
-  });
-  return _jobsFetchInFlight;
-}
-
-function invalidateJobsCache() {
-  _jobsCache = null;
 }
 
 async function loadJobs() {
@@ -4590,8 +4518,6 @@ async function uploadJobPhotos(jobId, fileList) {
 }
 
 // ── COST UPDATE / INVOICE EDITOR ─────────────────────────────
-let invoiceEditorState = { jobId: null, docType: null, sections: [], paints: [], jobSectionsRaw: {} };
-
 async function openCostUpdate(jobId, docType) {
   try {
     const res = await fetch('/api/jobs/' + jobId);
@@ -4870,8 +4796,6 @@ async function generateFromEditor() {
 }
 
 // ── IMAGE GALLERY (in quote panel) ──────────────────────────
-const galleryState = { images: [], currentIndex: 0, visible: false };
-
 function toggleGalleryView() {
   if (galleryState.visible) hideGallery();
   else showGallery();
@@ -4988,8 +4912,6 @@ function renderChangeOrders(orders) {
 // right surface. Set by the entry-point onclicks ('dashboard' from job cards,
 // 'sidebar' from sidebar items). Internal refresh calls (after save, sync,
 // etc.) omit the param so the existing source is preserved.
-let jobOpenedFrom = null;
-
 async function openJobDetail(jobId, source) {
   if (source) jobOpenedFrom = source;
   currentJobId = jobId;
@@ -5189,8 +5111,6 @@ function closeJobDetail() {
 }
 
 // ── STANDALONE EMAIL DRAFT (job-context, no quote session needed) ───────
-let stdEmailJobId = null;
-
 async function openStandaloneEmail(jobId) {
   stdEmailJobId = jobId;
   // Pull job context for the header and for subject seeding
@@ -5334,9 +5254,6 @@ async function refineSessionEmail() {
 }
 
 // ── SMART PASTE (Apple Notes → job fields) ──────────────────────────────
-let smartPasteJobId = null;
-let smartPasteExtracted = null;
-
 function openSmartPaste(jobId) {
   smartPasteJobId = jobId;
   smartPasteExtracted = null;
@@ -5457,8 +5374,6 @@ async function applySmartPaste(overwrite) {
 }
 
 // ── SIDEBAR MODE TOGGLE (Quotes / Jobs) ─────────────────────────────────
-let currentSidebarMode = 'quotes';
-
 function switchSidebarMode(mode) {
   currentSidebarMode = mode;
   const quotesMode = document.getElementById('sidebar-quotes-mode');
@@ -5875,8 +5790,6 @@ async function confirmConvertToJob() {
 
 // ── ACTIVITY MAPPING ────────────────────────────────
 
-let mappingJobId = null;
-
 async function openMappingScreen(jobId) {
   mappingJobId = jobId;
   const screen = document.getElementById('mapping-screen');
@@ -6248,10 +6161,6 @@ async function deleteJob(jobId, clientName) {
 // mobile) with a single form: amount input + method buttons + date +
 // optional reference. After save, reuses the existing confirm() preview
 // to gate the finance-sheet write.
-let paymentModalJobId = null;
-let paymentModalJobNumber = '';
-let paymentModalMethod = 'e_transfer';
-
 function openPaymentModal(jobId, jobNumber) {
   paymentModalJobId = jobId;
   paymentModalJobNumber = jobNumber || '';
