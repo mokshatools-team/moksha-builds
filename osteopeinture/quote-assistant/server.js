@@ -277,52 +277,54 @@ async function convertSessionToJob(sessionId, overrides = {}) {
     ? Math.round(Number(overrides.agreedTotal) * 100)
     : null;
 
-  await db.run(`
-    INSERT INTO jobs (id, quote_session_id, job_number, client_name, client_email, client_phone,
-      language, address, project_title, project_type, status,
-      quote_subtotal_cents, quote_tax_cents, quote_total_cents, accepted_quote_json,
-      payment_terms_text, start_date, internal_notes, payment_type, agreed_total_cents, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `, [jobId, sessionId, jobNumber,
-    overrides.clientName || session.clientName || 'Unknown',
-    overrides.clientEmail || session.emailRecipient || null,
-    overrides.clientPhone || null,
-    overrides.language || 'french',
-    overrides.address || session.address || '',
-    overrides.projectTitle || session.projectId || null,
-    overrides.projectType || 'hourly',
-    subtotalCents, taxCents, totalCents,
-    session.quoteJson ? JSON.stringify(session.quoteJson) : null,
-    overrides.paymentTerms || null,
-    overrides.startDate || null,
-    overrides.internalNotes || null,
-    paymentType, agreedTotalCents,
-    now, now
-  ]);
+  await db.transaction(async (tx) => {
+    await tx.run(`
+      INSERT INTO jobs (id, quote_session_id, job_number, client_name, client_email, client_phone,
+        language, address, project_title, project_type, status,
+        quote_subtotal_cents, quote_tax_cents, quote_total_cents, accepted_quote_json,
+        payment_terms_text, start_date, internal_notes, payment_type, agreed_total_cents, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [jobId, sessionId, jobNumber,
+      overrides.clientName || session.clientName || 'Unknown',
+      overrides.clientEmail || session.emailRecipient || null,
+      overrides.clientPhone || null,
+      overrides.language || 'french',
+      overrides.address || session.address || '',
+      overrides.projectTitle || session.projectId || null,
+      overrides.projectType || 'hourly',
+      subtotalCents, taxCents, totalCents,
+      session.quoteJson ? JSON.stringify(session.quoteJson) : null,
+      overrides.paymentTerms || null,
+      overrides.startDate || null,
+      overrides.internalNotes || null,
+      paymentType, agreedTotalCents,
+      now, now
+    ]);
 
-  // Pre-populate the Products section from the quote's paints array
-  // so the user opens the new job with the paint list ready to edit.
-  const paints = session.quoteJson && Array.isArray(session.quoteJson.paints) ? session.quoteJson.paints : [];
-  if (paints.length) {
-    const productsLines = paints.map(p => {
-      const parts = [];
-      if (p.type) parts.push(p.type + ':');
-      if (p.approxQty) parts.push(p.approxQty);
-      if (p.product) parts.push((p.approxQty ? '— ' : '') + p.product);
-      if (p.finish) parts.push('— ' + p.finish);
-      if (p.color) parts.push('— ' + p.color);
-      return parts.join(' ');
-    }).filter(Boolean).join('\n');
-    if (productsLines) {
-      await db.run('UPDATE jobs SET job_sections = ? WHERE id = ?', [JSON.stringify({ products: productsLines }), jobId]);
+    // Pre-populate the Products section from the quote's paints array
+    // so the user opens the new job with the paint list ready to edit.
+    const paints = session.quoteJson && Array.isArray(session.quoteJson.paints) ? session.quoteJson.paints : [];
+    if (paints.length) {
+      const productsLines = paints.map(p => {
+        const parts = [];
+        if (p.type) parts.push(p.type + ':');
+        if (p.approxQty) parts.push(p.approxQty);
+        if (p.product) parts.push((p.approxQty ? '— ' : '') + p.product);
+        if (p.finish) parts.push('— ' + p.finish);
+        if (p.color) parts.push('— ' + p.color);
+        return parts.join(' ');
+      }).filter(Boolean).join('\n');
+      if (productsLines) {
+        await tx.run('UPDATE jobs SET job_sections = ? WHERE id = ?', [JSON.stringify({ products: productsLines }), jobId]);
+      }
     }
-  }
 
-  // Transfer file attachments from session to job
-  await db.run('UPDATE attachments SET job_id = ? WHERE session_id = ?', [jobId, sessionId]);
+    // Transfer file attachments from session to job
+    await tx.run('UPDATE attachments SET job_id = ? WHERE session_id = ?', [jobId, sessionId]);
 
-  // Mark session as converted
-  await db.run('UPDATE sessions SET converted_job_id = ?, accepted_at = ? WHERE id = ?', [jobId, now, sessionId]);
+    // Mark session as converted
+    await tx.run('UPDATE sessions SET converted_job_id = ?, accepted_at = ? WHERE id = ?', [jobId, now, sessionId]);
+  });
 
   return await getJob(jobId);
 }
