@@ -506,6 +506,21 @@
   }
   .sidebar-status.converted::before { background: #4CAF50; }
 
+  .sidebar-status-select {
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 2px 4px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: var(--surface-1);
+    color: var(--text-2);
+    cursor: pointer;
+    font-family: var(--font-sans);
+    -webkit-appearance: none;
+    appearance: none;
+  }
   .sidebar-status.declined, .sidebar-status.archived {
     background: var(--surface-2);
     color: var(--text-4);
@@ -2561,16 +2576,16 @@ async function loadSidebar() {
   const res = await fetch('/api/sessions');
   const allSessions = await res.json();
   // Hide quotes that have been converted to jobs — they live in the Jobs sidebar now.
-  // Also hide archived ones from the main view (could surface in an Archive section later).
-  const sessions = allSessions.filter(s => !s.converted_job_id && s.status !== 'archived');
+  const activeSessions = allSessions.filter(s => !s.converted_job_id && s.status !== 'archived');
+  const archivedSessions = allSessions.filter(s => !s.converted_job_id && s.status === 'archived');
   const list = document.getElementById('sidebar-list');
 
-  if (!sessions.length) {
-    list.innerHTML = '<div class="sidebar-empty">No active quotes.<br>Start a new one above.</div>';
+  if (!activeSessions.length && !archivedSessions.length) {
+    list.innerHTML = '<div class="sidebar-empty">No quotes yet.<br>Start a new one above.</div>';
     return;
   }
 
-  list.innerHTML = sessions.map(s => {
+  function renderSessionItem(s, dimmed) {
     const date = new Date(s.updated_at).toLocaleDateString('fr-CA', { month: 'short', day: 'numeric' });
     const client = s.project_id || s.client_name || 'New Quote';
     // Sub-label: show street address if available (already have LASTNAME in the title), otherwise date
@@ -2581,7 +2596,7 @@ async function loadSidebar() {
     const effectiveStatus = s.converted_job_id ? 'converted' : (s.status || 'gathering');
     const statusLabel = { gathering: 'In progress', quote_ready: 'Ready', sent: 'Sent', converted: 'Active', declined: 'Declined', archived: 'Archived' }[effectiveStatus] || effectiveStatus;
     const statusClass = effectiveStatus;
-    return `<div class="sidebar-item ${active}" onclick="handleSidebarClick('${s.id}')">
+    return `<div class="sidebar-item ${active}" onclick="handleSidebarClick('${s.id}')" style="${dimmed ? 'opacity:0.5' : ''}">
       <button class="sidebar-item-rename" onclick="event.stopPropagation();startRenameSession('${s.id}',this.parentElement.querySelector('.sidebar-item-client'))" title="Rename">✎</button>
       <button class="sidebar-item-delete" onclick="event.stopPropagation();deleteSession('${s.id}',this)" title="Delete">×</button>
       <div class="sidebar-item-client" onclick="event.stopPropagation()" ondblclick="startRenameSession('${s.id}',this)">${esc(client)}</div>
@@ -2589,9 +2604,22 @@ async function loadSidebar() {
         <span class="sidebar-item-id">${esc(subLabel)}</span>
         <span class="sidebar-item-total">${total}</span>
       </div>
-      <span class="sidebar-status ${statusClass}" onclick="event.stopPropagation();cycleSessionStatus('${s.id}','${effectiveStatus}')" title="Click to change status">${statusLabel}</span>
+      <select class="sidebar-status-select" onclick="event.stopPropagation()" onchange="setSessionStatus('${s.id}',this.value)">
+        <option value="gathering" ${effectiveStatus==='gathering'?'selected':''}>In Progress</option>
+        <option value="quote_ready" ${effectiveStatus==='quote_ready'?'selected':''}>Ready</option>
+        <option value="sent" ${effectiveStatus==='sent'?'selected':''}>Sent</option>
+        <option value="declined" ${effectiveStatus==='declined'?'selected':''}>Declined</option>
+        <option value="archived" ${effectiveStatus==='archived'?'selected':''}>Archived</option>
+      </select>
     </div>`;
-  }).join('');
+  }
+
+  let html = activeSessions.map(s => renderSessionItem(s, false)).join('');
+  if (archivedSessions.length) {
+    html += '<div style="padding:14px 16px 6px;font-size:9px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--text-4);font-family:var(--font-sans);">Archived</div>';
+    html += archivedSessions.map(s => renderSessionItem(s, true)).join('');
+  }
+  list.innerHTML = html;
 }
 
 let sidebarClickTimer = null;
@@ -5419,13 +5447,7 @@ async function loadJobsSidebar() {
   }
 }
 
-async function cycleSessionStatus(sessionId, current) {
-  // Cycle through statuses on each tap (no prompt — broken on iOS PWA)
-  const cycle = ['gathering', 'quote_ready', 'sent', 'declined', 'archived'];
-  const currentIdx = cycle.indexOf(current);
-  const nextIdx = (currentIdx + 1) % cycle.length;
-  const newStatus = cycle[nextIdx];
-
+async function setSessionStatus(sessionId, newStatus) {
   try {
     await fetch('/api/sessions/' + sessionId + '/status', {
       method: 'PATCH',
