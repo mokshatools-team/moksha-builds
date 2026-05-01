@@ -215,7 +215,7 @@ async function listSessions() {
 // ============================================================
 
 async function getJob(id) {
-  const row = await db.get('SELECT * FROM jobs WHERE id = ?', [id]);
+  const row = await db.get('SELECT * FROM jobs WHERE id = ? AND deleted_at IS NULL', [id]);
   if (!row) return null;
   return {
     ...row,
@@ -227,7 +227,7 @@ async function listJobs() {
   return await db.all(`
     SELECT j.*,
       (SELECT COALESCE(SUM(amount_cents), 0) FROM payments WHERE job_id = j.id) as total_paid_cents
-    FROM jobs j ORDER BY j.updated_at DESC LIMIT 50
+    FROM jobs j WHERE j.deleted_at IS NULL ORDER BY j.updated_at DESC LIMIT 50
   `, []);
 }
 
@@ -2955,23 +2955,15 @@ app.patch('/api/jobs/:id', express.json(), async (req, res) => {
   }
 });
 
-// Delete a job (and all its dependent rows). Unlinks the source session so
-// it can be re-converted. Destructive — no soft-delete.
+// Delete a job (soft delete). Unlinks the source session so it can be re-converted.
 app.delete('/api/jobs/:id', async (req, res) => {
   try {
     const job = await getJob(req.params.id);
     if (!job) return res.status(404).json({ error: 'Job not found' });
     const jobId = job.id;
     await db.transaction(async (tx) => {
-      await tx.run('DELETE FROM payments WHERE job_id = ?', [jobId]);
-      await tx.run('DELETE FROM time_entries WHERE job_id = ?', [jobId]);
-      await tx.run('DELETE FROM time_import_batches WHERE job_id = ?', [jobId]);
-      await tx.run('DELETE FROM job_activity_mappings WHERE job_id = ?', [jobId]);
-      await tx.run('DELETE FROM job_change_orders WHERE job_id = ?', [jobId]);
-      await tx.run('DELETE FROM client_updates WHERE job_id = ?', [jobId]);
-      await tx.run('DELETE FROM invoices WHERE job_id = ?', [jobId]);
       await tx.run('UPDATE sessions SET converted_job_id = NULL, accepted_at = NULL WHERE converted_job_id = ?', [jobId]);
-      await tx.run('DELETE FROM jobs WHERE id = ?', [jobId]);
+      await tx.run('UPDATE jobs SET deleted_at = NOW() WHERE id = ?', [jobId]);
     });
     res.json({ ok: true });
   } catch (err) {
