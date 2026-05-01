@@ -140,6 +140,14 @@ function getQuotingLogic() {
 // See server.sqlite.js for the original CREATE TABLE statements.
 // See scripts/convert-to-pg.js for the migration script.
 
+// Run soft-delete migration early so queries work even in tests
+(async function runMigrations() {
+  try {
+    await db.run('ALTER TABLE sessions ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ DEFAULT NULL');
+    await db.run('ALTER TABLE jobs ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ DEFAULT NULL');
+  } catch (e) { /* already exists or test env */ }
+})();
+
 async function getSession(id) {
   const row = await db.get('SELECT * FROM sessions WHERE id = ? AND deleted_at IS NULL', [id]);
   if (!row) return null;
