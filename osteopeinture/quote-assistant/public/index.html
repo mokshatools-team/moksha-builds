@@ -2574,9 +2574,29 @@ const MAX_CLIENT_IMAGE_COUNT = 15;
 
 // ── SIDEBAR ──────────────────────────────────────────
 
+let _sessionListCache = null;
+let _sessionFetchInFlight = null;
+
+async function fetchSessions(force) {
+  if (!force && _sessionListCache) return _sessionListCache;
+  if (_sessionFetchInFlight) return _sessionFetchInFlight;
+  _sessionFetchInFlight = fetch('/api/sessions').then(function(r) { return r.json(); }).then(function(data) {
+    _sessionListCache = data;
+    _sessionFetchInFlight = null;
+    return data;
+  }).catch(function(err) {
+    _sessionFetchInFlight = null;
+    throw err;
+  });
+  return _sessionFetchInFlight;
+}
+
+function invalidateSessionCache() {
+  _sessionListCache = null;
+}
+
 async function loadSidebar() {
-  const res = await fetch('/api/sessions');
-  const allSessions = await res.json();
+  const allSessions = await fetchSessions();
   // Hide quotes that have been converted to jobs — they live in the Jobs sidebar now.
   const activeSessions = allSessions.filter(s => !s.converted_job_id && s.status !== 'archived');
   const archivedSessions = allSessions.filter(s => !s.converted_job_id && s.status === 'archived');
@@ -2628,17 +2648,16 @@ async function loadSidebar() {
   list.innerHTML = html;
 }
 
-let sidebarClickTimer = null;
 let isRenaming = false;
 
 function handleSidebarClick(id) {
   if (isRenaming) return;
-  if (sidebarClickTimer) clearTimeout(sidebarClickTimer);
-  sidebarClickTimer = setTimeout(() => { loadSession(id); }, 250);
+  document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
+  if (event && event.currentTarget) event.currentTarget.classList.add('active');
+  loadSession(id);
 }
 
 function startRenameSession(id, el) {
-  if (sidebarClickTimer) clearTimeout(sidebarClickTimer);
   isRenaming = true;
   const currentName = el.textContent.trim();
   const input = document.createElement('input');
@@ -2672,6 +2691,7 @@ function startRenameSession(id, el) {
       } catch (e) { /* revert on error */ }
     }
     isRenaming = false;
+    invalidateSessionCache();
     loadSidebar();
   }
 
@@ -2707,10 +2727,20 @@ async function deleteSession(id, btn) {
       document.getElementById('chat-header-title').textContent = 'New Quote';
       document.getElementById('session-badge').style.display = 'none';
     }
+    invalidateSessionCache();
     loadSidebar();
   } catch (e) {
     alert('Failed to delete: ' + e.message);
   }
+}
+
+function setActiveSessionInSidebar(id) {
+  document.querySelectorAll('.sidebar-item').forEach(function(el) {
+    el.classList.remove('active');
+    if (el.getAttribute('onclick') && el.getAttribute('onclick').includes(id)) {
+      el.classList.add('active');
+    }
+  });
 }
 
 async function loadSession(id) {
@@ -2767,7 +2797,7 @@ async function loadSession(id) {
   document.getElementById('session-badge').style.display = 'none';
   document.getElementById('chat-header-title').textContent = session.project_id || session.client_name || 'New Quote';
   updateConvertButton(session);
-  loadSidebar();
+  setActiveSessionInSidebar(id);
 }
 
 // ── SESSION MANAGEMENT ──────────────────────────────
@@ -2788,6 +2818,7 @@ async function startNewSession() {
   document.getElementById('chat-header-title').textContent = title;
   clearQuote();
   setStatus('gathering');
+  invalidateSessionCache();
   loadSidebar();
 
   appendMessage('assistant', 'Internal quote builder. Send the job details and files.');
@@ -4409,12 +4440,32 @@ function jobsSectionHeader(label, count) {
   return `<div style="padding:14px 4px 6px;font-size:10px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--text-4);font-family:var(--font-sans)">${label} <span style="color:var(--text-3);font-weight:500">(${count})</span></div>`;
 }
 
+let _jobsCache = null;
+let _jobsFetchInFlight = null;
+
+async function fetchJobs(force) {
+  if (!force && _jobsCache) return _jobsCache;
+  if (_jobsFetchInFlight) return _jobsFetchInFlight;
+  _jobsFetchInFlight = fetch('/api/jobs').then(function(r) { return r.json(); }).then(function(data) {
+    _jobsCache = data;
+    _jobsFetchInFlight = null;
+    return data;
+  }).catch(function(err) {
+    _jobsFetchInFlight = null;
+    throw err;
+  });
+  return _jobsFetchInFlight;
+}
+
+function invalidateJobsCache() {
+  _jobsCache = null;
+}
+
 async function loadJobs() {
   const list = document.getElementById('jobs-list');
   list.innerHTML = '<div style="text-align:center;color:var(--text-3);padding:20px">Loading jobs...</div>';
   try {
-    const res = await fetch('/api/jobs');
-    const jobs = await res.json();
+    const jobs = await fetchJobs();
     if (jobs.length === 0) {
       list.innerHTML = '<div style="text-align:center;color:var(--text-3);padding:40px 20px"><p>No jobs yet.</p><p style="font-size:12px;margin-top:8px">Convert a quote to a job to get started.</p></div>';
       return;
@@ -4947,6 +4998,7 @@ async function openJobDetail(jobId, source) {
           body: JSON.stringify({ job_number: newName }),
         });
         job.job_number = newName;
+        invalidateJobsCache();
         loadJobsSidebar();
         loadJobs();
       } catch (e) { title.textContent = job.job_number; }
@@ -4998,7 +5050,7 @@ async function openJobDetail(jobId, source) {
       <!-- STATUS -->
       <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px;">
         <span style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3);font-family:var(--font-sans)">Status</span>
-        <select data-field="status" data-job-id="${job.id}" onchange="saveJobField(this);loadJobs();loadJobsSidebar()" style="flex:1;max-width:200px;padding:6px 10px;background:var(--surface-1);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:13px;font-family:var(--font-sans)">
+        <select data-field="status" data-job-id="${job.id}" onchange="saveJobField(this);invalidateJobsCache();loadJobs();loadJobsSidebar()" style="flex:1;max-width:200px;padding:6px 10px;background:var(--surface-1);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:13px;font-family:var(--font-sans)">
           <option value="active" ${job.status==='active'?'selected':''}>Active</option>
           <option value="upcoming" ${job.status==='upcoming'?'selected':''}>Upcoming</option>
           <option value="completed" ${job.status==='completed'?'selected':''}>Completed</option>
@@ -5098,6 +5150,7 @@ function closeJobDetail() {
   // return to whatever was underneath (chat / quote / sidebar list).
   if (jobOpenedFrom === 'dashboard') {
     document.getElementById('jobs-panel').classList.add('visible');
+    invalidateJobsCache();
     loadJobs();
   }
   jobOpenedFrom = null;
@@ -5424,8 +5477,7 @@ async function loadJobsSidebar() {
   const list = document.getElementById('sidebar-jobs-list');
   const ribbonColors = { active: '#7a9a6a', upcoming: '#c49a5c', completed: '#6a8a9a', archived: '#666' };
   try {
-    const res = await fetch('/api/jobs');
-    const jobs = await res.json();
+    const jobs = await fetchJobs();
     if (!jobs.length) {
       list.innerHTML = '<div style="padding:16px;color:var(--text-3);font-size:12px;text-align:center;">No jobs yet.<br>Convert a quote to get started.</div>';
       return;
@@ -5500,6 +5552,7 @@ async function setSessionStatus(sessionId, newStatus, selectEl) {
     if (selectEl) {
       selectEl.className = 'sidebar-status-select ' + newStatus;
     }
+    invalidateSessionCache();
     loadSidebar();
   } catch (err) {
     alert('Error: ' + err.message);
@@ -5564,7 +5617,9 @@ async function convertViaStatusBadge(sessionId) {
     });
     const data = await res.json();
     if (res.ok) {
+      invalidateSessionCache();
       loadSidebar();
+      invalidateJobsCache();
       if (typeof loadJobs === 'function') loadJobs();
       alert('Job created: ' + (data.job_number || 'OK'));
     } else {
@@ -5771,6 +5826,8 @@ async function confirmConvertToJob() {
     });
     const data = await res.json();
     if (res.ok) {
+      invalidateSessionCache();
+      invalidateJobsCache();
       closeConvertModal();
       mobileNavTo('jobs');
     } else {
@@ -6142,7 +6199,9 @@ async function deleteJob(jobId, clientName) {
     const data = await res.json();
     if (res.ok) {
       closeJobDetail();
+      invalidateJobsCache();
       if (typeof loadJobs === 'function') loadJobs();
+      invalidateSessionCache();
       if (typeof loadSidebar === 'function') loadSidebar();
     } else {
       alert('Error: ' + (data.error || 'Delete failed'));
@@ -6282,6 +6341,17 @@ loadSidebar();
   }
 })();
 window.addEventListener('resize', updateQuoteScale);
+document.addEventListener('visibilitychange', function() {
+  if (document.visibilityState === 'visible') {
+    invalidateSessionCache();
+    loadSidebar();
+    if (typeof currentSidebarMode !== 'undefined' && currentSidebarMode === 'jobs') {
+      invalidateJobsCache();
+      loadJobs();
+      loadJobsSidebar();
+    }
+  }
+});
 </script>
 </body>
 </html>
