@@ -2178,37 +2178,43 @@ async function handleSessionMessage(req, res) {
         // This preserves manual edits to descriptions, items, etc.
         const existingQuote = session.quoteJson;
         if (existingQuote && existingQuote.sections && quoteJson.sections) {
-          // Save snapshot for undo
-          session._previousQuoteJson = JSON.parse(JSON.stringify(existingQuote));
+          // Save snapshot for undo (persisted in emailMeta so it survives restarts)
+          if (!session.emailMeta) session.emailMeta = {};
+          session.emailMeta._previousQuoteJson = JSON.parse(JSON.stringify(existingQuote));
+
+          // Fuzzy match: normalize section identifiers for comparison
+          function secKey(s) {
+            return (s.name || s.title || s.floor || '')
+              .toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 20);
+          }
 
           const mergedSections = [];
+          const matchedOldIndices = new Set();
           for (const newSec of quoteJson.sections) {
-            const newKey = newSec.name || newSec.title || newSec.floor || '';
-            const oldSec = existingQuote.sections.find(s =>
-              (s.name || s.title || s.floor || '') === newKey
-            );
-            if (oldSec) {
-              // Field-level merge: start from draft, apply only changed fields
+            const nk = secKey(newSec);
+            // Find best match in existing draft (fuzzy)
+            let bestIdx = -1;
+            for (let i = 0; i < existingQuote.sections.length; i++) {
+              if (matchedOldIndices.has(i)) continue;
+              if (secKey(existingQuote.sections[i]) === nk) { bestIdx = i; break; }
+            }
+            if (bestIdx >= 0) {
+              matchedOldIndices.add(bestIdx);
+              const oldSec = existingQuote.sections[bestIdx];
+              // Field-level merge: start from draft, apply only fields Claude changed
               const merged = JSON.parse(JSON.stringify(oldSec));
               if (newSec.total !== oldSec.total) merged.total = newSec.total;
               if ((newSec.range || '') !== (oldSec.range || '')) merged.range = newSec.range;
               if (newSec.excluded !== oldSec.excluded) merged.excluded = newSec.excluded;
               if (newSec.optional !== oldSec.optional) merged.optional = newSec.optional;
-              // Only replace items if Claude actually changed them
-              if (JSON.stringify(newSec.items) !== JSON.stringify(oldSec.items)) {
-                merged.items = newSec.items;
-              }
               mergedSections.push(merged);
             } else {
               mergedSections.push(newSec);
             }
           }
-          // Keep draft sections Claude omitted
-          for (const oldSec of existingQuote.sections) {
-            const oldKey = oldSec.name || oldSec.title || oldSec.floor || '';
-            if (!quoteJson.sections.some(s => (s.name || s.title || s.floor || '') === oldKey)) {
-              mergedSections.push(oldSec);
-            }
+          // Keep draft sections Claude omitted entirely
+          for (let i = 0; i < existingQuote.sections.length; i++) {
+            if (!matchedOldIndices.has(i)) mergedSections.push(existingQuote.sections[i]);
           }
           quoteJson.sections = mergedSections;
           // Preserve draft paints/modalities/terms unless Claude changed them
@@ -2419,9 +2425,10 @@ app.post('/api/sessions/:id/send-email', async (req, res) => {
 app.post('/api/sessions/:id/undo-quote', async (req, res) => {
   const session = await getSession(req.params.id);
   if (!session) return res.status(404).json({ error: 'Session not found' });
-  if (!session._previousQuoteJson) return res.status(400).json({ error: 'Nothing to undo' });
-  session.quoteJson = session._previousQuoteJson;
-  delete session._previousQuoteJson;
+  const prev = session.emailMeta && session.emailMeta._previousQuoteJson;
+  if (!prev) return res.status(400).json({ error: 'Nothing to undo' });
+  session.quoteJson = prev;
+  delete session.emailMeta._previousQuoteJson;
   let total = 0;
   for (const sec of (session.quoteJson.sections || [])) {
     if (sec.excluded || sec.optional) continue;
