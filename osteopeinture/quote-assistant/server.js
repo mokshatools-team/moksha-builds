@@ -15,6 +15,7 @@ const {
   summarizeImageUpload,
 } = require('./lib/image-upload');
 const { ensureDatabase, scheduleBackup, backupToDrive } = require('./lib/db-backup');
+const pgBackup = require('./lib/pg-backup');
 const { calculateScaffold } = require('./lib/scaffold-engine');
 
 // ============================================================
@@ -4369,6 +4370,33 @@ app.post('/api/backup', async (req, res) => {
   }
 });
 
+// ── POSTGRES BACKUP ──────────────────────────────────────────
+app.post('/api/admin/backup', async (req, res) => {
+  try {
+    const result = await pgBackup.saveBackup(db);
+    res.json(result);
+  } catch (err) {
+    console.error('[backup] Error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/admin/backups', async (req, res) => {
+  try {
+    res.json(await pgBackup.listBackups());
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/admin/backups/:filename', (req, res) => {
+  const filePath = pgBackup.getBackupPath(req.params.filename);
+  if (!filePath) return res.status(404).json({ error: 'Backup not found' });
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Content-Disposition', 'attachment; filename="' + req.params.filename + '"');
+  res.sendFile(filePath);
+});
+
 // Version endpoint for deploy verification
 // ── PAST QUOTES SEARCH ─────────────────────────────────────────────────
 // Searches the past_quotes table for historical quote data. Used by
@@ -4445,6 +4473,14 @@ if (require.main === module) {
     }).catch((err) => {
       console.error('[db-backup] Startup backup error:', err.message);
     });
+    // Run Postgres JSON backup 15 seconds after startup (let app initialize first)
+    setTimeout(async function() {
+      try {
+        await pgBackup.saveBackup(db);
+      } catch (e) {
+        console.error('[backup] Startup backup failed:', e.message);
+      }
+    }, 15000);
   });
 }
 
