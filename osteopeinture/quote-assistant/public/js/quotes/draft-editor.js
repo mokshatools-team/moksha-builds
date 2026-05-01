@@ -42,8 +42,9 @@ function renderDraftEditor(q) {
       }
       currentFloor = floor;
       const gt = computeGroupTotal(sections, floor);
-      html += '<div class="draft-group" data-floor="' + esc(floor) + '">';
+      html += '<div class="draft-group" data-floor="' + esc(floor) + '" ondragover="draftDragOver(event)" ondrop="draftDrop(event,\'group\',' + si + ')" ondragleave="draftDragLeave(event)">';
       html += '<div class="draft-group-label">';
+      html += '<span class="drag-handle" draggable="true" ondragstart="draftDragStart(event,\'group\',' + si + ')" ondragend="draftDragEnd(event)">&#x2630;</span>';
       html += '<input type="text" value="' + esc(floor) + '" data-field="floor" data-group="' + esc(floor) + '" oninput="draftUpdateFloor(this)" style="flex:1;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px">';
       html += '<span class="group-total">' + fmtDraft(gt) + '</span>';
       html += '</div>';
@@ -443,20 +444,20 @@ function draftDragStart(e, type, si, ii) {
   draftDragData = { type, si, ii };
   e.dataTransfer.effectAllowed = 'move';
   e.dataTransfer.setData('text/plain', ''); // required for Firefox
-  // Slight delay to let the drag image form
-  setTimeout(() => e.target.closest('.draft-section, .draft-item')?.classList.add('dragging'), 0);
+  var dragEl = e.target.closest('.draft-section, .draft-item, .draft-group');
+  if (dragEl) setTimeout(function() { dragEl.classList.add('dragging'); }, 0);
 }
 
 function draftDragOver(e) {
   if (!draftDragData) return;
   e.preventDefault();
   e.dataTransfer.dropEffect = 'move';
-  const target = e.target.closest('.draft-section, .draft-item');
+  const target = e.target.closest('.draft-section, .draft-item, .draft-group');
   if (target) target.classList.add('drag-over');
 }
 
 function draftDragLeave(e) {
-  const target = e.target.closest('.draft-section, .draft-item');
+  const target = e.target.closest('.draft-section, .draft-item, .draft-group');
   if (target) target.classList.remove('drag-over');
 }
 
@@ -475,7 +476,32 @@ function draftDrop(e, targetType, targetSi, targetIi) {
 
   document.querySelectorAll('#quote-draft .drag-over').forEach(el => el.classList.remove('drag-over'));
 
-  if (src.type === 'section' && targetType === 'section' && src.si !== targetSi) {
+  if (src.type === 'group' && (targetType === 'group' || targetType === 'section')) {
+    // Move entire group (all sections with same floor) to target position
+    var srcFloor = draftQuoteJson.sections[src.si] && (draftQuoteJson.sections[src.si].floor || draftQuoteJson.sections[src.si].title);
+    if (srcFloor) {
+      // Collect all sections in this group
+      var groupSections = [];
+      var remaining = [];
+      for (var i = 0; i < draftQuoteJson.sections.length; i++) {
+        var s = draftQuoteJson.sections[i];
+        var sFloor = s.floor || s.title || '';
+        if (sFloor === srcFloor) groupSections.push(s);
+        else remaining.push(s);
+      }
+      // Find insert position in remaining array
+      var insertAt = 0;
+      for (var j = 0; j < remaining.length; j++) {
+        if (j >= targetSi - groupSections.length + (src.si < targetSi ? 0 : groupSections.length)) break;
+        insertAt = j + 1;
+      }
+      // Insert group at target position
+      remaining.splice(insertAt, 0, ...groupSections);
+      draftQuoteJson.sections = remaining;
+      renderDraftEditor(draftQuoteJson);
+      draftMarkDirty();
+    }
+  } else if (src.type === 'section' && targetType === 'section' && src.si !== targetSi) {
     // Move section
     const [moved] = draftQuoteJson.sections.splice(src.si, 1);
     const insertAt = src.si < targetSi ? targetSi - 1 : targetSi;
