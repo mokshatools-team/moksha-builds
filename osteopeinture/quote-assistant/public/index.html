@@ -5420,23 +5420,11 @@ async function loadJobsSidebar() {
 }
 
 async function cycleSessionStatus(sessionId, current) {
-  const options = ['gathering', 'quote_ready', 'sent', 'converted', 'declined', 'archived'];
-  const labels = { gathering: 'In Progress', quote_ready: 'Ready', sent: 'Sent', converted: 'Active (convert to job)', declined: 'Declined', archived: 'Archived' };
-  const choice = prompt(
-    'Set status to:\n' +
-    options.map((o, i) => `  ${i+1}. ${labels[o]}${o === current ? ' (current)' : ''}`).join('\n') +
-    '\n\nEnter number (1-6):'
-  );
-  if (!choice) return;
-  const idx = parseInt(choice) - 1;
-  if (idx < 0 || idx >= options.length) return;
-  const newStatus = options[idx];
-
-  // If converting to a job, run the convert flow instead of just changing the badge
-  if (newStatus === 'converted') {
-    await convertViaStatusBadge(sessionId);
-    return;
-  }
+  // Cycle through statuses on each tap (no prompt — broken on iOS PWA)
+  const cycle = ['gathering', 'quote_ready', 'sent', 'declined', 'archived'];
+  const currentIdx = cycle.indexOf(current);
+  const nextIdx = (currentIdx + 1) % cycle.length;
+  const newStatus = cycle[nextIdx];
 
   try {
     await fetch('/api/sessions/' + sessionId + '/status', {
