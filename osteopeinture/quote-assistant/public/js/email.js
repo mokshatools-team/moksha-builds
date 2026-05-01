@@ -324,11 +324,40 @@ async function generateSessionEmail() {
   }
 }
 
+function showRefineInput(textareaId) {
+  return new Promise(function(resolve) {
+    var container = document.getElementById(textareaId).parentElement;
+    var existing = container.querySelector('.refine-input-row');
+    if (existing) existing.remove();
+    var row = document.createElement('div');
+    row.className = 'refine-input-row';
+    row.style.cssText = 'display:flex;gap:6px;margin:8px 0;';
+    var input = document.createElement('input');
+    input.type = 'text';
+    input.placeholder = 'How to change it? e.g. "shorter", "more formal"...';
+    input.style.cssText = 'flex:1;padding:8px 10px;background:var(--surface-1);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:13px;font-family:var(--font-sans);';
+    var btn = document.createElement('button');
+    btn.textContent = 'Refine';
+    btn.style.cssText = 'padding:8px 14px;background:var(--accent);color:#fff;border:none;border-radius:4px;font-size:12px;font-weight:600;cursor:pointer;';
+    var cancel = document.createElement('button');
+    cancel.textContent = '✕';
+    cancel.style.cssText = 'padding:8px 10px;background:transparent;border:1px solid var(--border);color:var(--text-3);border-radius:4px;cursor:pointer;';
+    row.appendChild(input);
+    row.appendChild(btn);
+    row.appendChild(cancel);
+    container.insertBefore(row, document.getElementById(textareaId));
+    input.focus();
+    btn.onclick = function() { var val = input.value.trim(); row.remove(); resolve(val || null); };
+    cancel.onclick = function() { row.remove(); resolve(null); };
+    input.onkeydown = function(e) { if (e.key === 'Enter') { var val = input.value.trim(); row.remove(); resolve(val || null); } };
+  });
+}
+
 async function refineSessionEmail() {
   if (!currentSessionId) { alert('No active session.'); return; }
-  const currentDraft = document.getElementById('email-body').value.trim();
+  var currentDraft = document.getElementById('email-body').value.trim();
   if (!currentDraft) { alert('Nothing to refine yet — generate a draft first.'); return; }
-  const instruction = prompt('How should this email be changed?\n\ne.g. "Make it shorter", "Add a line about next week", "Be more formal"');
+  var instruction = await showRefineInput('email-body');
   if (!instruction) return;
   try {
     const res = await fetch('/api/sessions/' + currentSessionId + '/email/refine', {
@@ -399,9 +428,9 @@ async function generateStandaloneEmail() {
 }
 
 async function refineStandaloneEmail() {
-  const currentDraft = document.getElementById('stdemail-body').value.trim();
+  var currentDraft = document.getElementById('stdemail-body').value.trim();
   if (!currentDraft) { alert('Nothing to refine yet — generate a draft first.'); return; }
-  const instruction = prompt('How should this email be changed?\n\ne.g. "Make it shorter", "Add a line about next week", "Be more formal"');
+  var instruction = await showRefineInput('stdemail-body');
   if (!instruction) return;
   try {
     const res = await fetch('/api/email/standalone-refine', {
