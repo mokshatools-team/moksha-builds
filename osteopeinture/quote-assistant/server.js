@@ -140,7 +140,7 @@ function getQuotingLogic() {
 // See scripts/convert-to-pg.js for the migration script.
 
 async function getSession(id) {
-  const row = await db.get('SELECT * FROM sessions WHERE id = ?', [id]);
+  const row = await db.get('SELECT * FROM sessions WHERE id = ? AND deleted_at IS NULL', [id]);
   if (!row) return null;
   return {
     ...row,
@@ -193,19 +193,20 @@ async function saveSession(session) {
 }
 
 async function listSessions() {
-  // Auto-cleanup: delete empty NEW_ sessions older than 5 minutes (abandoned starts)
+  // Auto-cleanup: soft-delete empty NEW_ sessions older than 5 minutes (abandoned starts)
   try {
     await db.run(`
-      DELETE FROM sessions
+      UPDATE sessions SET deleted_at = NOW()
       WHERE project_id LIKE 'NEW_%'
         AND quote_json IS NULL
         AND messages = '[]'
+        AND deleted_at IS NULL
         AND updated_at < (NOW() - INTERVAL '5 minutes')
     `);
   } catch (e) { /* ignore cleanup errors */ }
   return await db.all(`
     SELECT id, created_at, updated_at, client_name, project_id, address, total_amount, status, email_recipient, converted_job_id
-    FROM sessions ORDER BY updated_at DESC LIMIT 50
+    FROM sessions WHERE deleted_at IS NULL ORDER BY updated_at DESC LIMIT 50
   `);
 }
 
@@ -2556,11 +2557,11 @@ app.delete('/api/attachments/:id', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Delete session
+// Delete session (soft delete)
 app.delete('/api/sessions/:id', async (req, res) => {
   const session = await getSession(req.params.id);
   if (!session) return res.status(404).json({ error: 'Session not found' });
-  await db.run('DELETE FROM sessions WHERE id = ?', [req.params.id]);
+  await db.run('UPDATE sessions SET deleted_at = NOW() WHERE id = ?', [req.params.id]);
   res.json({ ok: true });
 });
 
@@ -4441,6 +4442,11 @@ if (require.main === module) {
       await db.run('CREATE INDEX IF NOT EXISTS idx_attachments_session ON attachments(session_id)');
       await db.run('CREATE INDEX IF NOT EXISTS idx_attachments_job ON attachments(job_id)');
     } catch (e) { console.log('[attachments] table setup:', e.message); }
+    // Soft-delete migrations
+    try {
+      await db.run('ALTER TABLE sessions ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ DEFAULT NULL');
+      await db.run('ALTER TABLE jobs ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ DEFAULT NULL');
+    } catch (e) { console.log('[migrations] soft-delete columns:', e.message); }
     // Restore/backup in background after server is up
     ensureDatabase(DB_PATH).then((status) => {
       console.log(`[db-backup] DB status: ${status}`);
