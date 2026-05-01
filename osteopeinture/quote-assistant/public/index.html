@@ -4865,20 +4865,37 @@ async function openJobDetail(jobId, source) {
     const job = await res.json();
     title.textContent = job.job_number || job.client_name;
     title.style.cursor = 'pointer';
-    title.title = 'Click to rename';
-    title.onclick = async () => {
-      const newName = prompt('Rename job ID:', job.job_number || '');
-      if (!newName || newName === job.job_number) return;
+    title.title = 'Tap to rename';
+    title.contentEditable = false;
+    title.onclick = () => {
+      title.contentEditable = true;
+      title.focus();
+      // Select all text
+      const range = document.createRange();
+      range.selectNodeContents(title);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+    };
+    title.onblur = async () => {
+      title.contentEditable = false;
+      const newName = title.textContent.trim();
+      if (!newName || newName === job.job_number) {
+        title.textContent = job.job_number || job.client_name;
+        return;
+      }
       try {
         await fetch('/api/jobs/' + jobId, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ job_number: newName }),
         });
-        title.textContent = newName;
+        job.job_number = newName;
         loadJobsSidebar();
-      } catch (e) { alert('Rename failed: ' + e.message); }
+        loadJobs();
+      } catch (e) { title.textContent = job.job_number; }
     };
+    title.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); title.blur(); } };
 
     const isCash = job.payment_type === 'cash';
     const effectiveTotal = (job.effectiveTotalCents || job.quote_total_cents || 0) / 100;
@@ -5349,6 +5366,7 @@ function switchSidebarMode(mode) {
 
 async function loadJobsSidebar() {
   const list = document.getElementById('sidebar-jobs-list');
+  const ribbonColors = { active: '#7a9a6a', upcoming: '#c49a5c', completed: '#6a8a9a', archived: '#666' };
   try {
     const res = await fetch('/api/jobs');
     const jobs = await res.json();
@@ -5356,31 +5374,44 @@ async function loadJobsSidebar() {
       list.innerHTML = '<div style="padding:16px;color:var(--text-3);font-size:12px;text-align:center;">No jobs yet.<br>Convert a quote to get started.</div>';
       return;
     }
-    const active = jobs.filter(j => j.status === 'active');
-    const closed = jobs.filter(j => j.status !== 'active');
-    let html = '';
-    for (const j of active) {
+    const buckets = { active: [], upcoming: [], completed: [], archived: [] };
+    for (const j of jobs) {
+      const cat = classifyJob(j);
+      if (cat === 'past') buckets[j.status === 'archived' ? 'archived' : 'completed'].push(j);
+      else buckets[cat].push(j);
+    }
+    function renderSidebarJob(j, color, dimmed) {
       const shortAddr = j.address ? j.address.split(',')[0].trim() : '';
       const isCash = j.payment_type === 'cash';
       const effectiveTotal = isCash && j.agreed_total_cents ? j.agreed_total_cents : j.quote_total_cents;
       const totalStr = effectiveTotal ? '$' + (effectiveTotal / 100).toLocaleString('fr-CA', {maximumFractionDigits:0}) : '';
-      html += `<div class="sidebar-item" onclick="openJobDetail('${j.id}','sidebar');closeSidebar();" style="cursor:pointer">
-        <div class="sidebar-item-client">${esc(j.job_number)}</div>
+      return `<div class="sidebar-item" onclick="openJobDetail('${j.id}','sidebar');closeSidebar();" style="cursor:pointer;border-left:3px solid ${color};padding-left:13px;${dimmed ? 'opacity:0.5;' : ''}">
+        <div class="sidebar-item-client" style="font-family:var(--font-serif)">${esc(j.job_number)}</div>
         <div class="sidebar-item-meta">
           <span class="sidebar-item-id">${esc(shortAddr)}</span>
           <span class="sidebar-item-total">${totalStr}${isCash ? ' <span style="font-size:9px;color:var(--text-4)">cash</span>' : ''}</span>
         </div>
       </div>`;
     }
-    if (closed.length > 0) {
-      html += '<div style="padding:14px 16px 6px;font-size:9px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--text-4);font-family:var(--font-sans);">Closed</div>';
-      for (const j of closed) {
-        const shortAddr = j.address ? j.address.split(',')[0].trim() : '';
-        html += `<div class="sidebar-item" onclick="openJobDetail('${j.id}','sidebar');closeSidebar();" style="cursor:pointer;opacity:0.6">
-          <div class="sidebar-item-client">${esc(j.job_number)}</div>
-          <div class="sidebar-item-meta"><span class="sidebar-item-id">${esc(shortAddr)}</span></div>
-        </div>`;
-      }
+    function sectionLabel(label) {
+      return '<div style="padding:14px 16px 6px;font-size:9px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--text-4);font-family:var(--font-sans);">' + label + '</div>';
+    }
+    let html = '';
+    if (buckets.active.length) {
+      html += sectionLabel('Active Jobs');
+      html += buckets.active.map(j => renderSidebarJob(j, ribbonColors.active, false)).join('');
+    }
+    if (buckets.upcoming.length) {
+      html += sectionLabel('Upcoming');
+      html += buckets.upcoming.map(j => renderSidebarJob(j, ribbonColors.upcoming, false)).join('');
+    }
+    if (buckets.completed.length) {
+      html += sectionLabel('Completed');
+      html += buckets.completed.map(j => renderSidebarJob(j, ribbonColors.completed, true)).join('');
+    }
+    if (buckets.archived.length) {
+      html += sectionLabel('Archived');
+      html += buckets.archived.map(j => renderSidebarJob(j, ribbonColors.archived, true)).join('');
     }
     list.innerHTML = html;
   } catch (err) {
