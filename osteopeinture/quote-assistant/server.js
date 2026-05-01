@@ -20,6 +20,7 @@ const { calculateScaffold } = require('./lib/scaffold-engine');
 const { renderQuoteHTML, esc } = require('./lib/quote-renderer');
 const { mergeQuoteJson } = require('./lib/quote-merge');
 const { extractJsonString, buildCompactStoredUserContent } = require('./lib/shared');
+const sessionService = require('./services/session-service');
 
 // ============================================================
 // SUPABASE STORAGE (file attachments)
@@ -46,6 +47,7 @@ if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 // db.js handles connection pool, ? → $N placeholder conversion, transactions.
 const db = require('./db');
 const DB_PATH = path.join(DATA_DIR, 'sessions.db'); // kept for backup endpoint compatibility — file may not exist on Supabase builds
+sessionService.init(db, DB_PATH);
 
 // Seed QUOTING_LOGIC.md to DATA_DIR on first run so it persists on the volume.
 // Force-reseed on version bump: compare the `# Version:` header line in the
@@ -151,76 +153,13 @@ function getQuotingLogic() {
   } catch (e) { /* already exists or test env */ }
 })();
 
-async function getSession(id) {
-  const row = await db.get('SELECT * FROM sessions WHERE id = ? AND deleted_at IS NULL', [id]);
-  if (!row) return null;
-  return {
-    ...row,
-    // Alias snake_case DB columns to camelCase used by the app code.
-    // Without this, saveSession() reads undefined camelCase fields and
-    // wipes the DB values on every subsequent save.
-    clientName: row.client_name,
-    projectId: row.project_id,
-    totalAmount: row.total_amount,
-    createdAt: row.created_at,
-    emailRecipient: row.email_recipient,
-    messages: JSON.parse(row.messages || '[]'),
-    quoteJson: row.quote_json ? JSON.parse(row.quote_json) : null,
-    emailMeta: row.email_meta ? JSON.parse(row.email_meta) : {},
-  };
-}
+// getSession, saveSession, listSessions, nextProjectId → services/session-service.js
+const getSession = sessionService.getSession;
+const saveSession = sessionService.saveSession;
+const listSessions = sessionService.listSessions;
+const nextProjectId = sessionService.nextProjectId;
 
-async function saveSession(session) {
-  const now = new Date().toISOString();
-  const params = [
-    session.id,
-    session.createdAt || now,
-    now,
-    session.clientName || null,
-    session.projectId || null,
-    session.address || null,
-    session.totalAmount || null,
-    session.status || 'gathering',
-    JSON.stringify(session.messages || []),
-    session.quoteJson ? JSON.stringify(session.quoteJson) : null,
-    session.emailRecipient || null,
-    JSON.stringify(session.emailMeta || {}),
-  ];
-  await db.run(`
-    INSERT INTO sessions (id, created_at, updated_at, client_name, project_id, address, total_amount, status, messages, quote_json, email_recipient, email_meta)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ON CONFLICT(id) DO UPDATE SET
-      updated_at = EXCLUDED.updated_at,
-      client_name = EXCLUDED.client_name,
-      project_id = EXCLUDED.project_id,
-      address = EXCLUDED.address,
-      total_amount = EXCLUDED.total_amount,
-      status = EXCLUDED.status,
-      messages = EXCLUDED.messages,
-      quote_json = EXCLUDED.quote_json,
-      email_recipient = EXCLUDED.email_recipient,
-      email_meta = EXCLUDED.email_meta
-  `, params);
-  scheduleBackup(DB_PATH);
-}
 
-async function listSessions() {
-  // Auto-cleanup: soft-delete empty NEW_ sessions older than 5 minutes (abandoned starts)
-  try {
-    await db.run(`
-      UPDATE sessions SET deleted_at = NOW()
-      WHERE project_id LIKE 'NEW_%'
-        AND quote_json IS NULL
-        AND messages = '[]'
-        AND deleted_at IS NULL
-        AND updated_at < (NOW() - INTERVAL '5 minutes')
-    `);
-  } catch (e) { /* ignore cleanup errors */ }
-  return await db.all(`
-    SELECT id, created_at, updated_at, client_name, project_id, address, total_amount, status, email_recipient, converted_job_id
-    FROM sessions WHERE deleted_at IS NULL ORDER BY updated_at DESC LIMIT 50
-  `);
-}
 
 // ============================================================
 // JOB MANAGEMENT HELPERS
@@ -1374,19 +1313,6 @@ function sendUploadError(res, error) {
 // API ROUTES
 // ============================================================
 
-// Generate next sequential project ID with a given prefix
-async function nextProjectId(prefix) {
-  const rows = await db.all(
-    "SELECT project_id FROM sessions WHERE project_id LIKE ? ORDER BY project_id DESC LIMIT 1",
-    [prefix + '_%']
-  );
-  let num = 1;
-  if (rows.length) {
-    const match = rows[0].project_id.match(/_(\d+)$/);
-    if (match) num = parseInt(match[1], 10) + 1;
-  }
-  return `${prefix}_${String(num).padStart(2, '0')}`;
-}
 
 // Create session
 async function createSessionHandler(req, res) {
