@@ -59,5 +59,10 @@ var _sessionFetchInFlight = null;
 var _jobsCache = null;
 var _jobsFetchInFlight = null;
 
+// Job panel state
+var activeJobTab = 'chat';
+var activeDocSubTab = 'invoice';
+var jobPanelVisible = false;
+
 // Constants
 var MAX_CLIENT_IMAGE_COUNT = 15;

@@ -135,6 +135,29 @@ function getQuotingLogic() {
   try {
     await db.run('ALTER TABLE sessions ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ DEFAULT NULL');
     await db.run('ALTER TABLE jobs ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ DEFAULT NULL');
+
+    await db.run(`CREATE TABLE IF NOT EXISTS job_documents (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  job_id UUID NOT NULL,
+  doc_type TEXT NOT NULL CHECK (doc_type IN ('invoice', 'cost_update')),
+  version INTEGER NOT NULL DEFAULT 1,
+  sections JSONB NOT NULL,
+  paints JSONB,
+  status TEXT NOT NULL DEFAULT 'saved' CHECK (status IN ('saved', 'sent')),
+  sent_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  deleted_at TIMESTAMPTZ
+)`);
+    await db.run('CREATE INDEX IF NOT EXISTS idx_job_documents_job ON job_documents(job_id)');
+
+    await db.run(`CREATE TABLE IF NOT EXISTS job_messages (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  job_id UUID NOT NULL,
+  role TEXT NOT NULL CHECK (role IN ('user', 'assistant', 'system')),
+  content TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+)`);
+    await db.run('CREATE INDEX IF NOT EXISTS idx_job_messages_job ON job_messages(job_id)');
   } catch (e) { /* already exists or test env */ }
 })();
 
