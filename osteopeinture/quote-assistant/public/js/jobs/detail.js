@@ -283,13 +283,8 @@ async function openJobDetail(jobId, source) {
       <div style="margin-bottom:20px;">
         <h3 style="font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-2);margin-bottom:8px;font-family:var(--font-sans)">Actions</h3>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
-          <button class="job-action-btn" onclick="openStandaloneEmail('${job.id}')" style="font-size:11px;padding:8px 10px">Draft Email</button>
-          <button class="job-action-btn" onclick="openSmartPaste('${job.id}')" style="font-size:11px;padding:8px 10px">Paste Apple Note</button>
-          ${job.quote_session_id ? '<button class="job-action-btn" onclick="viewJobQuote(\'' + job.quote_session_id + '\',\'' + job.id + '\')" style="font-size:11px;padding:8px 10px">View Quote</button>' : ''}
-          <button class="job-action-btn" onclick="openCostUpdate('${job.id}')" style="font-size:11px;padding:8px 10px">Cost Update</button>
-          <button class="job-action-btn" onclick="openCostUpdate('${job.id}','invoice')" style="font-size:11px;padding:8px 10px">Invoice</button>
           <button class="job-action-btn" onclick="importJibbleCSV('${job.id}')" style="font-size:11px;padding:8px 10px">Import Jibble</button>
-          <button class="job-action-btn" onclick="promptUpdateTotal('${job.id}', ${effectiveTotal})" style="font-size:11px;padding:8px 10px;grid-column:1/-1">Update ${isCash ? 'Agreed' : 'Quote'} Total</button>
+          <button class="job-action-btn" onclick="promptUpdateTotal('${job.id}', ${effectiveTotal})" style="font-size:11px;padding:8px 10px">Update ${isCash ? 'Agreed' : 'Quote'} Total</button>
         </div>
       </div>
 
@@ -300,6 +295,9 @@ async function openJobDetail(jobId, source) {
     `;
     // Auto-expand all section textareas to fit their content
     setTimeout(autoExpandAllSections, 0);
+    initJobPanelDivider();
+    showJobPanel();
+    setJobTab('chat');
     // Load job attachments async
     fetch('/api/jobs/' + jobId + '/attachments').then(r => r.json()).then(files => {
       const el = document.getElementById('job-attachments-container');
@@ -311,6 +309,7 @@ async function openJobDetail(jobId, source) {
 }
 
 function closeJobDetail() {
+  hideJobPanel();
   document.getElementById('job-detail').classList.remove('visible');
   currentJobId = null;
   // Land back where the user came from. If they opened the job from the

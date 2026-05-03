@@ -1507,13 +1507,71 @@
     cursor: pointer;
     padding: 4px;
   }
+  #job-detail-body {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
   #job-detail-content {
     flex: 1;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     padding: 16px;
     padding-bottom: 80px;
+    min-width: 280px;
   }
+  #job-panel-divider {
+    width: 5px;
+    cursor: col-resize;
+    background: var(--border);
+    flex-shrink: 0;
+  }
+  #job-panel-divider:hover { background: var(--accent-dim); }
+  #job-right-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 300px;
+    overflow: hidden;
+    border-left: 1px solid var(--border);
+  }
+  #job-panel-tabs {
+    display: flex;
+    gap: 4px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .job-tab {
+    padding: 5px 12px;
+    background: var(--surface-1);
+    border: none;
+    border-radius: 4px;
+    color: var(--text-3);
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .job-tab.active { background: var(--accent); color: #fff; }
+  .job-tab-pane { padding: 12px; height: 100%; overflow-y: auto; }
+  #job-panel-content {
+    flex: 1;
+    overflow: hidden;
+  }
+  .doc-sub-tab {
+    padding: 4px 10px;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--text-3);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: var(--font-sans);
+  }
+  .doc-sub-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
   .job-detail-section {
     margin-bottom: 20px;
   }
@@ -1877,6 +1935,13 @@
     #jobs-panel { padding-top: env(safe-area-inset-top); }
     #jobs-header { padding-top: max(14px, env(safe-area-inset-top)); }
     #job-detail-header { padding-top: max(14px, env(safe-area-inset-top)); }
+    #job-panel-divider { display: none; }
+    #job-right-panel { display: none; }
+    #job-detail.showing-panel #job-detail-content { display: none; }
+    #job-detail.showing-panel #job-right-panel { display: flex !important; flex: 1; }
+    #job-detail.showing-panel #job-panel-tabs { display: none; }
+    #mobile-job-nav { display: none !important; }
+    #mobile-job-nav.visible { display: flex !important; }
     #mapping-header { padding-top: max(14px, env(safe-area-inset-top)); }
 
     /* Scale quote preview to fit mobile screen */
@@ -2321,7 +2386,7 @@
   <div id="jobs-list"></div>
 </div>
 
-<!-- JOB DETAIL PANEL -->
+<!-- JOB DETAIL PANEL (dual-panel) -->
 <div id="job-detail">
   <div id="job-detail-header">
     <button id="job-detail-back" onclick="closeJobDetail()">
@@ -2329,7 +2394,22 @@
     </button>
     <h2 id="job-detail-title" style="font-family:var(--font-serif);font-size:18px;color:var(--text);margin:0"></h2>
   </div>
-  <div id="job-detail-content"></div>
+  <div id="job-detail-body">
+    <div id="job-detail-content"></div>
+    <div id="job-panel-divider"></div>
+    <div id="job-right-panel">
+      <div id="job-panel-tabs">
+        <button class="job-tab active" data-tab="chat" onclick="setJobTab('chat')">Chat</button>
+        <button class="job-tab" data-tab="docs" onclick="setJobTab('docs')">Docs</button>
+        <button class="job-tab" data-tab="photos" onclick="setJobTab('photos')">Photos</button>
+      </div>
+      <div id="job-panel-content">
+        <div id="job-tab-chat" class="job-tab-pane"></div>
+        <div id="job-tab-docs" class="job-tab-pane" style="display:none;"></div>
+        <div id="job-tab-photos" class="job-tab-pane" style="display:none;"></div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- ACTIVITY MAPPING SCREEN -->
@@ -2540,6 +2620,25 @@
   </button>
 </div>
 
+<div id="mobile-job-nav" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:300;background:var(--surface-0);border-top:1px solid var(--border);height:48px;padding-bottom:env(safe-area-inset-bottom);">
+  <button class="mobile-nav-tab active" id="jnav-detail" onclick="mobileJobNavTo('detail')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="18" height="18"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="7" y1="8" x2="17" y2="8"/><line x1="7" y1="12" x2="14" y2="12"/><line x1="7" y1="16" x2="11" y2="16"/></svg>
+    Detail
+  </button>
+  <button class="mobile-nav-tab" id="jnav-chat" onclick="mobileJobNavTo('chat')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="18" height="18"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+    Chat
+  </button>
+  <button class="mobile-nav-tab" id="jnav-docs" onclick="mobileJobNavTo('docs')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="18" height="18"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+    Docs
+  </button>
+  <button class="mobile-nav-tab" id="jnav-photos" onclick="mobileJobNavTo('photos')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="18" height="18"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+    Pics
+  </button>
+</div>
+
 <script src="js/state.js"></script>
 <script src="js/api.js"></script>
 <script src="js/shared.js"></script>
@@ -2552,6 +2651,9 @@
 <script src="js/jobs/detail.js"></script>
 <script src="js/jobs/invoice-editor.js"></script>
 <script src="js/email.js"></script>
+<script src="js/jobs/panel.js"></script>
+<script src="js/jobs/chat.js"></script>
+<script src="js/jobs/docs.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>
